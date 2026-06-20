@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_text_styles.dart';
 
 class AccentButton extends StatelessWidget {
   final String label;
@@ -33,7 +34,9 @@ class AccentButton extends StatelessWidget {
         if (icon != null) ...[Icon(icon, size: 20), const SizedBox(width: 8)],
         Text(
           label,
-          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+          style: AppTextStyles.titleSmall.copyWith(
+            color: isOutlined ? btnColor : Colors.white,
+          ),
         ),
       ],
     );
@@ -46,10 +49,10 @@ class AccentButton extends StatelessWidget {
           onPressed: onPressed,
           style: OutlinedButton.styleFrom(
             foregroundColor: btnColor,
-            side: BorderSide(color: btnColor.withValues(alpha: 0.5)),
+            side: BorderSide(color: AppColors.borderLight),
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.circular(12),
             ),
           ),
           child: buttonChild,
@@ -60,34 +63,18 @@ class AccentButton extends StatelessWidget {
     return SizedBox(
       width: isExpanded ? double.infinity : null,
       height: btnHeight,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [btnColor, btnColor.withValues(alpha: 0.85)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
+      child: ElevatedButton(
+        onPressed: onPressed,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: btnColor,
+          foregroundColor: Colors.white,
+          shadowColor: Colors.transparent,
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
           ),
-          borderRadius: BorderRadius.circular(14),
-          boxShadow: [
-            BoxShadow(
-              color: btnColor.withValues(alpha: 0.25),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
-            ),
-          ],
         ),
-        child: ElevatedButton(
-          onPressed: onPressed,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.transparent,
-            shadowColor: Colors.transparent,
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(14),
-            ),
-          ),
-          child: buttonChild,
-        ),
+        child: buttonChild,
       ),
     );
   }

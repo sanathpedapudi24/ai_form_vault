@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_text_styles.dart';
 
 class CategoryChip extends StatelessWidget {
   final String label;
@@ -22,37 +23,15 @@ class CategoryChip extends StatelessWidget {
         curve: Curves.easeOutCubic,
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
         decoration: BoxDecoration(
-          gradient: isSelected
-              ? LinearGradient(
-                  colors: [
-                    AppColors.accent.withValues(alpha: 0.9),
-                    AppColors.accentDark,
-                  ],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                )
-              : null,
-          color: isSelected ? null : AppColors.cardBg,
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(
-            color: isSelected ? Colors.transparent : AppColors.border,
-            width: 1,
-          ),
-          boxShadow: isSelected
-              ? [
-                  BoxShadow(
-                    color: AppColors.accent.withValues(alpha: 0.25),
-                    blurRadius: 12,
-                    offset: const Offset(0, 4),
-                  ),
-                ]
-              : null,
+          color: isSelected ? AppColors.accent : AppColors.bgTertiary,
+          borderRadius: BorderRadius.circular(9999),
+          border: isSelected
+              ? null
+              : Border.all(color: AppColors.borderLight, width: 0.5),
         ),
         child: Text(
           label,
-          style: TextStyle(
-            fontSize: 13,
-            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+          style: AppTextStyles.titleSmall.copyWith(
             color: isSelected ? Colors.white : AppColors.textSecondary,
           ),
         ),

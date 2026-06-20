@@ -79,25 +79,11 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Gap(16),
-              Row(
-                children: [
-                  Container(
-                    width: 8,
-                    height: 8,
-                    decoration: const BoxDecoration(
-                      gradient: AppColors.accentGradient,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                  const Gap(10),
-                  Text(
-                    'Smart Search',
-                    style: AppTextStyles.headlineMedium.copyWith(
-                      color: AppColors.textPrimary,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ],
+              Text(
+                'Smart Search',
+                style: AppTextStyles.headlineMedium.copyWith(
+                  color: AppColors.textPrimary,
+                ),
               ),
               const Gap(4),
               Text(
@@ -145,8 +131,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                 ),
                 suffixIcon: Container(
                   margin: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(
-                    gradient: AppColors.accentGradient,
+                  decoration: const BoxDecoration(
+                    color: AppColors.accent,
                     shape: BoxShape.circle,
                   ),
                   child: IconButton(
@@ -190,18 +176,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               width: 80,
               height: 80,
               decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    AppColors.accent.withValues(alpha: 0.1),
-                    AppColors.accent.withValues(alpha: 0.02),
-                  ],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
+                color: AppColors.bgTertiary,
                 shape: BoxShape.circle,
-                border: Border.all(
-                  color: AppColors.accent.withValues(alpha: 0.15),
-                ),
               ),
               child: const Icon(
                 Icons.search_off_rounded,
@@ -295,14 +271,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                     vertical: 10,
                   ),
                   decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        Colors.white.withValues(alpha: 0.8),
-                        Colors.white.withValues(alpha: 0.5),
-                      ],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
+                    color: Colors.white,
                     borderRadius: BorderRadius.circular(24),
                     border: Border.all(color: AppColors.borderLight),
                   ),
@@ -323,24 +292,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   }
 
   Widget _buildSectionHeader(String title) {
-    return Row(
-      children: [
-        Container(
-          width: 3,
-          height: 16,
-          decoration: BoxDecoration(
-            gradient: AppColors.accentGradient,
-            borderRadius: BorderRadius.circular(2),
-          ),
-        ),
-        const SizedBox(width: 8),
-        Text(
-          title,
-          style: AppTextStyles.titleSmall.copyWith(
-            color: AppColors.textPrimary,
-          ),
-        ),
-      ],
+    return Text(
+      title,
+      style: AppTextStyles.titleMedium.copyWith(color: AppColors.textPrimary),
     );
   }
 }

@@ -161,9 +161,8 @@ class _ScanningScreenState extends ConsumerState<ScanningScreen>
         ),
         title: Text(
           'Scanning Document',
-          style: AppTextStyles.titleLarge.copyWith(
+          style: AppTextStyles.titleMedium.copyWith(
             color: AppColors.textPrimary,
-            fontWeight: FontWeight.w700,
           ),
         ),
         centerTitle: true,
@@ -244,20 +243,9 @@ class _ScanningScreenState extends ConsumerState<ScanningScreen>
       width: double.infinity,
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [AppColors.bgTertiary, AppColors.cardBg],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(20),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
         border: Border.all(color: AppColors.borderLight),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 20,
-            offset: const Offset(0, 4),
-          ),
-        ],
       ),
       child: Row(
         children: [
@@ -265,16 +253,8 @@ class _ScanningScreenState extends ConsumerState<ScanningScreen>
             width: 80,
             height: 100,
             decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  AppColors.info.withValues(alpha: 0.3),
-                  AppColors.info.withValues(alpha: 0.1),
-                ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
+              color: AppColors.info.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppColors.info.withValues(alpha: 0.3)),
             ),
             child: const Icon(Icons.person, color: AppColors.info, size: 40),
           ),
@@ -348,8 +328,8 @@ class _ScanningScreenState extends ConsumerState<ScanningScreen>
           width: double.infinity,
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.8),
-            borderRadius: BorderRadius.circular(16),
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(24),
             border: Border.all(color: AppColors.borderLight),
           ),
           child: Column(

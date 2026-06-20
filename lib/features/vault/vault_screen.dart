@@ -47,25 +47,11 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
         backgroundColor: AppColors.bgPrimary,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
-        title: Row(
-          children: [
-            Container(
-              width: 8,
-              height: 8,
-              decoration: const BoxDecoration(
-                gradient: AppColors.accentGradient,
-                shape: BoxShape.circle,
-              ),
-            ),
-            const Gap(10),
-            Text(
-              'My Vault',
-              style: AppTextStyles.headlineSmall.copyWith(
-                color: AppColors.textPrimary,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ],
+        title: Text(
+          'My Vault',
+          style: AppTextStyles.headlineSmall.copyWith(
+            color: AppColors.textPrimary,
+          ),
         ),
         actions: [
           Container(
@@ -82,7 +68,7 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
                 color: AppColors.textSecondary,
                 size: 20,
               ),
-              onPressed: () {},
+              onPressed: () => context.go('/search'),
             ),
           ),
           const Gap(4),
@@ -194,31 +180,19 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
             child: SizedBox(
               width: double.infinity,
               height: 54,
-              child: Container(
-                decoration: BoxDecoration(
-                  gradient: AppColors.accentGradient,
-                  borderRadius: BorderRadius.circular(14),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.accent.withValues(alpha: 0.25),
-                      blurRadius: 12,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
+              child: ElevatedButton.icon(
+                onPressed: () => context.go('/capture'),
+                icon: const Icon(Icons.add_rounded, size: 22),
+                label: Text(
+                  'Add Document',
+                  style: AppTextStyles.titleSmall.copyWith(color: Colors.white),
                 ),
-                child: ElevatedButton.icon(
-                  onPressed: () => context.go('/capture'),
-                  icon: const Icon(Icons.add_rounded, size: 22),
-                  label: const Text(
-                    'Add Document',
-                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.transparent,
-                    shadowColor: Colors.transparent,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.accent,
+                  foregroundColor: Colors.white,
+                  shadowColor: Colors.transparent,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
                   ),
                 ),
               ),

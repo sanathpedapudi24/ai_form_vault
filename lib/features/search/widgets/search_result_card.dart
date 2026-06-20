@@ -64,16 +64,8 @@ class SearchResultCard extends StatelessWidget {
             width: 48,
             height: 48,
             decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  color.withValues(alpha: 0.2),
-                  color.withValues(alpha: 0.05),
-                ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
+              color: color.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: color.withValues(alpha: 0.15)),
             ),
             child: Icon(icon, color: color, size: 22),
           ),
@@ -101,13 +93,12 @@ class SearchResultCard extends StatelessWidget {
                       ),
                       decoration: BoxDecoration(
                         color: color.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(6),
+                        borderRadius: BorderRadius.circular(9999),
                       ),
                       child: Text(
                         document.type,
                         style: AppTextStyles.labelSmall.copyWith(
                           color: color,
-                          fontSize: 9,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -117,7 +108,6 @@ class SearchResultCard extends StatelessWidget {
                       '${document.ownerName} • ${document.dateFormatted}',
                       style: AppTextStyles.bodySmall.copyWith(
                         color: AppColors.textTertiary,
-                        fontSize: 11,
                       ),
                     ),
                   ],
@@ -130,8 +120,8 @@ class SearchResultCard extends StatelessWidget {
             height: 28,
             decoration: BoxDecoration(
               color: AppColors.bgSecondary,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: AppColors.border),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppColors.borderLight),
             ),
             child: const Icon(
               Icons.chevron_right_rounded,

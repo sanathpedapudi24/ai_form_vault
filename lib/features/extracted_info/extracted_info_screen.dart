@@ -124,13 +124,13 @@ class ExtractedInfoScreen extends ConsumerWidget {
             child: Container(
               margin: const EdgeInsets.symmetric(horizontal: 16),
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.8),
+                color: Colors.white,
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: AppColors.borderLight),
               ),
               child: TabBar(
                 indicator: BoxDecoration(
-                  gradient: AppColors.accentGradient,
+                  color: AppColors.accent,
                   borderRadius: BorderRadius.circular(10),
                 ),
                 indicatorPadding: const EdgeInsets.all(3),
@@ -322,7 +322,6 @@ class _FieldsTabState extends ConsumerState<_FieldsTab> {
                             'Extracted Information',
                             style: AppTextStyles.titleMedium.copyWith(
                               color: AppColors.textPrimary,
-                              fontWeight: FontWeight.w700,
                             ),
                           ),
                           const Spacer(),
@@ -336,7 +335,7 @@ class _FieldsTabState extends ConsumerState<_FieldsTab> {
                                 color: AppColors.warning.withValues(
                                   alpha: 0.12,
                                 ),
-                                borderRadius: BorderRadius.circular(8),
+                                borderRadius: BorderRadius.circular(9999),
                               ),
                               child: Text(
                                 'Review needed',
@@ -445,13 +444,12 @@ class _FieldRowWithActions extends StatelessWidget {
                           ),
                           decoration: BoxDecoration(
                             color: _confidenceColor().withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(4),
+                            borderRadius: BorderRadius.circular(9999),
                           ),
                           child: Text(
                             '${(confidence * 100).toInt()}%',
                             style: AppTextStyles.labelSmall.copyWith(
                               color: _confidenceColor(),
-                              fontSize: 9,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
@@ -465,13 +463,12 @@ class _FieldRowWithActions extends StatelessWidget {
                             ),
                             decoration: BoxDecoration(
                               color: AppColors.warning.withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(4),
+                              borderRadius: BorderRadius.circular(9999),
                             ),
                             child: Text(
                               'low',
                               style: AppTextStyles.labelSmall.copyWith(
                                 color: AppColors.warning,
-                                fontSize: 9,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
@@ -481,9 +478,9 @@ class _FieldRowWithActions extends StatelessWidget {
                     const SizedBox(height: 4),
                     Text(
                       value,
-                      style: AppTextStyles.bodyLarge.copyWith(
+                      style: AppTextStyles.bodyMedium.copyWith(
                         color: AppColors.textPrimary,
-                        fontSize: 15,
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
                   ],
@@ -568,12 +565,8 @@ class _RawTextTab extends StatelessWidget {
         width: double.infinity,
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [AppColors.bgTertiary, AppColors.cardBg],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          borderRadius: BorderRadius.circular(16),
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(24),
           border: Border.all(color: AppColors.borderLight),
         ),
         child: SelectableText(

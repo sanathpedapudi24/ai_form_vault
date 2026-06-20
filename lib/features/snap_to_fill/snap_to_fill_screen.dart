@@ -45,26 +45,11 @@ class SnapToFillScreen extends ConsumerWidget {
             onPressed: () => Navigator.of(context).maybePop(),
           ),
         ),
-        title: Row(
-          children: [
-            Container(
-              width: 8,
-              height: 8,
-              decoration: const BoxDecoration(
-                gradient: AppColors.accentGradient,
-                shape: BoxShape.circle,
-              ),
-            ),
-            const Gap(10),
-            const Text(
-              'Snap-to-Fill',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-                color: AppColors.textPrimary,
-              ),
-            ),
-          ],
+        title: Text(
+          'Snap-to-Fill',
+          style: AppTextStyles.titleMedium.copyWith(
+            color: AppColors.textPrimary,
+          ),
         ),
         centerTitle: false,
         elevation: 0,
@@ -88,20 +73,10 @@ class SnapToFillScreen extends ConsumerWidget {
                   const Gap(24),
                   Row(
                     children: [
-                      Container(
-                        width: 4,
-                        height: 18,
-                        decoration: BoxDecoration(
-                          gradient: AppColors.accentGradient,
-                          borderRadius: BorderRadius.circular(2),
-                        ),
-                      ),
-                      const Gap(10),
                       Text(
                         'Detected Fields',
                         style: AppTextStyles.titleMedium.copyWith(
                           color: AppColors.textPrimary,
-                          fontWeight: FontWeight.w700,
                         ),
                       ),
                       const Gap(8),
@@ -112,7 +87,7 @@ class SnapToFillScreen extends ConsumerWidget {
                         ),
                         decoration: BoxDecoration(
                           color: AppColors.accent.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(9999),
                         ),
                         child: Text(
                           '${fields.length}',
@@ -181,7 +156,7 @@ class SnapToFillScreen extends ConsumerWidget {
                                                   ? AppColors.success
                                                   : AppColors.warning)
                                               .withValues(alpha: 0.12),
-                                      borderRadius: BorderRadius.circular(6),
+                                      borderRadius: BorderRadius.circular(9999),
                                     ),
                                     child: Text(
                                       '$confidencePercent%',
@@ -189,7 +164,6 @@ class SnapToFillScreen extends ConsumerWidget {
                                         color: isHigh
                                             ? AppColors.success
                                             : AppColors.warning,
-                                        fontSize: 9,
                                         fontWeight: FontWeight.w600,
                                       ),
                                     ),
@@ -243,20 +217,9 @@ class _FormPreviewCard extends StatelessWidget {
       height: 220,
       width: double.infinity,
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [AppColors.bgTertiary, AppColors.cardBg],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(20),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
         border: Border.all(color: AppColors.borderLight),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 20,
-            offset: const Offset(0, 4),
-          ),
-        ],
       ),
       child: Stack(
         children: [

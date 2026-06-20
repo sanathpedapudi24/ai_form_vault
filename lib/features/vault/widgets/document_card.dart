@@ -61,16 +61,8 @@ class DocumentCard extends StatelessWidget {
             width: 48,
             height: 48,
             decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  color.withValues(alpha: 0.25),
-                  color.withValues(alpha: 0.05),
-                ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
+              color: color.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: color.withValues(alpha: 0.2)),
             ),
             child: Icon(icon, color: color, size: 22),
           ),
@@ -88,14 +80,13 @@ class DocumentCard extends StatelessWidget {
                       ),
                       decoration: BoxDecoration(
                         color: color.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(6),
+                        borderRadius: BorderRadius.circular(9999),
                       ),
                       child: Text(
                         document.type,
                         style: AppTextStyles.labelSmall.copyWith(
                           color: color,
                           fontWeight: FontWeight.w600,
-                          fontSize: 9,
                         ),
                       ),
                     ),
@@ -113,7 +104,6 @@ class DocumentCard extends StatelessWidget {
                       confidenceLabel,
                       style: AppTextStyles.labelSmall.copyWith(
                         color: confidenceColor,
-                        fontSize: 9,
                       ),
                     ),
                   ],
@@ -133,7 +123,6 @@ class DocumentCard extends StatelessWidget {
                   '${document.ownerName} • ${document.dateFormatted}',
                   style: AppTextStyles.bodySmall.copyWith(
                     color: AppColors.textTertiary,
-                    fontSize: 11,
                   ),
                 ),
               ],
@@ -144,7 +133,7 @@ class DocumentCard extends StatelessWidget {
             height: 32,
             decoration: BoxDecoration(
               color: AppColors.bgSecondary,
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(12),
               border: Border.all(color: AppColors.border),
             ),
             child: const Icon(

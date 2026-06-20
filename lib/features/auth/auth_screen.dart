@@ -27,15 +27,8 @@ class AuthScreen extends ConsumerWidget {
                 width: 96,
                 height: 96,
                 decoration: BoxDecoration(
-                  gradient: AppColors.accentGradient,
+                  color: AppColors.accent,
                   borderRadius: BorderRadius.circular(24),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.accent.withValues(alpha: 0.3),
-                      blurRadius: 24,
-                      offset: const Offset(0, 8),
-                    ),
-                  ],
                 ),
                 child: const Icon(
                   Icons.shield_rounded,
@@ -48,7 +41,6 @@ class AuthScreen extends ConsumerWidget {
                 'AI Form & Vault',
                 style: AppTextStyles.headlineLarge.copyWith(
                   color: AppColors.textPrimary,
-                  fontWeight: FontWeight.w800,
                 ),
               ),
               const Gap(8),
@@ -96,50 +88,36 @@ class AuthScreen extends ConsumerWidget {
               SizedBox(
                 width: double.infinity,
                 height: 54,
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: AppColors.accentGradient,
-                    borderRadius: BorderRadius.circular(14),
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppColors.accent.withValues(alpha: 0.3),
-                        blurRadius: 16,
-                        offset: const Offset(0, 6),
-                      ),
-                    ],
-                  ),
-                  child: ElevatedButton.icon(
-                    onPressed: authState.isLoading
-                        ? null
-                        : () {
-                            ref.read(authProvider.notifier).signInWithGoogle();
-                          },
-                    icon: authState.isLoading
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
-                          )
-                        : const Icon(Icons.g_mobiledata_rounded, size: 28),
-                    label: Text(
-                      authState.isLoading
-                          ? 'Signing in...'
-                          : 'Sign in with Google',
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
+                child: ElevatedButton.icon(
+                  onPressed: authState.isLoading
+                      ? null
+                      : () {
+                          ref.read(authProvider.notifier).signInWithGoogle();
+                        },
+                  icon: authState.isLoading
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Icon(Icons.g_mobiledata_rounded, size: 28),
+                  label: Text(
+                    authState.isLoading
+                        ? 'Signing in...'
+                        : 'Sign in with Google',
+                    style: AppTextStyles.titleSmall.copyWith(
+                      color: Colors.white,
                     ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.transparent,
-                      shadowColor: Colors.transparent,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.accent,
+                    foregroundColor: Colors.white,
+                    shadowColor: Colors.transparent,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
                     ),
                   ),
                 ),

@@ -38,15 +38,8 @@ class RecentDocumentTile extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(24),
           border: Border.all(color: AppColors.borderLight),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.04),
-              blurRadius: 10,
-              offset: const Offset(0, 2),
-            ),
-          ],
         ),
         child: Row(
           children: [
@@ -83,15 +76,12 @@ class RecentDocumentTile extends StatelessWidget {
                         ),
                         decoration: BoxDecoration(
                           color: badgeColor.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(6),
+                          borderRadius: BorderRadius.circular(9999),
                         ),
                         child: Text(
                           fileType.toUpperCase(),
                           style: AppTextStyles.labelSmall.copyWith(
                             color: badgeColor,
-                            fontSize: 9,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 0.5,
                           ),
                         ),
                       ),
@@ -100,7 +90,6 @@ class RecentDocumentTile extends StatelessWidget {
                         'Updated $daysAgo',
                         style: AppTextStyles.bodySmall.copyWith(
                           color: AppColors.textTertiary,
-                          fontSize: 11,
                         ),
                       ),
                     ],

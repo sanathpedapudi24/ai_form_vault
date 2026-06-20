@@ -90,7 +90,7 @@ class DashboardScreen extends ConsumerWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Hi, $userName 👋',
+                'Hi, $userName',
                 style: AppTextStyles.headlineMedium.copyWith(
                   color: AppColors.textPrimary,
                   fontWeight: FontWeight.w700,
@@ -150,10 +150,7 @@ class DashboardScreen extends ConsumerWidget {
   Widget _buildSectionTitle(String title) {
     return Text(
       title,
-      style: AppTextStyles.titleLarge.copyWith(
-        color: AppColors.textPrimary,
-        fontWeight: FontWeight.w700,
-      ),
+      style: AppTextStyles.titleMedium.copyWith(color: AppColors.textPrimary),
     );
   }
 
@@ -318,13 +315,6 @@ class _AddCard extends StatelessWidget {
           color: Colors.white,
           borderRadius: BorderRadius.circular(24),
           border: Border.all(color: AppColors.borderLight),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.04),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
-            ),
-          ],
         ),
         child: Column(
           children: [

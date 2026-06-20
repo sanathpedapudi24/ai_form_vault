@@ -44,7 +44,12 @@ class RelationshipsScreen extends ConsumerWidget {
             onPressed: () => Navigator.of(context).maybePop(),
           ),
         ),
-        title: const Text('Identity & Relationships'),
+        title: Text(
+          'Identity & Relationships',
+          style: AppTextStyles.titleMedium.copyWith(
+            color: AppColors.textPrimary,
+          ),
+        ),
         elevation: 0,
         centerTitle: true,
       ),
