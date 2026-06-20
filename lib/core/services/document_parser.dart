@@ -48,19 +48,26 @@ class DocumentParser {
       final line = lines[i].trim();
       for (final label in labels) {
         final escaped = RegExp.escape(label);
+
+        // Attempt 1: label + value on same line (e.g. "Name: John Doe")
         final sameLine = RegExp(
           '$escaped\\s*[:.\\-–—]?\\s*(.+)',
           caseSensitive: false,
         ).firstMatch(line);
         if (sameLine != null) {
           final val = sameLine.group(1)!.trim();
-          if (val.isNotEmpty && val.length > 1) {
+          // Reject if value contains separators that indicate it's not clean
+          if (val.isNotEmpty &&
+              val.length > 1 &&
+              !RegExp(r'[|/\\\[\]{}<>]').hasMatch(val)) {
             return val.replaceAll(RegExp(r'[,;]+$'), '').trim();
           }
         }
 
+        // Attempt 2a: line IS the label (e.g. "Name" → next line)
+        final bool labelOnly;
         if (i + 1 < lines.length) {
-          final labelOnly = RegExp(
+          labelOnly = RegExp(
             '^$escaped\\s*[:.\\-–—]?\\s*\$',
             caseSensitive: false,
           ).hasMatch(line);
@@ -70,6 +77,23 @@ class DocumentParser {
                 next.length > 1 &&
                 !next.endsWith(':') &&
                 !next.endsWith('-')) {
+              return next;
+            }
+          }
+        } else {
+          labelOnly = false;
+        }
+
+        // Attempt 2b: label appears ANYWHERE in the line (e.g. "HIA/ Name",
+        // "नाम | Name", "पिता का नाम। Father's Name") → try next line
+        if (i + 1 < lines.length && !labelOnly) {
+          if (RegExp(escaped, caseSensitive: false).hasMatch(line)) {
+            final next = lines[i + 1].trim();
+            if (next.isNotEmpty &&
+                next.length > 1 &&
+                !next.endsWith(':') &&
+                !next.endsWith('-') &&
+                !RegExp(escaped, caseSensitive: false).hasMatch(next)) {
               return next;
             }
           }
@@ -642,20 +666,21 @@ class DocumentParser {
       'Party Name',
     ];
 
+    // Get name candidates from different methods for cross-validation
+    String? labeledName;
+    String? allCapsName;
+    String? soName;
+
+    // 1) Labeled extraction
     final labeled = _extractLabeledValue(text, nameLabels);
     if (labeled != null && labeled.length > 2 && !_containsDigit(labeled)) {
-      fields.add(
-        ExtractedField(
-          label: 'Full Name',
-          value: _cleanName(labeled),
-          confidence: 0.88,
-        ),
-      );
-      confidences.add(0.88);
-      return;
+      final cleaned = _cleanName(labeled);
+      if (!_looksLikeDocumentType(cleaned)) {
+        labeledName = cleaned;
+      }
     }
 
-    // Try S/O D/O W/O pattern (very common on Indian documents)
+    // 2) S/O D/O W/O pattern
     final soMatch = RegExp(
       r'^(.*?)\s+(S/O|D/O|W/O|S/o|D/o|W/o|s/o|d/o|w/o)\s+',
       multiLine: true,
@@ -663,29 +688,69 @@ class DocumentParser {
     if (soMatch != null) {
       final name = soMatch.group(1)?.trim();
       if (name != null && name.isNotEmpty && name.length > 2) {
-        fields.add(
-          ExtractedField(
-            label: 'Full Name',
-            value: _cleanName(name),
-            confidence: 0.85,
-          ),
-        );
-        confidences.add(0.85);
-        return;
+        soName = _cleanName(name);
       }
     }
 
-    // Try ALL-CAPS name (Indian identity documents)
-    final allCaps = _findAllCapsName(text);
-    if (allCaps != null) {
+    // 3) ALL-CAPS name
+    allCapsName = _findAllCapsName(text);
+
+    // --- Cross-validation ---
+    // Pick the best name and calculate confidence
+    String? bestName;
+    double confidence = 0.0;
+
+    if (labeledName != null && allCapsName != null) {
+      if (_namesMatch(labeledName, allCapsName)) {
+        bestName = labeledName;
+        confidence = 0.88;
+      } else {
+        bestName = labeledName.length >= allCapsName.length
+            ? labeledName
+            : allCapsName;
+        confidence = 0.65;
+      }
+    } else if (soName != null && labeledName != null) {
+      if (_namesMatch(soName, labeledName)) {
+        bestName = labeledName;
+        confidence = 0.85;
+      } else {
+        bestName = labeledName.length >= soName.length ? labeledName : soName;
+        confidence = 0.7;
+      }
+    } else if (labeledName != null) {
+      bestName = labeledName;
+      confidence = 0.88;
+    } else if (soName != null) {
+      bestName = soName;
+      confidence = 0.85;
+    } else if (allCapsName != null) {
+      bestName = allCapsName;
+      confidence = 0.7;
+    }
+
+    // Penalize confidence if any name part is suspiciously short (≤ 2 chars)
+    // which often indicates OCR truncation (e.g. "SAI" → "SA")
+    if (bestName != null) {
+      final parts = bestName.split(RegExp(r'\s+'));
+      if (parts.any((p) => p.length <= 2 && parts.length >= 2)) {
+        confidence = (confidence - 0.15).clamp(0.0, 1.0);
+      }
+    }
+
+    if (bestName != null) {
       fields.add(
-        ExtractedField(label: 'Full Name', value: allCaps, confidence: 0.7),
+        ExtractedField(
+          label: 'Full Name',
+          value: bestName,
+          confidence: confidence,
+        ),
       );
-      confidences.add(0.7);
+      confidences.add(confidence);
       return;
     }
 
-    // Generic label-based
+    // 4) Generic label-based fallback
     final generic = RegExp(
       r'(?:Name|नाम)\s*[:\-]\s*(.+)',
       caseSensitive: false,
@@ -700,6 +765,21 @@ class DocumentParser {
         confidences.add(0.85);
       }
     }
+  }
+
+  /// Compare two names to see if they're essentially the same person's name.
+  bool _namesMatch(String a, String b) {
+    final aNorm = a.toUpperCase().replaceAll(RegExp(r'[^A-Z ]'), '').trim();
+    final bNorm = b.toUpperCase().replaceAll(RegExp(r'[^A-Z ]'), '').trim();
+    if (aNorm == bNorm) return true;
+    // One may be a substring of the other (OCR truncation like "SAI" → "SA")
+    if (aNorm.startsWith(bNorm) || bNorm.startsWith(aNorm)) {
+      // Only accept if the extra chars are at the end
+      final shorter = aNorm.length <= bNorm.length ? aNorm : bNorm;
+      final longer = aNorm.length > bNorm.length ? aNorm : bNorm;
+      return longer.startsWith(shorter) && longer.length - shorter.length <= 3;
+    }
+    return false;
   }
 
   String? _findAllCapsName(String text) {
@@ -787,20 +867,26 @@ class DocumentParser {
       'FATHER NAME',
     ];
 
+    // 1) Labeled extraction (now handles labels at end-of-line thanks to
+    //    _extractLabeledValue's third attempt)
     final labeled = _extractLabeledValue(text, labels);
     if (labeled != null && labeled.length > 2 && !_containsDigit(labeled)) {
-      fields.add(
-        ExtractedField(
-          label: "Father's Name",
-          value: _cleanName(labeled),
-          confidence: 0.88,
-        ),
-      );
-      confidences.add(0.88);
-      return;
+      final cleaned = _cleanName(labeled);
+      // Sanity check: father's name should not look like a document type header
+      if (!_looksLikeDocumentType(cleaned)) {
+        fields.add(
+          ExtractedField(
+            label: "Father's Name",
+            value: cleaned,
+            confidence: 0.88,
+          ),
+        );
+        confidences.add(0.88);
+        return;
+      }
     }
 
-    // S/O D/O W/O pattern — extract the name after the prefix
+    // 2) S/O D/O W/O pattern — extract the name after the prefix
     final soMatch = RegExp(
       r'S/O\s+(.+?)(?:\s*$|\s+D/O|\s+W/O)',
       caseSensitive: false,
@@ -808,22 +894,69 @@ class DocumentParser {
     if (soMatch != null) {
       final name = soMatch.group(1)?.trim();
       if (name != null && name.isNotEmpty && name.length > 2) {
-        fields.add(
-          ExtractedField(
-            label: "Father's Name",
-            value: _cleanName(name),
-            confidence: 0.85,
-          ),
-        );
-        confidences.add(0.85);
-        return;
+        final cleaned = _cleanName(name);
+        if (!_looksLikeDocumentType(cleaned)) {
+          fields.add(
+            ExtractedField(
+              label: "Father's Name",
+              value: cleaned,
+              confidence: 0.85,
+            ),
+          );
+          confidences.add(0.85);
+          return;
+        }
       }
     }
 
-    // PAN card layout: Name line → Father's Name line → DOB line
+    // 3) PAN card layout: look for father-related label ANYWHERE in the text,
+    //    then pick the next non-empty line that doesn't look like a header.
+    //    This handles cases like "पिता का नाम। Father's Name" on one line and
+    //    "SIVA SURYA PRAKASH PONNADA" on the next.
+    final fatherLabels = [
+      "FATHER'S NAME",
+      'FATHER NAME',
+      'पिता का नाम',
+      'FATHER',
+      'F/S/D',
+      'S/O',
+      'D/O',
+      'W/O',
+    ];
+    final lines = text.split('\n');
+    for (var i = 0; i < lines.length; i++) {
+      final line = lines[i].trim().toUpperCase();
+      final hasFatherLabel = fatherLabels.any(
+        (l) => line.contains(l.toUpperCase()),
+      );
+      if (!hasFatherLabel) continue;
+      if (i + 1 < lines.length) {
+        final next = lines[i + 1].trim();
+        if (next.isNotEmpty &&
+            next.length > 3 &&
+            !_containsDigit(next) &&
+            !next.contains(RegExp(r'[:]\s*$')) &&
+            !_looksLikeDocumentType(next) &&
+            !RegExp(
+              r'^(DOB|Date|Gender|Address|पता|Signature|हस्ताक्षर)',
+              caseSensitive: false,
+            ).hasMatch(next)) {
+          fields.add(
+            ExtractedField(
+              label: "Father's Name",
+              value: _cleanName(next),
+              confidence: 0.75,
+            ),
+          );
+          confidences.add(0.75);
+          return;
+        }
+      }
+    }
+
+    // 4) Legacy PAN card layout: Name line → next non-header line → DOB line
     final nameIdx = fields.indexWhere((f) => f.label == 'Full Name');
     if (nameIdx >= 0) {
-      final lines = text.split('\n');
       for (var i = 0; i < lines.length; i++) {
         if (lines[i].trim() == fields[nameIdx].value) {
           if (i + 1 < lines.length) {
@@ -832,6 +965,7 @@ class DocumentParser {
                 next.length > 3 &&
                 !_containsDigit(next) &&
                 !next.contains(RegExp(r'[:]\s*$')) &&
+                !_looksLikeDocumentType(next) &&
                 !RegExp(
                   r'^(DOB|Date|Gender|Address|पता)',
                   caseSensitive: false,
@@ -850,6 +984,37 @@ class DocumentParser {
         }
       }
     }
+  }
+
+  /// Heuristic: check if a string looks like a document-type header rather than
+  /// a person's name (e.g. "Permanent Account Number Card", "Aadhaar Card").
+  bool _looksLikeDocumentType(String value) {
+    final v = value.toUpperCase();
+    final docKeywords = [
+      'ACCOUNT NUMBER',
+      'PERMANENT',
+      'AADHAAR',
+      'VOTER',
+      'DRIVING',
+      'LICENCE',
+      'LICENSE',
+      'PASSPORT',
+      'CARD',
+      'CERTIFICATE',
+      'INCOME TAX',
+      'GOVT',
+      'GOVERNMENT',
+      'INDIA',
+      'DEPARTMENT',
+      'ELECTION',
+      'MARKS',
+      'GRADE',
+      'UNIVERSITY',
+      'BOARD',
+      'SCHOOL',
+      'COLLEGE',
+    ];
+    return docKeywords.any((kw) => v.contains(kw));
   }
 
   // ---------------------------------------------------------------------------

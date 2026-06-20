@@ -1,25 +1,80 @@
 import 'dart:io';
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../../core/models/document_model.dart';
 import '../../core/providers/document_provider.dart';
 import '../../core/theme/app_text_styles.dart';
 
-class VirtualIdScreen extends ConsumerWidget {
+class VirtualIdScreen extends ConsumerStatefulWidget {
   final String documentId;
   const VirtualIdScreen({super.key, required this.documentId});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<VirtualIdScreen> createState() => _VirtualIdScreenState();
+}
+
+class _VirtualIdScreenState extends ConsumerState<VirtualIdScreen> {
+  final _cardKey = GlobalKey();
+  bool _downloading = false;
+
+  Future<void> _downloadCard() async {
+    setState(() => _downloading = true);
+    try {
+      final boundary =
+          _cardKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
+      if (boundary == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Could not capture card image')),
+          );
+        }
+        return;
+      }
+
+      final image = await boundary.toImage(pixelRatio: 3);
+      final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+      if (byteData == null) return;
+
+      final tempDir = await getTemporaryDirectory();
+      final file = File(
+        '${tempDir.path}/digital_id_${DateTime.now().millisecondsSinceEpoch}.png',
+      );
+      await file.writeAsBytes(byteData.buffer.asUint8List());
+
+      await SharePlus.instance.share(
+        ShareParams(files: [XFile(file.path)], text: 'My Digital ID'),
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error: $e')));
+      }
+    } finally {
+      if (mounted) setState(() => _downloading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final docs = ref.watch(documentProvider);
-    final doc = docs.where((d) => d.id == documentId).firstOrNull;
+    final doc = docs.where((d) => d.id == widget.documentId).firstOrNull;
     if (doc == null) {
       return Scaffold(
         backgroundColor: const Color(0xFF0F0F1A),
-        body: const Center(child: Text('Document not found')),
+        body: const Center(
+          child: Text(
+            'Document not found',
+            style: TextStyle(color: Colors.white70),
+          ),
+        ),
       );
     }
 
@@ -76,20 +131,23 @@ class VirtualIdScreen extends ConsumerWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              _buildCard(
-                context: context,
-                doc: doc,
-                typeName: typeName,
-                color: color,
-                hasImage: hasImage,
-                name: name,
-                idNumber: idNumber,
-                dob: dob,
-                gender: gender,
-                address: address,
-                fatherName: fatherName,
-                phone: phone,
-                email: email,
+              RepaintBoundary(
+                key: _cardKey,
+                child: _buildCard(
+                  context: context,
+                  doc: doc,
+                  typeName: typeName,
+                  color: color,
+                  hasImage: hasImage,
+                  name: name,
+                  idNumber: idNumber,
+                  dob: dob,
+                  gender: gender,
+                  address: address,
+                  fatherName: fatherName,
+                  phone: phone,
+                  email: email,
+                ),
               ),
               const SizedBox(height: 24),
               _buildActions(context, doc, color),
@@ -117,13 +175,12 @@ class VirtualIdScreen extends ConsumerWidget {
   }) {
     final screenWidth = MediaQuery.of(context).size.width;
     final cardWidth = screenWidth - 40;
-    final cardHeight = cardWidth / 1.35;
 
     return Container(
       width: cardWidth,
-      constraints: BoxConstraints(minHeight: cardHeight),
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
+        color: const Color(0xFF0F0F1A),
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
@@ -166,188 +223,187 @@ class VirtualIdScreen extends ConsumerWidget {
               ),
             ),
           ),
-          // --- Card content ---
-          Positioned.fill(
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // ===== HEADER STRIP =====
-                  Row(
-                    children: [
-                      Container(
-                        width: 40,
-                        height: 40,
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.2),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Icon(
-                          _typeIcon(typeName),
+          // --- Card content (non-positioned so Stack sizes to content) ---
+          Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // ===== HEADER STRIP =====
+                Row(
+                  children: [
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(
+                        _typeIcon(typeName),
+                        color: Colors.white,
+                        size: 20,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            typeName.toUpperCase(),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 1.2,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Virtual ID Card',
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.5),
+                              fontSize: 11,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        '${(doc.confidence * 100).toInt()}%',
+                        style: const TextStyle(
                           color: Colors.white,
-                          size: 20,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.5,
                         ),
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              typeName.toUpperCase(),
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 11,
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: 1.2,
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              'Virtual ID Card',
-                              style: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.5),
-                                fontSize: 11,
-                              ),
-                            ),
-                          ],
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 4),
+
+                // ===== NAME + AVATAR =====
+                Row(
+                  children: [
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.15),
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.3),
+                          width: 2,
                         ),
                       ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
+                      child: Center(
                         child: Text(
-                          '${(doc.confidence * 100).toInt()}%',
+                          _initials(name),
                           style: const TextStyle(
                             color: Colors.white,
-                            fontSize: 10,
+                            fontSize: 18,
                             fontWeight: FontWeight.w700,
-                            letterSpacing: 0.5,
                           ),
                         ),
                       ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 4),
-
-                  // ===== NAME + AVATAR =====
-                  Row(
-                    children: [
-                      Container(
-                        width: 48,
-                        height: 48,
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.15),
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.3),
-                            width: 2,
-                          ),
-                        ),
-                        child: Center(
-                          child: Text(
-                            _initials(name),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            name,
                             style: const TextStyle(
                               color: Colors.white,
                               fontSize: 18,
                               fontWeight: FontWeight.w700,
+                              letterSpacing: 0.2,
                             ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                        ),
-                      ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              name,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 18,
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: 0.2,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            if (fatherName.isNotEmpty)
-                              Padding(
-                                padding: const EdgeInsets.only(top: 2),
-                                child: Text(
-                                  's/o $fatherName',
-                                  style: TextStyle(
-                                    color: Colors.white.withValues(alpha: 0.5),
-                                    fontSize: 12,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
+                          if (fatherName.isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 2),
+                              child: Text(
+                                's/o $fatherName',
+                                style: TextStyle(
+                                  color: Colors.white.withValues(alpha: 0.5),
+                                  fontSize: 12,
                                 ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                               ),
-                          ],
-                        ),
+                            ),
+                        ],
                       ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 12),
-
-                  // ===== ID NUMBER =====
-                  if (idNumber.isNotEmpty) ...[
-                    Text(
-                      idNumber,
-                      style: TextStyle(
-                        color: color.withValues(alpha: 0.9),
-                        fontSize: 22,
-                        fontWeight: FontWeight.w800,
-                        fontFamily: 'monospace',
-                        letterSpacing: 2,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 4),
                   ],
+                ),
 
-                  const SizedBox(height: 8),
+                const SizedBox(height: 12),
 
-                  // ===== DETAILS GRID =====
-                  _buildDetailsGrid(
-                    dob: dob,
-                    gender: gender,
-                    address: address,
-                    phone: phone,
-                    email: email,
-                    color: color,
+                // ===== ID NUMBER =====
+                if (idNumber.isNotEmpty) ...[
+                  Text(
+                    idNumber,
+                    style: TextStyle(
+                      color: color.withValues(alpha: 0.9),
+                      fontSize: 22,
+                      fontWeight: FontWeight.w800,
+                      fontFamily: 'monospace',
+                      letterSpacing: 2,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
-
-                  const SizedBox(height: 12),
-
-                  // ===== FOOTER =====
-                  Row(
-                    children: [
-                      const Spacer(),
-                      Text(
-                        'Powered by Vardio',
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.2),
-                          fontSize: 9,
-                          letterSpacing: 1.5,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
-                  ),
+                  const SizedBox(height: 4),
                 ],
-              ),
+
+                const SizedBox(height: 8),
+
+                // ===== DETAILS GRID =====
+                _buildDetailsGrid(
+                  dob: dob,
+                  gender: gender,
+                  address: address,
+                  phone: phone,
+                  email: email,
+                  color: color,
+                ),
+
+                const SizedBox(height: 12),
+
+                // ===== FOOTER =====
+                Row(
+                  children: [
+                    const Spacer(),
+                    Text(
+                      'Powered by Vardio',
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.2),
+                        fontSize: 9,
+                        letterSpacing: 1.5,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
         ],
@@ -478,8 +534,18 @@ class VirtualIdScreen extends ConsumerWidget {
     return Row(
       children: [
         Expanded(
-          child: OutlinedButton(
-            onPressed: () => context.pop(),
+          child: OutlinedButton.icon(
+            onPressed: _downloading ? null : _downloadCard,
+            icon: _downloading
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white70,
+                    ),
+                  )
+                : const Icon(Icons.download, size: 18),
             style: OutlinedButton.styleFrom(
               foregroundColor: Colors.white,
               side: BorderSide(color: Colors.white.withValues(alpha: 0.15)),
@@ -488,8 +554,8 @@ class VirtualIdScreen extends ConsumerWidget {
                 borderRadius: BorderRadius.circular(16),
               ),
             ),
-            child: const Text(
-              'Back to Details',
+            label: const Text(
+              'Download',
               style: TextStyle(fontWeight: FontWeight.w600),
             ),
           ),
