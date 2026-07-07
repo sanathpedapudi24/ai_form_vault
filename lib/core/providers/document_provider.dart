@@ -1,82 +1,80 @@
-import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:uuid/uuid.dart';
+
 import '../models/document_model.dart';
+import '../repositories/document_repository.dart';
+import '../services/image_vault.dart';
+import 'service_providers.dart';
 
-const _storageKey = 'documents';
-
-class DocumentNotifier extends StateNotifier<List<DocumentModel>> {
-  DocumentNotifier() : super([]) {
-    _load();
+/// All documents in the vault, newest first, backed by the encrypted DB.
+class DocumentsNotifier extends StateNotifier<List<DocumentModel>> {
+  DocumentsNotifier(this._repo) : super(const []) {
+    refresh();
   }
 
-  Future<void> _load() async {
-    final prefs = await SharedPreferences.getInstance();
-    final data = prefs.getString(_storageKey);
-    if (data != null) {
-      final list = (jsonDecode(data) as List)
-          .map((e) => DocumentModel.fromMap(e as Map<String, dynamic>))
-          .toList();
-      state = list;
+  final DocumentRepository _repo;
+
+  Future<void> refresh() async {
+    state = await _repo.getAll();
+  }
+
+  Future<void> add(DocumentModel doc) async {
+    await _repo.insert(doc);
+    await refresh();
+  }
+
+  Future<void> update(DocumentModel doc) async {
+    await _repo.update(doc);
+    await refresh();
+  }
+
+  Future<void> remove(String id) async {
+    final doc = state.where((d) => d.id == id).firstOrNull;
+    if (doc != null) {
+      await ImageVault.instance.delete(doc.imageFile);
+      await ImageVault.instance.delete(doc.thumbFile);
     }
+    await _repo.delete(id);
+    await refresh();
   }
 
-  Future<void> _save() async {
-    final prefs = await SharedPreferences.getInstance();
-    final data = jsonEncode(state.map((d) => d.toMap()).toList());
-    await prefs.setString(_storageKey, data);
-  }
-
-  Future<DocumentModel> addDocument({
-    required String name,
-    required String ownerName,
-    required DocumentCategory category,
-    required String type,
-    String detectedType = '',
-    double confidence = 0.9,
-    List<ExtractedField> extractedFields = const [],
-    String rawText = '',
-    String imagePath = '',
-  }) async {
-    final doc = DocumentModel(
-      id: const Uuid().v4(),
-      name: name,
-      ownerName: ownerName,
-      category: category,
-      type: type,
-      detectedType: detectedType,
-      uploadDate: DateTime.now(),
-      confidence: confidence,
-      extractedFields: extractedFields,
-      rawText: rawText,
-      imagePath: imagePath,
-    );
-    state = [...state, doc];
-    await _save();
-    return doc;
-  }
-
-  Future<void> deleteDocument(String id) async {
-    state = state.where((d) => d.id != id).toList();
-    await _save();
-  }
-
-  Future<void> updateDocument(DocumentModel updated) async {
-    state = state.map((d) => d.id == updated.id ? updated : d).toList();
-    await _save();
-  }
-
-  DocumentModel? getById(String id) {
-    try {
-      return state.firstWhere((d) => d.id == id);
-    } catch (_) {
-      return null;
+  DocumentModel? byId(String id) {
+    for (final d in state) {
+      if (d.id == id) return d;
     }
+    return null;
   }
 }
 
-final documentProvider =
-    StateNotifierProvider<DocumentNotifier, List<DocumentModel>>((ref) {
-      return DocumentNotifier();
+final documentsProvider =
+    StateNotifierProvider<DocumentsNotifier, List<DocumentModel>>(
+      (ref) => DocumentsNotifier(ref.watch(documentRepositoryProvider)),
+    );
+
+/// Documents grouped for the vault tabs.
+final documentsByCategoryProvider =
+    Provider.family<List<DocumentModel>, DocumentCategory?>((ref, category) {
+      final docs = ref.watch(documentsProvider);
+      if (category == null) return docs;
+      return docs.where((d) => d.category == category).toList();
     });
+
+final recentDocumentsProvider = Provider<List<DocumentModel>>((ref) {
+  final docs = ref.watch(documentsProvider);
+  return docs.take(5).toList();
+});
+
+/// Fields worth reviewing: low-confidence and not yet user-verified.
+final needsReviewProvider = Provider<List<(DocumentModel, ExtractedField)>>((
+  ref,
+) {
+  final docs = ref.watch(documentsProvider);
+  final result = <(DocumentModel, ExtractedField)>[];
+  for (final doc in docs) {
+    for (final field in doc.extractedFields) {
+      if (!field.verified && field.confidence < 0.6) {
+        result.add((doc, field));
+      }
+    }
+  }
+  return result;
+});

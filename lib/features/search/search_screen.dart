@@ -1,13 +1,18 @@
 import 'package:flutter/material.dart';
-import 'package:gap/gap.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:gap/gap.dart';
+import 'package:go_router/go_router.dart';
 
-import '../../core/models/document_model.dart';
-import '../../core/providers/document_provider.dart';
+import '../../core/config/app_config.dart';
+import '../../core/providers/search_provider.dart';
+import '../../core/services/search_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
-import '../../shared/widgets/glass_card.dart';
-import 'widgets/search_result_card.dart';
+import '../../shared/widgets/badges.dart';
+import '../../shared/widgets/empty_state.dart';
+import '../../shared/widgets/fade_slide_in.dart';
+import '../../shared/widgets/vault_image.dart';
+import '../dashboard/widgets/category_visual.dart';
 
 class SearchScreen extends ConsumerStatefulWidget {
   const SearchScreen({super.key});
@@ -17,284 +22,233 @@ class SearchScreen extends ConsumerStatefulWidget {
 }
 
 class _SearchScreenState extends ConsumerState<SearchScreen> {
-  final TextEditingController _searchController = TextEditingController();
-  List<DocumentModel> _filteredDocs = [];
-
-  @override
-  void initState() {
-    super.initState();
-    _searchController.addListener(_onSearchChanged);
-  }
+  final _controller = TextEditingController();
+  final _focusNode = FocusNode();
 
   @override
   void dispose() {
-    _searchController.removeListener(_onSearchChanged);
-    _searchController.dispose();
+    _controller.dispose();
+    _focusNode.dispose();
     super.dispose();
   }
 
-  void _onSearchChanged() {
-    final docs = ref.read(documentProvider);
-    final query = _searchController.text.trim().toLowerCase();
-    if (query.isEmpty) {
-      setState(() => _filteredDocs = []);
-      return;
-    }
-    setState(() {
-      _filteredDocs = docs.where((doc) {
-        return doc.name.toLowerCase().contains(query) ||
-            doc.ownerName.toLowerCase().contains(query);
-      }).toList();
-    });
-  }
-
-  bool get _isSearching => _searchController.text.trim().isNotEmpty;
-
-  List<DocumentModel> get _topResults {
-    final docs = ref.read(documentProvider);
-    return docs.take(4).toList();
-  }
-
-  List<DocumentModel> get _otherResults {
-    final docs = ref.read(documentProvider);
-    final topIds = _topResults.map((d) => d.id).toSet();
-    return docs.where((d) => !topIds.contains(d.id)).take(3).toList();
-  }
-
   static const _suggestions = [
-    'show passport',
-    'find degree certificate',
-    'documents with old address',
-    'my pan card',
+    'Find my passport',
+    'Aadhaar card',
+    'When does my ID expire',
+    'Bank documents',
   ];
 
   @override
   Widget build(BuildContext context) {
+    final state = ref.watch(searchProvider);
+
     return Scaffold(
-      backgroundColor: AppColors.bgSecondary,
+      appBar: AppBar(
+        title: const Text('Search'),
+        automaticallyImplyLeading: false,
+      ),
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Gap(16),
-              Text(
-                'Smart Search',
-                style: AppTextStyles.headlineMedium.copyWith(
-                  color: AppColors.textPrimary,
-                ),
-              ),
-              const Gap(4),
-              Text(
-                'Find anything in seconds',
-                style: AppTextStyles.bodyMedium.copyWith(
-                  color: AppColors.textTertiary,
-                ),
-              ),
-              const Gap(20),
-              _buildSearchBar(),
-              const Gap(20),
-              Expanded(
-                child: _isSearching
-                    ? _buildSearchResults()
-                    : _buildDefaultContent(),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSearchBar() {
-    return GlassCard(
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-      borderRadius: 16,
-      child: Row(
-        children: [
-          Expanded(
-            child: TextField(
-              controller: _searchController,
-              style: AppTextStyles.bodyMedium.copyWith(
-                color: AppColors.textPrimary,
-              ),
-              decoration: InputDecoration(
-                hintText: 'Search documents...',
-                hintStyle: AppTextStyles.bodyMedium.copyWith(
-                  color: AppColors.textTertiary,
-                ),
-                prefixIcon: const Icon(
-                  Icons.search_rounded,
-                  color: AppColors.textTertiary,
-                  size: 22,
-                ),
-                suffixIcon: Container(
-                  margin: const EdgeInsets.all(6),
-                  decoration: const BoxDecoration(
-                    color: AppColors.accent,
-                    shape: BoxShape.circle,
-                  ),
-                  child: IconButton(
-                    icon: const Icon(
-                      Icons.mic_rounded,
-                      color: Colors.white,
-                      size: 18,
-                    ),
-                    onPressed: () {},
-                  ),
-                ),
-                border: InputBorder.none,
-                enabledBorder: InputBorder.none,
-                focusedBorder: InputBorder.none,
-                contentPadding: const EdgeInsets.symmetric(vertical: 14),
-                filled: false,
-              ),
-            ),
-          ),
-          Container(height: 32, width: 1, color: AppColors.border),
-          IconButton(
-            onPressed: () {},
-            icon: const Icon(
-              Icons.tune_rounded,
-              color: AppColors.textSecondary,
-              size: 22,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSearchResults() {
-    if (_filteredDocs.isEmpty) {
-      return Center(
         child: Column(
-          mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              width: 80,
-              height: 80,
-              decoration: BoxDecoration(
-                color: AppColors.bgTertiary,
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.search_off_rounded,
-                color: AppColors.textTertiary,
-                size: 36,
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: AppColors.bgSunken,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: TextField(
+                  controller: _controller,
+                  focusNode: _focusNode,
+                  style: AppTextStyles.body,
+                  decoration: InputDecoration(
+                    hintText: AppConfig.aiEnabled
+                        ? 'Ask anything about your documents…'
+                        : 'Search your documents…',
+                    prefixIcon: const Icon(
+                      Icons.search_rounded,
+                      color: AppColors.textTertiary,
+                    ),
+                    suffixIcon: _controller.text.isNotEmpty
+                        ? IconButton(
+                            icon: const Icon(
+                              Icons.close_rounded,
+                              color: AppColors.textTertiary,
+                              size: 20,
+                            ),
+                            onPressed: () {
+                              _controller.clear();
+                              ref.read(searchProvider.notifier).clear();
+                              setState(() {});
+                            },
+                          )
+                        : null,
+                    filled: true,
+                    fillColor: Colors.transparent,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
+                  onChanged: (value) {
+                    setState(() {});
+                    ref.read(searchProvider.notifier).onQueryChanged(value);
+                  },
+                ),
               ),
             ),
-            const Gap(16),
-            Text(
-              'No documents found',
-              style: AppTextStyles.titleMedium.copyWith(
-                color: AppColors.textSecondary,
-              ),
-            ),
-            const Gap(6),
-            Text(
-              'Try a different search term',
-              style: AppTextStyles.bodySmall.copyWith(
-                color: AppColors.textTertiary,
-              ),
+            Expanded(
+              child: state.query.isEmpty
+                  ? _SuggestionsView(
+                      onTap: (s) {
+                        _controller.text = s;
+                        ref.read(searchProvider.notifier).onQueryChanged(s);
+                        setState(() {});
+                      },
+                    )
+                  : _ResultsView(state: state),
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _SuggestionsView extends StatelessWidget {
+  final void Function(String) onTap;
+
+  const _SuggestionsView({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeSlideIn(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'TRY ASKING',
+              style: AppTextStyles.overline,
+            ),
+            const Gap(12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final s in _SearchScreenState._suggestions)
+                  GestureDetector(
+                    onTap: () => onTap(s),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 10,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.surface,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: AppColors.border),
+                      ),
+                      child: Text(s, style: AppTextStyles.label),
+                    ),
+                  ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ResultsView extends StatelessWidget {
+  final SearchState state;
+
+  const _ResultsView({required this.state});
+
+  @override
+  Widget build(BuildContext context) {
+    if (state.searching) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (state.results.isEmpty) {
+      return EmptyState(
+        icon: Icons.search_off_rounded,
+        title: 'No matches',
+        message: 'Try a different word, or check the spelling.',
       );
     }
-
     return ListView.builder(
-      padding: EdgeInsets.zero,
-      itemCount: _filteredDocs.length + 1,
-      itemBuilder: (context, index) {
-        if (index == 0) {
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: Text(
-              '${_filteredDocs.length} result${_filteredDocs.length == 1 ? '' : 's'} found',
-              style: AppTextStyles.labelMedium.copyWith(
-                color: AppColors.textTertiary,
-              ),
-            ),
-          );
-        }
-        return SearchResultCard(
-          document: _filteredDocs[index - 1],
-          onTap: () {},
-        );
-      },
-    );
-  }
-
-  Widget _buildDefaultContent() {
-    final topResults = _topResults;
-    final otherResults = _otherResults;
-
-    return SingleChildScrollView(
-      physics: const BouncingScrollPhysics(),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (topResults.isNotEmpty) ...[
-            _buildSectionHeader('Recent Documents'),
-            const Gap(10),
-            ...topResults.map(
-              (doc) => SearchResultCard(document: doc, onTap: () {}),
-            ),
-          ],
-          if (otherResults.isNotEmpty) ...[
-            const Gap(20),
-            _buildSectionHeader('Other Documents'),
-            const Gap(10),
-            ...otherResults.map(
-              (doc) => SearchResultCard(document: doc, onTap: () {}),
-            ),
-          ],
-          const Gap(28),
-          Text(
-            'Try searching:',
-            style: AppTextStyles.labelMedium.copyWith(
-              color: AppColors.textTertiary,
-            ),
-          ),
-          const Gap(10),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: _suggestions.map((suggestion) {
-              return GestureDetector(
-                onTap: () => _searchController.text = suggestion,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 10,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(24),
-                    border: Border.all(color: AppColors.borderLight),
-                  ),
-                  child: Text(
-                    '"$suggestion"',
-                    style: AppTextStyles.bodySmall.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                ),
-              );
-            }).toList(),
-          ),
-          const Gap(32),
-        ],
+      padding: const EdgeInsets.fromLTRB(20, 4, 20, 120),
+      itemCount: state.results.length,
+      itemBuilder: (context, index) => FadeSlideIn(
+        index: index,
+        offset: 8,
+        child: Padding(
+          padding: const EdgeInsets.only(bottom: 10),
+          child: _ResultTile(result: state.results[index]),
+        ),
       ),
     );
   }
+}
 
-  Widget _buildSectionHeader(String title) {
-    return Text(
-      title,
-      style: AppTextStyles.titleMedium.copyWith(color: AppColors.textPrimary),
+class _ResultTile extends StatelessWidget {
+  final SearchResult result;
+
+  const _ResultTile({required this.result});
+
+  @override
+  Widget build(BuildContext context) {
+    final doc = result.document;
+    return GestureDetector(
+      onTap: () => context.push('/document/${doc.id}'),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Row(
+          children: [
+            doc.thumbFile.isNotEmpty
+                ? VaultImage(fileName: doc.thumbFile, width: 48, height: 48)
+                : CategoryVisual(category: doc.category, size: 48),
+            const Gap(12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    doc.displayTitle,
+                    style: AppTextStyles.itemTitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const Gap(3),
+                  Text(
+                    result.matchedValue.isNotEmpty
+                        ? '${result.matchedLabel}: ${result.matchedValue}'
+                        : doc.ownerName,
+                    style: AppTextStyles.caption,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            if (result.semantic)
+              const TagChip(
+                label: 'AI match',
+                color: AppColors.info,
+                icon: Icons.auto_awesome_rounded,
+              ),
+          ],
+        ),
+      ),
     );
   }
 }

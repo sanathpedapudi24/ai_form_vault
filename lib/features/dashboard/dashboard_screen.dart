@@ -1,343 +1,443 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:image_picker/image_picker.dart';
+import 'package:intl/intl.dart';
+
+import '../../core/config/app_config.dart';
 import '../../core/models/document_model.dart';
 import '../../core/providers/document_provider.dart';
-import '../../core/providers/profile_provider.dart';
+import '../../core/providers/person_provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
-import 'widgets/recent_document_tile.dart';
+import '../../shared/widgets/app_card.dart';
+import '../../shared/widgets/badges.dart';
+import '../../shared/widgets/fade_slide_in.dart';
+import '../../shared/widgets/section_header.dart';
+import '../../shared/widgets/vault_image.dart';
+import 'widgets/category_visual.dart';
 
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final profile = ref.watch(profileProvider);
-    final documents = ref.watch(documentProvider);
+    final docs = ref.watch(documentsProvider);
+    final recent = ref.watch(recentDocumentsProvider);
+    final graph = ref.watch(identityGraphProvider);
+    final pending = graph.pending;
 
-    final recentDocs = documents.take(5).toList();
-    final displayName = profile.name.isNotEmpty ? profile.name : 'Fida';
+    final user = graph.user;
+    final userName = (user != null && user.displayName != 'You')
+        ? user.displayName.split(' ').first
+        : null;
 
     return Scaffold(
-      backgroundColor: AppColors.bgSecondary,
       body: SafeArea(
-        child: SingleChildScrollView(
-          physics: const BouncingScrollPhysics(),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildHeader(context, displayName),
-              const Gap(24),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                child: _buildSectionTitle('Add Document'),
-              ),
-              const Gap(14),
-              _buildAddDocumentCards(context),
-              const Gap(28),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    _buildSectionTitle('Recent Documents'),
-                    GestureDetector(
-                      onTap: () => context.go('/vault'),
-                      child: Text(
-                        'See All',
-                        style: AppTextStyles.labelMedium.copyWith(
-                          color: AppColors.accent,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const Gap(14),
-              if (recentDocs.isNotEmpty)
-                _buildRecentDocumentsList(context, recentDocs)
-              else
-                _buildEmptyState(),
-              const Gap(100),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildHeader(BuildContext context, String userName) {
-    final hour = DateTime.now().hour;
-    String greeting;
-    if (hour < 12) {
-      greeting = 'Good morning!';
-    } else if (hour < 17) {
-      greeting = 'Good afternoon!';
-    } else {
-      greeting = 'Good evening!';
-    }
-
-    return Container(
-      padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
-      decoration: BoxDecoration(color: AppColors.bgPrimary),
-      child: Column(
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Hi, $userName',
-                style: AppTextStyles.headlineMedium.copyWith(
-                  color: AppColors.textPrimary,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              Stack(
-                children: [
-                  Container(
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(
-                      color: AppColors.cardBg,
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: AppColors.borderLight),
-                    ),
-                    child: const Icon(
-                      Icons.notifications_outlined,
-                      color: AppColors.textPrimary,
-                      size: 22,
-                    ),
-                  ),
-                  Positioned(
-                    top: 10,
-                    right: 10,
-                    child: Container(
-                      width: 10,
-                      height: 10,
-                      decoration: BoxDecoration(
-                        color: AppColors.accent,
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: AppColors.bgPrimary,
-                          width: 2,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-          const Gap(4),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: Text(
-              greeting,
-              style: AppTextStyles.bodyLarge.copyWith(
-                color: AppColors.textSecondary,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSectionTitle(String title) {
-    return Text(
-      title,
-      style: AppTextStyles.titleMedium.copyWith(color: AppColors.textPrimary),
-    );
-  }
-
-  Widget _buildAddDocumentCards(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24),
-      child: Row(
-        children: [
-          Expanded(
-            child: _AddCard(
-              icon: Icons.document_scanner_rounded,
-              label: 'Scan Document',
-              color: AppColors.accent,
-              onTap: () => context.push('/capture'),
-            ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: _AddCard(
-              icon: Icons.cloud_upload_outlined,
-              label: 'Upload Document',
-              color: AppColors.categoryEducation,
-              onTap: () {
-                ImagePicker().pickImage(source: ImageSource.gallery).then((
-                  img,
-                ) {
-                  if (img != null && context.mounted) {
-                    context.push('/scanning', extra: img.path);
-                  }
-                });
-              },
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildRecentDocumentsList(
-    BuildContext context,
-    List<DocumentModel> docs,
-  ) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24),
-      child: Column(
-        children: docs.map((doc) {
-          final daysAgo = DateTime.now().difference(doc.uploadDate).inDays;
-          final label = daysAgo == 0
-              ? 'Today'
-              : daysAgo == 1
-              ? '1 day ago'
-              : '$daysAgo days ago';
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 10),
-            child: RecentDocumentTile(
-              name: doc.name,
-              subtitle: doc.type,
-              fileType: doc.type,
-              daysAgo: label,
-              icon: _getCategoryIcon(doc.category),
-              iconColor: _getCategoryColor(doc.category),
-              confidence: doc.confidence,
-              onTap: () => context.push('/extracted/${doc.id}'),
-              onLongPress: () => context.push('/virtual-id/${doc.id}'),
-            ),
-          );
-        }).toList(),
-      ),
-    );
-  }
-
-  Widget _buildEmptyState() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24),
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 32),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: AppColors.borderLight),
-        ),
-        child: Column(
+        bottom: false,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 120),
           children: [
-            Icon(
-              Icons.description_outlined,
-              size: 48,
-              color: AppColors.textTertiary,
+            FadeSlideIn(
+              index: 0,
+              child: _Header(userName: userName),
             ),
-            const SizedBox(height: 12),
-            Text(
-              'No documents yet',
-              style: AppTextStyles.bodyMedium.copyWith(
-                color: AppColors.textSecondary,
+            const Gap(24),
+            if (pending.isNotEmpty) ...[
+              FadeSlideIn(
+                index: 1,
+                child: _SuggestionsBanner(count: pending.length),
+              ),
+              const Gap(16),
+            ],
+            FadeSlideIn(index: 2, child: const _QuickActions()),
+            const Gap(24),
+            FadeSlideIn(
+              index: 3,
+              child: _StatsRow(
+                documents: docs.length,
+                people: graph.persons.length,
+                connections: graph.confirmed.length,
               ),
             ),
+            const Gap(28),
+            if (recent.isNotEmpty) ...[
+              FadeSlideIn(
+                index: 4,
+                child: SectionHeader(
+                  title: 'Recent documents',
+                  actionLabel: 'See all',
+                  onAction: () => context.go('/vault'),
+                ),
+              ),
+              for (var i = 0; i < recent.length; i++)
+                FadeSlideIn(
+                  index: 5 + i,
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: _RecentDocumentTile(document: recent[i]),
+                  ),
+                ),
+            ] else
+              FadeSlideIn(
+                index: 4,
+                child: const _FirstScanCard(),
+              ),
           ],
         ),
       ),
     );
   }
+}
 
-  IconData _getCategoryIcon(DocumentCategory category) {
-    switch (category) {
-      case DocumentCategory.identity:
-        return Icons.badge_rounded;
-      case DocumentCategory.education:
-        return Icons.school_rounded;
-      case DocumentCategory.finance:
-        return Icons.account_balance_rounded;
-      case DocumentCategory.medical:
-        return Icons.medical_services_rounded;
-      case DocumentCategory.travel:
-        return Icons.flight_rounded;
-      case DocumentCategory.family:
-        return Icons.family_restroom_rounded;
-      default:
-        return Icons.description_rounded;
-    }
+class _Header extends StatelessWidget {
+  final String? userName;
+
+  const _Header({this.userName});
+
+  String get _greeting {
+    final hour = DateTime.now().hour;
+    if (hour < 12) return 'Good morning';
+    if (hour < 17) return 'Good afternoon';
+    return 'Good evening';
   }
 
-  Color _getCategoryColor(DocumentCategory category) {
-    switch (category) {
-      case DocumentCategory.identity:
-        return AppColors.categoryIdentity;
-      case DocumentCategory.education:
-        return AppColors.categoryEducation;
-      case DocumentCategory.finance:
-        return AppColors.categoryFinance;
-      case DocumentCategory.medical:
-        return AppColors.categoryMedical;
-      case DocumentCategory.travel:
-        return AppColors.categoryTravel;
-      case DocumentCategory.family:
-        return AppColors.categoryFamily;
-      default:
-        return AppColors.categoryOther;
-    }
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                DateFormat('EEEE, d MMMM').format(DateTime.now()).toUpperCase(),
+                style: AppTextStyles.overline,
+              ),
+              const Gap(6),
+              Text(
+                userName != null ? '$_greeting,\n$userName' : _greeting,
+                style: AppTextStyles.display,
+              ),
+            ],
+          ),
+        ),
+        TagChip(
+          label: AppConfig.aiEnabled ? 'AI on' : 'On-device',
+          color: AppConfig.aiEnabled ? AppColors.success : AppColors.info,
+          icon: AppConfig.aiEnabled
+              ? Icons.auto_awesome_rounded
+              : Icons.offline_bolt_outlined,
+        ),
+      ],
+    );
   }
 }
 
-class _AddCard extends StatelessWidget {
+class _SuggestionsBanner extends StatelessWidget {
+  final int count;
+
+  const _SuggestionsBanner({required this.count});
+
+  @override
+  Widget build(BuildContext context) {
+    return AppCard(
+      color: AppColors.accentWash,
+      border: const BorderSide(color: AppColors.accentWashBorder),
+      shadow: false,
+      onTap: () => context.push('/relationships'),
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: const BoxDecoration(
+              color: AppColors.accent,
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.people_alt_outlined,
+              color: AppColors.textOnAccent,
+              size: 20,
+            ),
+          ),
+          const Gap(12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  count == 1
+                      ? '1 relationship to review'
+                      : '$count relationships to review',
+                  style: AppTextStyles.itemTitle,
+                ),
+                const Gap(2),
+                Text(
+                  'The vault noticed people in your documents. Confirm who they are.',
+                  style: AppTextStyles.caption,
+                ),
+              ],
+            ),
+          ),
+          const Icon(
+            Icons.chevron_right_rounded,
+            color: AppColors.accentDeep,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _QuickActions extends StatelessWidget {
+  const _QuickActions();
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: _ActionCard(
+            icon: Icons.document_scanner_outlined,
+            title: 'Scan\ndocument',
+            accent: true,
+            onTap: () => context.push('/capture'),
+          ),
+        ),
+        const Gap(12),
+        Expanded(
+          child: _ActionCard(
+            icon: Icons.edit_document,
+            title: 'Snap\nto fill',
+            onTap: () => context.push('/snap-to-fill'),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ActionCard extends StatelessWidget {
   final IconData icon;
-  final String label;
-  final Color color;
+  final String title;
+  final bool accent;
   final VoidCallback onTap;
 
-  const _AddCard({
+  const _ActionCard({
     required this.icon,
-    required this.label,
-    required this.color,
+    required this.title,
+    this.accent = false,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    return AppCard(
       onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: AppColors.borderLight),
-        ),
-        child: Column(
-          children: [
-            Container(
-              width: 56,
-              height: 56,
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(18),
-              ),
-              child: Icon(icon, color: color, size: 28),
+      color: accent ? AppColors.surfaceInverse : AppColors.surface,
+      border: accent
+          ? const BorderSide(color: AppColors.surfaceInverse)
+          : null,
+      padding: const EdgeInsets.all(18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: accent ? AppColors.surfaceInverseRaised : AppColors.accentWash,
+              borderRadius: BorderRadius.circular(12),
             ),
-            const SizedBox(height: 14),
-            Text(
-              label,
-              textAlign: TextAlign.center,
-              style: AppTextStyles.titleSmall.copyWith(
-                color: AppColors.textPrimary,
-                fontWeight: FontWeight.w600,
-              ),
+            child: Icon(
+              icon,
+              size: 20,
+              color: accent ? AppColors.textOnInverse : AppColors.accentDeep,
             ),
-          ],
-        ),
+          ),
+          const Gap(14),
+          Text(
+            title,
+            style: AppTextStyles.headline.copyWith(
+              color: accent ? AppColors.textOnInverse : AppColors.textPrimary,
+              height: 1.25,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StatsRow extends StatelessWidget {
+  final int documents;
+  final int people;
+  final int connections;
+
+  const _StatsRow({
+    required this.documents,
+    required this.people,
+    required this.connections,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return AppCard(
+      padding: const EdgeInsets.symmetric(vertical: 18),
+      child: Row(
+        children: [
+          _Stat(value: documents, label: 'Documents'),
+          const _StatDivider(),
+          _Stat(value: people, label: 'People'),
+          const _StatDivider(),
+          _Stat(value: connections, label: 'Connections'),
+        ],
+      ),
+    );
+  }
+}
+
+class _Stat extends StatelessWidget {
+  final int value;
+  final String label;
+
+  const _Stat({required this.value, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Column(
+        children: [
+          TweenAnimationBuilder<int>(
+            duration: const Duration(milliseconds: 700),
+            curve: Curves.easeOutCubic,
+            tween: IntTween(begin: 0, end: value),
+            builder: (context, animated, _) =>
+                Text('$animated', style: AppTextStyles.statNumber),
+          ),
+          const Gap(2),
+          Text(label, style: AppTextStyles.caption),
+        ],
+      ),
+    );
+  }
+}
+
+class _StatDivider extends StatelessWidget {
+  const _StatDivider();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(width: 1, height: 36, color: AppColors.divider);
+  }
+}
+
+class _RecentDocumentTile extends StatelessWidget {
+  final DocumentModel document;
+
+  const _RecentDocumentTile({required this.document});
+
+  @override
+  Widget build(BuildContext context) {
+    return AppCard(
+      onTap: () => context.push('/document/${document.id}'),
+      padding: const EdgeInsets.all(12),
+      child: Row(
+        children: [
+          document.thumbFile.isNotEmpty
+              ? VaultImage(fileName: document.thumbFile, width: 48, height: 48)
+              : CategoryVisual(category: document.category, size: 48),
+          const Gap(12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  document.displayTitle,
+                  style: AppTextStyles.itemTitle,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const Gap(3),
+                Text(
+                  [
+                    if (document.ownerName.isNotEmpty) document.ownerName,
+                    document.dateFormatted,
+                  ].join(' · '),
+                  style: AppTextStyles.caption,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+          const Gap(8),
+          ConfidenceBadge(confidence: document.confidence, compact: true),
+          const Gap(10),
+          const Icon(
+            Icons.chevron_right_rounded,
+            color: AppColors.textTertiary,
+            size: 20,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _FirstScanCard extends StatelessWidget {
+  const _FirstScanCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return AppCard(
+      padding: const EdgeInsets.all(24),
+      onTap: () => context.push('/capture'),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Store once.\nUnderstand forever.', style: AppTextStyles.title),
+          const Gap(10),
+          Text(
+            'Scan your first document — an Aadhaar card, PAN, marksheet or '
+            'passport. The vault reads it, organizes it, and remembers every '
+            'detail so you never type it again.',
+            style: AppTextStyles.bodySecondary,
+          ),
+          const Gap(18),
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 10,
+                ),
+                decoration: BoxDecoration(
+                  color: AppColors.accent,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.document_scanner_outlined,
+                      size: 16,
+                      color: AppColors.textOnAccent,
+                    ),
+                    const Gap(8),
+                    Text(
+                      'Scan your first document',
+                      style: AppTextStyles.buttonSmall.copyWith(
+                        color: AppColors.textOnAccent,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }

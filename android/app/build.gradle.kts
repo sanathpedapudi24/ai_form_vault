@@ -42,6 +42,8 @@ android {
 dependencies {
     implementation("androidx.concurrent:concurrent-futures:1.1.0")
     implementation("com.google.mlkit:text-recognition-devanagari:16.0.1")
+    // Encrypted storage for facts shared with the system autofill service.
+    implementation("androidx.security:security-crypto:1.1.0-alpha06")
 }
 
 flutter {

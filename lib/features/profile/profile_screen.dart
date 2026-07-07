@@ -1,305 +1,271 @@
 import 'package:flutter/material.dart';
-import 'package:gap/gap.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:percent_indicator/percent_indicator.dart';
+import 'package:gap/gap.dart';
+import 'package:go_router/go_router.dart';
 
-import '../../core/models/profile_model.dart';
-import '../../core/providers/profile_provider.dart';
-import '../../core/providers/auth_provider.dart';
+import '../../core/config/app_config.dart';
+import '../../core/models/document_model.dart';
+import '../../core/models/person_model.dart';
+import '../../core/providers/document_provider.dart';
+import '../../core/providers/person_provider.dart';
+import '../../core/providers/settings_provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
-import 'widgets/profile_section_tile.dart';
+import '../../shared/widgets/app_card.dart';
+import '../../shared/widgets/fade_slide_in.dart';
+import '../../shared/widgets/section_header.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
 
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final profile = ref.watch(profileProvider);
-    final authState = ref.watch(authProvider);
-
-    return Scaffold(
-      backgroundColor: AppColors.bgSecondary,
-      appBar: AppBar(
-        backgroundColor: AppColors.bgPrimary,
-        surfaceTintColor: Colors.transparent,
-        elevation: 0,
-        title: Text(
-          'Profile',
-          style: AppTextStyles.headlineMedium.copyWith(
-            color: AppColors.textPrimary,
-            fontWeight: FontWeight.w700,
-          ),
+  void _editName(BuildContext context, WidgetRef ref, Person user) {
+    final controller = TextEditingController(text: user.displayName);
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) => Padding(
+        padding: EdgeInsets.only(
+          left: 20,
+          right: 20,
+          top: 20,
+          bottom: MediaQuery.of(context).viewInsets.bottom + 20,
         ),
-        actions: [
-          Container(
-            margin: const EdgeInsets.only(right: 16),
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              color: AppColors.cardBg,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppColors.borderLight),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Your name', style: AppTextStyles.titleSmall),
+            const Gap(14),
+            TextField(
+              controller: controller,
+              autofocus: true,
+              style: AppTextStyles.body,
+              onSubmitted: (v) {
+                ref
+                    .read(identityGraphProvider.notifier)
+                    .renamePerson(user.id, v);
+                Navigator.pop(context);
+              },
             ),
-            child: IconButton(
-              icon: const Icon(
-                Icons.edit_rounded,
-                color: AppColors.accent,
-                size: 20,
-              ),
-              onPressed: () => _showEditProfileSheet(context, ref, profile),
-            ),
-          ),
-        ],
-      ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(20, 8, 20, 100),
-          child: Column(
-            children: [
-              const Gap(16),
-              _buildProfileHeader(profile, authState, ref),
-              const Gap(20),
-              _buildCompletenessCard(profile),
-              const Gap(20),
-              _buildInfoCard(profile),
-              const Gap(20),
-              _buildSections(profile),
-              const Gap(24),
-              _buildAuthSection(context, authState, ref),
-            ],
-          ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildProfileHeader(
-    UserProfile profile,
-    AuthState authState,
-    WidgetRef ref,
-  ) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: AppColors.borderLight),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Stack(
-            children: [
-              Container(
-                width: 88,
-                height: 88,
-                decoration: BoxDecoration(
-                  gradient: AppColors.accentGradient,
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.accent.withValues(alpha: 0.3),
-                      blurRadius: 16,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: Center(
-                  child: Text(
-                    profile.name.isNotEmpty
-                        ? profile.name[0].toUpperCase()
-                        : '?',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 32,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final graph = ref.watch(identityGraphProvider);
+    final docs = ref.watch(documentsProvider);
+    final settings = ref.watch(settingsProvider);
+    final user = graph.user;
+    final factsAsync = user != null
+        ? ref.watch(personFactsProvider(user.id))
+        : const AsyncValue<List<PersonFact>>.data([]);
+
+    return Scaffold(
+      appBar: AppBar(title: const Text('Profile')),
+      body: SafeArea(
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
+          children: [
+            if (user != null)
+              FadeSlideIn(
+                index: 0,
+                child: _ProfileHeader(
+                  user: user,
+                  documentCount: docs.length,
+                  onEditName: () => _editName(context, ref, user),
                 ),
               ),
-              if (authState.isAuthenticated && authState.photoUrl != null)
-                Positioned(
-                  bottom: 0,
-                  right: 0,
-                  child: Container(
-                    width: 28,
-                    height: 28,
-                    decoration: BoxDecoration(
-                      color: AppColors.success,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white, width: 2.5),
+            const Gap(24),
+            FadeSlideIn(
+              index: 1,
+              child: SectionHeader(
+                title: 'Identity facts',
+                actionLabel: docs.isEmpty ? null : 'View all',
+                onAction: docs.isEmpty ? null : () => context.push('/relationships'),
+              ),
+            ),
+            factsAsync.when(
+              data: (facts) => facts.isEmpty
+                  ? FadeSlideIn(
+                      index: 2,
+                      child: AppCard(
+                        child: Text(
+                          'Scan an identity document to build your profile automatically.',
+                          style: AppTextStyles.bodySecondary,
+                        ),
+                      ),
+                    )
+                  : AppCard(
+                      padding: EdgeInsets.zero,
+                      child: Column(
+                        children: [
+                          for (var i = 0; i < facts.length; i++) ...[
+                            if (i > 0)
+                              const Divider(height: 1, indent: 16, endIndent: 16),
+                            FadeSlideIn(
+                              index: 2 + i,
+                              child: _FactRow(fact: facts[i]),
+                            ),
+                          ],
+                        ],
+                      ),
                     ),
-                    child: const Icon(
-                      Icons.check_rounded,
-                      color: Colors.white,
-                      size: 16,
+              loading: () => const Padding(
+                padding: EdgeInsets.symmetric(vertical: 24),
+                child: Center(child: CircularProgressIndicator()),
+              ),
+              error: (_, _) => const SizedBox.shrink(),
+            ),
+            const Gap(24),
+            FadeSlideIn(
+              index: 3,
+              child: const SectionHeader(title: 'People & connections'),
+            ),
+            FadeSlideIn(
+              index: 4,
+              child: _NavCard(
+                icon: Icons.people_alt_outlined,
+                title: 'Relationships',
+                subtitle: graph.pending.isNotEmpty
+                    ? '${graph.pending.length} to review'
+                    : '${graph.confirmed.length} connected',
+                highlight: graph.pending.isNotEmpty,
+                onTap: () => context.push('/relationships'),
+              ),
+            ),
+            const Gap(24),
+            FadeSlideIn(
+              index: 5,
+              child: const SectionHeader(title: 'Settings'),
+            ),
+            FadeSlideIn(
+              index: 6,
+              child: Column(
+                children: [
+                  AppCard(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 4,
+                    ),
+                    child: SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: Text('System-wide autofill', style: AppTextStyles.itemTitle),
+                      subtitle: Text(
+                        settings.autofillEnabled
+                            ? (settings.autofillServiceActive
+                                ? 'Active — filling forms in other apps'
+                                : 'Enabled — finish setup in Android settings')
+                            : 'Let other apps request your saved details',
+                        style: AppTextStyles.caption,
+                      ),
+                      value: settings.autofillEnabled,
+                      activeThumbColor: Colors.white,
+                      onChanged: (v) =>
+                          ref.read(settingsProvider.notifier).setAutofillEnabled(v),
                     ),
                   ),
-                ),
-            ],
-          ),
-          const Gap(14),
-          Text(
-            profile.name.isNotEmpty ? profile.name : 'Your Name',
-            style: AppTextStyles.headlineMedium.copyWith(
-              color: AppColors.textPrimary,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const Gap(4),
-          Text(
-            profile.email.isNotEmpty ? profile.email : 'Not signed in',
-            style: AppTextStyles.bodyMedium.copyWith(
-              color: AppColors.textTertiary,
-            ),
-          ),
-          if (profile.phone.isNotEmpty) ...[
-            const Gap(2),
-            Text(
-              profile.phone,
-              style: AppTextStyles.bodyMedium.copyWith(
-                color: AppColors.textTertiary,
+                  const Gap(10),
+                  AppCard(
+                    padding: const EdgeInsets.all(16),
+                    child: Row(
+                      children: [
+                        Icon(
+                          AppConfig.aiEnabled
+                              ? Icons.auto_awesome_rounded
+                              : Icons.offline_bolt_outlined,
+                          size: 18,
+                          color: AppConfig.aiEnabled
+                              ? AppColors.success
+                              : AppColors.info,
+                        ),
+                        const Gap(10),
+                        Expanded(
+                          child: Text(
+                            AppConfig.aiEnabled
+                                ? 'AI extraction is on (Gemini)'
+                                : 'Running fully on-device — no API key configured',
+                            style: AppTextStyles.bodySecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
-          const Gap(20),
-          _buildStatsRow(profile),
-        ],
+        ),
       ),
     );
   }
+}
 
-  Widget _buildStatsRow(UserProfile profile) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppColors.bgSecondary,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Row(
-        children: [
-          _statItem(
-            'Documents',
-            profile.documentCount.toString(),
-            Icons.description_outlined,
-          ),
-          _dividerVertical(),
-          _statItem(
-            'Profiles',
-            profile.profileCount.toString(),
-            Icons.person_outline,
-          ),
-          _dividerVertical(),
-          _statItem(
-            'Scans',
-            profile.recentScans.toString(),
-            Icons.document_scanner_outlined,
-          ),
-        ],
-      ),
-    );
-  }
+class _ProfileHeader extends StatelessWidget {
+  final Person user;
+  final int documentCount;
+  final VoidCallback onEditName;
 
-  Widget _statItem(String label, String value, IconData icon) {
-    return Expanded(
-      child: Column(
-        children: [
-          Icon(icon, color: AppColors.accent, size: 20),
-          const Gap(6),
-          Text(
-            value,
-            style: AppTextStyles.titleLarge.copyWith(
-              color: AppColors.textPrimary,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          Text(
-            label,
-            style: AppTextStyles.labelSmall.copyWith(
-              color: AppColors.textTertiary,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  const _ProfileHeader({
+    required this.user,
+    required this.documentCount,
+    required this.onEditName,
+  });
 
-  Widget _dividerVertical() {
-    return Container(width: 1, height: 40, color: AppColors.borderLight);
-  }
-
-  Widget _buildCompletenessCard(UserProfile profile) {
-    final missing = <String>[];
-    if (!profile.hasName) missing.add('name');
-    if (!profile.hasEmail) missing.add('email');
-    if (!profile.hasPhone) missing.add('phone number');
-
-    final suggestion = profile.isComplete
-        ? 'Your profile is complete!'
-        : 'Add your ${missing.join(' & ')} for autofill.';
-
-    return Container(
-      width: double.infinity,
+  @override
+  Widget build(BuildContext context) {
+    return AppCard(
       padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: AppColors.borderLight),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
       child: Row(
         children: [
-          CircularPercentIndicator(
-            radius: 32,
-            lineWidth: 6,
-            percent: profile.completeness,
-            backgroundColor: AppColors.bgTertiary,
-            progressColor: profile.isComplete
-                ? AppColors.success
-                : AppColors.accent,
-            circularStrokeCap: CircularStrokeCap.round,
-            center: Text(
-              '${profile.completenessPercent}%',
-              style: AppTextStyles.titleSmall.copyWith(
-                color: AppColors.textPrimary,
-                fontWeight: FontWeight.w700,
+          Container(
+            width: 56,
+            height: 56,
+            decoration: const BoxDecoration(
+              color: AppColors.accentWash,
+              shape: BoxShape.circle,
+            ),
+            child: Center(
+              child: Text(
+                user.initial,
+                style: AppTextStyles.titleSmall.copyWith(
+                  color: AppColors.accentDeep,
+                ),
               ),
             ),
           ),
-          const Gap(16),
+          const Gap(14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Profile Completeness',
-                  style: AppTextStyles.titleSmall.copyWith(
-                    color: AppColors.textPrimary,
-                    fontWeight: FontWeight.w600,
+                GestureDetector(
+                  onTap: onEditName,
+                  child: Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          user.displayName,
+                          style: AppTextStyles.headline,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const Gap(4),
+                      const Icon(
+                        Icons.edit_outlined,
+                        size: 13,
+                        color: AppColors.textTertiary,
+                      ),
+                    ],
                   ),
                 ),
-                const Gap(4),
+                const Gap(3),
                 Text(
-                  suggestion,
-                  style: AppTextStyles.bodySmall.copyWith(
-                    color: profile.isComplete
-                        ? AppColors.success
-                        : AppColors.textTertiary,
-                  ),
+                  '$documentCount document${documentCount == 1 ? '' : 's'} in vault',
+                  style: AppTextStyles.caption,
                 ),
               ],
             ),
@@ -308,444 +274,102 @@ class ProfileScreen extends ConsumerWidget {
       ),
     );
   }
+}
 
-  Widget _buildInfoCard(UserProfile profile) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: AppColors.borderLight),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+class _FactRow extends StatelessWidget {
+  final PersonFact fact;
+
+  const _FactRow({required this.fact});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+      child: Row(
         children: [
-          Row(
-            children: [
-              Text(
-                'Information',
-                style: AppTextStyles.titleMedium.copyWith(
-                  color: AppColors.textPrimary,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const Spacer(),
-              GestureDetector(
-                onTap: () {},
-                child: Text(
-                  'All fields optional',
-                  style: AppTextStyles.labelSmall.copyWith(
-                    color: AppColors.textTertiary,
-                  ),
-                ),
-              ),
-            ],
+          Expanded(
+            flex: 2,
+            child: Text(FactKeys.labelFor(fact.factKey), style: AppTextStyles.label),
           ),
-          const SizedBox(height: 16),
-          _profileField(
-            icon: Icons.person_outline,
-            label: 'Name',
-            value: profile.name,
-            isComplete: profile.hasName,
-          ),
-          if (profile.hasName || profile.hasEmail || profile.hasPhone)
-            const Divider(height: 24),
-          _profileField(
-            icon: Icons.email_outlined,
-            label: 'Email',
-            value: profile.email,
-            isComplete: profile.hasEmail,
-          ),
-          if (profile.hasEmail || profile.hasPhone) const Divider(height: 24),
-          _profileField(
-            icon: Icons.phone_outlined,
-            label: 'Mobile',
-            value: profile.phone,
-            isComplete: profile.hasPhone,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _profileField({
-    required IconData icon,
-    required String label,
-    required String value,
-    required bool isComplete,
-  }) {
-    return Row(
-      children: [
-        Container(
-          width: 40,
-          height: 40,
-          decoration: BoxDecoration(
-            color: isComplete
-                ? AppColors.success.withValues(alpha: 0.1)
-                : AppColors.warning.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Icon(
-            icon,
-            color: isComplete ? AppColors.success : AppColors.warning,
-            size: 20,
-          ),
-        ),
-        const SizedBox(width: 14),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                style: AppTextStyles.bodySmall.copyWith(
-                  color: AppColors.textTertiary,
-                  fontSize: 11,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                value.isNotEmpty ? value : 'Not set',
-                style: AppTextStyles.bodyMedium.copyWith(
-                  color: value.isNotEmpty
-                      ? AppColors.textPrimary
-                      : AppColors.textTertiary,
-                  fontWeight: value.isNotEmpty
-                      ? FontWeight.w500
-                      : FontWeight.w400,
-                ),
-              ),
-            ],
-          ),
-        ),
-        if (!isComplete)
-          Container(
-            width: 8,
-            height: 8,
-            decoration: const BoxDecoration(
-              color: AppColors.error,
-              shape: BoxShape.circle,
+          Expanded(
+            flex: 3,
+            child: Text(
+              fact.value,
+              style: (FactKeys.sensitive.contains(fact.factKey)
+                      ? AppTextStyles.mono
+                      : AppTextStyles.body)
+                  .copyWith(fontSize: 14.5),
+              textAlign: TextAlign.right,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
-      ],
-    );
-  }
-
-  Widget _buildSections(UserProfile profile) {
-    if (profile.sections.isEmpty) return const SizedBox();
-
-    final iconMap = {
-      'person': Icons.person_rounded,
-      'school': Icons.school_rounded,
-      'phone': Icons.phone_rounded,
-      'people': Icons.people_rounded,
-      'description': Icons.description_rounded,
-    };
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.only(left: 4, bottom: 12),
-          child: Text(
-            'Profile Sections',
-            style: AppTextStyles.titleMedium.copyWith(
-              color: AppColors.textPrimary,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ),
-        ...profile.sections.map(
-          (s) => ProfileSectionTile(
-            name: s.name,
-            icon: iconMap[s.iconName] ?? Icons.circle_outlined,
-            isComplete: s.isComplete,
-            color: _sectionColor(s.iconName),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Color _sectionColor(String iconName) {
-    switch (iconName) {
-      case 'person':
-        return AppColors.accent;
-      case 'school':
-        return AppColors.categoryEducation;
-      case 'phone':
-        return AppColors.categoryFinance;
-      case 'people':
-        return AppColors.categoryFamily;
-      case 'description':
-        return AppColors.categoryOther;
-      default:
-        return AppColors.accent;
-    }
-  }
-
-  Widget _buildAuthSection(
-    BuildContext context,
-    AuthState authState,
-    WidgetRef ref,
-  ) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: AppColors.borderLight),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: AppColors.accent.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(
-                  Icons.cloud_outlined,
-                  color: AppColors.accent,
-                  size: 20,
-                ),
-              ),
-              const Gap(14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Cloud Sync',
-                      style: AppTextStyles.titleSmall.copyWith(
-                        color: AppColors.textPrimary,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const Gap(2),
-                    Text(
-                      authState.isAuthenticated
-                          ? 'Synced as ${authState.email}'
-                          : 'Sign in to sync across devices',
-                      style: AppTextStyles.bodySmall.copyWith(
-                        color: AppColors.textTertiary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              if (authState.isAuthenticated)
-                Container(
-                  width: 10,
-                  height: 10,
-                  decoration: const BoxDecoration(
-                    color: AppColors.success,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-            ],
-          ),
-          const Gap(16),
-          SizedBox(
-            width: double.infinity,
-            child: TextButton(
-              onPressed: () {
-                if (authState.isAuthenticated) {
-                  ref.read(authProvider.notifier).signOut();
-                } else {
-                  ref.read(authProvider.notifier).signInWithGoogle();
-                }
-              },
-              style: TextButton.styleFrom(
-                backgroundColor: authState.isAuthenticated
-                    ? AppColors.error.withValues(alpha: 0.08)
-                    : AppColors.accent.withValues(alpha: 0.08),
-                foregroundColor: authState.isAuthenticated
-                    ? AppColors.error
-                    : AppColors.accent,
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
-                ),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    authState.isAuthenticated
-                        ? Icons.logout_rounded
-                        : Icons.g_mobiledata_rounded,
-                    size: 20,
-                  ),
-                  const Gap(8),
-                  Text(
-                    authState.isAuthenticated
-                        ? 'Sign Out'
-                        : 'Sign in with Google',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 14,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showEditProfileSheet(
-    BuildContext context,
-    WidgetRef ref,
-    UserProfile profile,
-  ) {
-    final nameCtrl = TextEditingController(text: profile.name);
-    final emailCtrl = TextEditingController(text: profile.email);
-    final phoneCtrl = TextEditingController(text: profile.phone);
-
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.white,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
-      ),
-      builder: (ctx) => Padding(
-        padding: EdgeInsets.only(
-          left: 24,
-          right: 24,
-          top: 12,
-          bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: AppColors.border,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-            Text(
-              'Edit Profile',
-              style: AppTextStyles.titleLarge.copyWith(
-                color: AppColors.textPrimary,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            const SizedBox(height: 24),
-            _editField(
-              controller: nameCtrl,
-              label: 'Full Name',
-              icon: Icons.person_outline,
-            ),
-            const SizedBox(height: 14),
-            _editField(
-              controller: emailCtrl,
-              label: 'Email',
-              icon: Icons.email_outlined,
-              keyboardType: TextInputType.emailAddress,
-            ),
-            const SizedBox(height: 14),
-            _editField(
-              controller: phoneCtrl,
-              label: 'Mobile Number',
-              icon: Icons.phone_outlined,
-              keyboardType: TextInputType.phone,
-            ),
-            const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () {
-                  ref
-                      .read(profileProvider.notifier)
-                      .setName(nameCtrl.text.trim());
-                  ref
-                      .read(profileProvider.notifier)
-                      .setEmail(emailCtrl.text.trim());
-                  ref
-                      .read(profileProvider.notifier)
-                      .setPhone(phoneCtrl.text.trim());
-                  Navigator.of(ctx).pop();
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.accent,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  elevation: 0,
-                ),
-                child: const Text(
-                  'Save',
-                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
-                ),
-              ),
+          if (fact.verified) ...[
+            const Gap(6),
+            const Icon(
+              Icons.check_circle_rounded,
+              size: 14,
+              color: AppColors.success,
             ),
           ],
-        ),
+        ],
       ),
     );
   }
+}
 
-  Widget _editField({
-    required TextEditingController controller,
-    required String label,
-    required IconData icon,
-    TextInputType? keyboardType,
-  }) {
-    return TextField(
-      controller: controller,
-      keyboardType: keyboardType,
-      decoration: InputDecoration(
-        labelText: label,
-        prefixIcon: Icon(icon),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide(color: AppColors.borderLight),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: AppColors.accent, width: 1.5),
-        ),
-        filled: true,
-        fillColor: AppColors.bgSecondary,
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 14,
-        ),
+class _NavCard extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final bool highlight;
+  final VoidCallback onTap;
+
+  const _NavCard({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    this.highlight = false,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return AppCard(
+      onTap: onTap,
+      padding: const EdgeInsets.all(16),
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: highlight ? AppColors.accentWash : AppColors.bgSunken,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(
+              icon,
+              size: 19,
+              color: highlight ? AppColors.accentDeep : AppColors.textPrimary,
+            ),
+          ),
+          const Gap(12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: AppTextStyles.itemTitle),
+                const Gap(2),
+                Text(subtitle, style: AppTextStyles.caption),
+              ],
+            ),
+          ),
+          const Icon(
+            Icons.chevron_right_rounded,
+            color: AppColors.textTertiary,
+          ),
+        ],
       ),
-      style: const TextStyle(color: AppColors.textPrimary),
     );
   }
 }

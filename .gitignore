@@ -43,3 +43,7 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Secrets — real API keys live here, never committed.
+# Copy lib/core/config/api_keys.example.dart to api_keys.dart and fill in.
+lib/core/config/api_keys.dart

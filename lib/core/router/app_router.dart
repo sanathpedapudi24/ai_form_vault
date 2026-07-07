@@ -1,17 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../features/shell/app_shell.dart';
-import '../../features/dashboard/dashboard_screen.dart';
-import '../../features/vault/vault_screen.dart';
-import '../../features/search/search_screen.dart';
-import '../../features/profile/profile_screen.dart';
-import '../../features/scanning/scanning_screen.dart';
 import '../../features/capture/document_capture_screen.dart';
-import '../../features/extracted_info/extracted_info_screen.dart';
+import '../../features/dashboard/dashboard_screen.dart';
+import '../../features/document/document_detail_screen.dart';
+import '../../features/profile/profile_screen.dart';
 import '../../features/relationships/relationships_screen.dart';
+import '../../features/review/review_screen.dart';
+import '../../features/scanning/scanning_screen.dart';
+import '../../features/search/search_screen.dart';
+import '../../features/shell/app_shell.dart';
 import '../../features/snap_to_fill/snap_to_fill_screen.dart';
-import '../../features/auth/auth_screen.dart';
+import '../../features/vault/vault_screen.dart';
 import '../../features/virtual_id/virtual_id_screen.dart';
 
 final _rootNavigatorKey = GlobalKey<NavigatorState>();
@@ -25,7 +25,6 @@ final appRouter = GoRouter(
         return AppShell(navigationShell: navigationShell);
       },
       branches: [
-        // Home
         StatefulShellBranch(
           routes: [
             GoRoute(
@@ -35,7 +34,6 @@ final appRouter = GoRouter(
             ),
           ],
         ),
-        // Vault
         StatefulShellBranch(
           routes: [
             GoRoute(
@@ -45,7 +43,6 @@ final appRouter = GoRouter(
             ),
           ],
         ),
-        // Search
         StatefulShellBranch(
           routes: [
             GoRoute(
@@ -55,7 +52,6 @@ final appRouter = GoRouter(
             ),
           ],
         ),
-        // Profile
         StatefulShellBranch(
           routes: [
             GoRoute(
@@ -67,7 +63,7 @@ final appRouter = GoRouter(
         ),
       ],
     ),
-    // Sub-routes (full screen, outside shell)
+    // Full-screen flows outside the shell.
     GoRoute(
       path: '/capture',
       parentNavigatorKey: _rootNavigatorKey,
@@ -82,18 +78,23 @@ final appRouter = GoRouter(
       },
     ),
     GoRoute(
-      path: '/extracted/:id',
+      path: '/review',
+      parentNavigatorKey: _rootNavigatorKey,
+      builder: (context, state) => const ReviewScreen(),
+    ),
+    GoRoute(
+      path: '/document/:id',
       parentNavigatorKey: _rootNavigatorKey,
       builder: (context, state) {
-        final docId = state.pathParameters['id'] ?? '1';
-        return ExtractedInfoScreen(documentId: docId);
+        final docId = state.pathParameters['id']!;
+        return DocumentDetailScreen(documentId: docId);
       },
     ),
     GoRoute(
       path: '/virtual-id/:id',
       parentNavigatorKey: _rootNavigatorKey,
       builder: (context, state) {
-        final docId = state.pathParameters['id'] ?? '1';
+        final docId = state.pathParameters['id']!;
         return VirtualIdScreen(documentId: docId);
       },
     ),
@@ -106,11 +107,6 @@ final appRouter = GoRouter(
       path: '/snap-to-fill',
       parentNavigatorKey: _rootNavigatorKey,
       builder: (context, state) => const SnapToFillScreen(),
-    ),
-    GoRoute(
-      path: '/auth',
-      parentNavigatorKey: _rootNavigatorKey,
-      builder: (context, state) => const AuthScreen(),
     ),
   ],
 );
