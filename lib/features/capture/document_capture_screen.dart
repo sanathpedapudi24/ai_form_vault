@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_mlkit_document_scanner/google_mlkit_document_scanner.dart';
 import 'package:go_router/go_router.dart';
 import 'package:gap/gap.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../core/config/app_config.dart';
+import '../../core/providers/app_lock_provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../shared/widgets/app_card.dart';
@@ -12,19 +14,24 @@ import '../../shared/widgets/fade_slide_in.dart';
 
 /// Entry point for adding a document: ML Kit's edge-detecting scanner or a
 /// gallery pick. Both hand a JPEG path to the scanning pipeline.
-class DocumentCaptureScreen extends StatefulWidget {
+class DocumentCaptureScreen extends ConsumerStatefulWidget {
   const DocumentCaptureScreen({super.key});
 
   @override
-  State<DocumentCaptureScreen> createState() => _DocumentCaptureScreenState();
+  ConsumerState<DocumentCaptureScreen> createState() =>
+      _DocumentCaptureScreenState();
 }
 
-class _DocumentCaptureScreenState extends State<DocumentCaptureScreen> {
+class _DocumentCaptureScreenState extends ConsumerState<DocumentCaptureScreen> {
   bool _busy = false;
 
   Future<void> _scanWithCamera() async {
     if (_busy) return;
     setState(() => _busy = true);
+    // The document scanner is a separate Activity — launching it briefly
+    // backgrounds this app the same way switching apps does, which would
+    // otherwise re-lock the vault and lose the scan before it starts.
+    ref.read(appLockProvider.notifier).suppressAutoLock();
     try {
       final scanner = DocumentScanner(
         options: DocumentScannerOptions(
@@ -43,6 +50,7 @@ class _DocumentCaptureScreenState extends State<DocumentCaptureScreen> {
     } catch (_) {
       _showError('Could not open the scanner. Try the gallery instead.');
     } finally {
+      ref.read(appLockProvider.notifier).resumeAutoLock();
       if (mounted) setState(() => _busy = false);
     }
   }
@@ -50,6 +58,7 @@ class _DocumentCaptureScreenState extends State<DocumentCaptureScreen> {
   Future<void> _pickFromGallery() async {
     if (_busy) return;
     setState(() => _busy = true);
+    ref.read(appLockProvider.notifier).suppressAutoLock();
     try {
       final picked = await ImagePicker().pickImage(
         source: ImageSource.gallery,
@@ -61,6 +70,7 @@ class _DocumentCaptureScreenState extends State<DocumentCaptureScreen> {
     } catch (_) {
       _showError('Could not open the gallery.');
     } finally {
+      ref.read(appLockProvider.notifier).resumeAutoLock();
       if (mounted) setState(() => _busy = false);
     }
   }

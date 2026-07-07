@@ -5,6 +5,7 @@ import '../config/app_config.dart';
 import '../models/document_model.dart';
 import '../repositories/document_repository.dart';
 import 'embedding_service.dart';
+import 'query_intent.dart';
 
 /// One search hit: the document, why it matched, and how strongly.
 class SearchResult {
@@ -28,8 +29,10 @@ class SearchResult {
 /// Hybrid search: semantic (vector cosine) + keyword, merged.
 ///
 /// With a Gemini key, natural-language queries like "when does my insurance
-/// expire" rank by meaning; without one, weighted keyword matching still
-/// gives useful results. Both paths run entirely over local data.
+/// expire" rank by meaning; without one, [NaturalLanguageQuery] strips the
+/// question phrasing and reasons about expiry/category intent directly, so
+/// search still feels conversational rather than purely literal keyword
+/// matching. Both paths run entirely over local data.
 class SearchService {
   SearchService({
     EmbeddingService? embeddings,
@@ -47,13 +50,17 @@ class SearchService {
     final q = query.trim();
     if (q.isEmpty || docs.isEmpty) return [];
 
+    final intent = NaturalLanguageQuery.parse(q);
+
     final keywordScores = <String, SearchResult>{};
     for (final doc in docs) {
-      final result = _keywordScore(q, doc);
+      final result = _keywordScore(intent, doc);
       if (result != null) keywordScores[doc.id] = result;
     }
 
     // Semantic pass (only when AI is configured and embeddings exist).
+    // The raw query goes to the embedding model — it handles phrasing on
+    // its own and shouldn't be pre-stripped the way the keyword path is.
     final semanticScores = <String, double>{};
     final queryVector = await _embeddings.embedQuery(q);
     if (queryVector != null) {
@@ -93,12 +100,8 @@ class SearchService {
 
   // --- Keyword scoring ---------------------------------------------------------
 
-  SearchResult? _keywordScore(String query, DocumentModel doc) {
-    final terms = query
-        .toLowerCase()
-        .split(RegExp(r'\s+'))
-        .where((t) => t.length > 1)
-        .toList();
+  SearchResult? _keywordScore(QueryIntent intent, DocumentModel doc) {
+    final terms = intent.terms;
     if (terms.isEmpty) return null;
 
     var score = 0.0;
@@ -135,14 +138,80 @@ class SearchService {
       score += termScore;
     }
 
-    if (score <= 0) return null;
-    // Normalize by term count so long queries don't inflate scores.
+    // A category synonym ("find my ID") counts as a real signal even when
+    // the word itself never appears on the document.
+    if (intent.categoryHint != null && intent.categoryHint == doc.category) {
+      score += terms.length * 0.25;
+    }
+
+    if (score <= 0 && !(intent.wantsExpiry && _hasExpiryData(doc))) {
+      return null;
+    }
+
+    // Normalize by term count so long queries don't inflate scores, then
+    // apply expiry reasoning on top — this is what makes "when does my
+    // passport expire" surface the right document even offline.
+    var normalized = terms.isEmpty
+        ? 0.0
+        : (score / terms.length).clamp(0.0, 1.0) * 0.6;
+
+    if (intent.wantsExpiry) {
+      final expiryField = doc.fieldByKey(FactKeys.expiryDate);
+      if (expiryField != null) {
+        normalized += 0.25;
+        if (matchedLabel.isEmpty) {
+          matchedLabel = expiryField.label;
+          matchedValue = expiryField.value;
+        }
+        final expiry = _tryParseDate(expiryField.value);
+        if (expiry != null) {
+          final daysLeft = expiry.difference(DateTime.now()).inDays;
+          if (daysLeft < 0) {
+            normalized += 0.15; // already expired — surface it prominently
+          } else if (daysLeft <= 90) {
+            normalized += 0.1; // expiring soon
+          }
+        }
+      }
+    }
+
+    if (normalized <= 0) return null;
     return SearchResult(
       document: doc,
-      score: (score / terms.length).clamp(0.0, 1.0) * 0.6,
+      score: normalized.clamp(0.0, 1.0),
       matchedLabel: matchedLabel,
       matchedValue: matchedValue,
     );
+  }
+
+  bool _hasExpiryData(DocumentModel doc) =>
+      doc.fieldByKey(FactKeys.expiryDate) != null;
+
+  /// Parses the common date formats this app's parser and Gemini extraction
+  /// actually produce (dd/mm/yyyy, dd-mm-yyyy, yyyy-mm-dd, ISO). Returns
+  /// null rather than guessing when the format is ambiguous.
+  static DateTime? _tryParseDate(String value) {
+    final trimmed = value.trim();
+
+    final iso = DateTime.tryParse(trimmed);
+    if (iso != null) return iso;
+
+    final match = RegExp(r'^(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{2,4})$')
+        .firstMatch(trimmed);
+    if (match == null) return null;
+
+    final day = int.tryParse(match.group(1)!);
+    final month = int.tryParse(match.group(2)!);
+    var year = int.tryParse(match.group(3)!);
+    if (day == null || month == null || year == null) return null;
+    if (year < 100) year += 2000;
+    if (month < 1 || month > 12 || day < 1 || day > 31) return null;
+
+    try {
+      return DateTime(year, month, day);
+    } catch (_) {
+      return null;
+    }
   }
 
   static double _cosine(List<double> a, Float32List b) {

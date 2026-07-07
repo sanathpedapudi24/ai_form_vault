@@ -6,11 +6,13 @@ import android.net.Uri
 import android.os.Build
 import android.provider.Settings
 import android.view.autofill.AutofillManager
-import io.flutter.embedding.android.FlutterActivity
+import io.flutter.embedding.android.FlutterFragmentActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 
-class MainActivity : FlutterActivity() {
+// FlutterFragmentActivity (not FlutterActivity) is required by local_auth —
+// the biometric prompt is a DialogFragment that needs a FragmentActivity host.
+class MainActivity : FlutterFragmentActivity() {
 
     private val channelName = "com.aiformvault/autofill"
 

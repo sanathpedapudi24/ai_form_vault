@@ -143,4 +143,15 @@ class AppDatabase {
     await _db?.close();
     _db = null;
   }
+
+  /// Deletes the database file and its encryption key entirely. Used only
+  /// by the "forgotten PIN" recovery path — there is no cloud account to
+  /// reset through, so recovery means starting the vault over.
+  static Future<void> deleteAll() async {
+    await close();
+    final dir = await getApplicationDocumentsDirectory();
+    final path = p.join(dir.path, _dbFileName);
+    await databaseFactory.deleteDatabase(path);
+    await _secureStorage.delete(key: _dbKeyStorageKey);
+  }
 }

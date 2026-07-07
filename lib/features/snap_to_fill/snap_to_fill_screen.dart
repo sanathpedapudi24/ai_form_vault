@@ -8,6 +8,7 @@ import 'package:gap/gap.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../../core/providers/app_lock_provider.dart';
 import '../../core/providers/person_provider.dart';
 import '../../core/providers/service_providers.dart';
 import '../../core/services/form_fill_service.dart';
@@ -38,6 +39,7 @@ class _SnapToFillScreenState extends ConsumerState<SnapToFillScreen> {
   String? _error;
 
   Future<void> _pick(ImageSource source) async {
+    ref.read(appLockProvider.notifier).suppressAutoLock();
     try {
       final picked = await ImagePicker().pickImage(
         source: source,
@@ -54,6 +56,8 @@ class _SnapToFillScreenState extends ConsumerState<SnapToFillScreen> {
         _stage = _Stage.failed;
         _error = 'Could not open the camera or gallery.';
       });
+    } finally {
+      ref.read(appLockProvider.notifier).resumeAutoLock();
     }
   }
 
@@ -107,9 +111,14 @@ class _SnapToFillScreenState extends ConsumerState<SnapToFillScreen> {
   Future<void> _shareImage() async {
     final path = _imagePath;
     if (path == null) return;
-    await SharePlus.instance.share(
-      ShareParams(files: [XFile(path)], text: 'Filled with AI Form & Vault'),
-    );
+    ref.read(appLockProvider.notifier).suppressAutoLock();
+    try {
+      await SharePlus.instance.share(
+        ShareParams(files: [XFile(path)], text: 'Filled with AI Form & Vault'),
+      );
+    } finally {
+      ref.read(appLockProvider.notifier).resumeAutoLock();
+    }
   }
 
   void _editField(int index) {

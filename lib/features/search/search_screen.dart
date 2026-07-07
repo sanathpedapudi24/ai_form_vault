@@ -44,10 +44,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     final state = ref.watch(searchProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Search'),
-        automaticallyImplyLeading: false,
-      ),
+      appBar: AppBar(title: const Text('Search')),
       body: SafeArea(
         child: Column(
           children: [

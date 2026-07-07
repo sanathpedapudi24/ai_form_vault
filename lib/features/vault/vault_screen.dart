@@ -31,7 +31,15 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
     final all = ref.watch(documentsProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Vault')),
+      appBar: AppBar(
+        title: const Text('Vault'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.search_rounded),
+            onPressed: () => context.push('/search'),
+          ),
+        ],
+      ),
       body: SafeArea(
         child: Column(
           children: [

@@ -89,4 +89,41 @@ void main() {
       expect(results.first.document.id, '2');
     });
   });
+
+  group('SearchService — natural-language phrasing', () {
+    test('"find my X" matches the same as the bare keyword', () async {
+      final docs = [_doc(id: '1', name: 'Passport')];
+      final results = await service.search('find my passport', docs);
+      expect(results, hasLength(1));
+      expect(results.first.document.id, '1');
+    });
+
+    test('a category synonym surfaces a document with no literal match', () async {
+      final docs = [
+        _doc(id: '1', name: 'Aadhaar Card', category: DocumentCategory.identity),
+        _doc(id: '2', name: 'Marksheet', category: DocumentCategory.education),
+      ];
+      final results = await service.search('show me my ID', docs);
+      expect(results, isNotEmpty);
+      expect(results.first.document.id, '1');
+    });
+
+    test('expiry question surfaces a document with an expiry field', () async {
+      final futureDate = DateTime.now().add(const Duration(days: 30));
+      final formatted =
+          '${futureDate.day.toString().padLeft(2, '0')}/'
+          '${futureDate.month.toString().padLeft(2, '0')}/${futureDate.year}';
+      final docs = [
+        _doc(
+          id: '1',
+          name: 'Passport',
+          fields: [ExtractedField(label: 'Expiry Date', value: formatted, semanticKey: FactKeys.expiryDate)],
+        ),
+        _doc(id: '2', name: 'Aadhaar Card'),
+      ];
+      final results = await service.search('when does my passport expire', docs);
+      expect(results, isNotEmpty);
+      expect(results.first.document.id, '1');
+    });
+  });
 }

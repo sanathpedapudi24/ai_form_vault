@@ -119,4 +119,15 @@ class ImageVault {
       _cache.remove(_cache.keys.first);
     }
   }
+
+  /// Deletes every stored image and the encryption key. Used only by the
+  /// "forgotten PIN" recovery path.
+  Future<void> wipeAll() async {
+    _cache.clear();
+    final dir = await _getDir();
+    if (await dir.exists()) await dir.delete(recursive: true);
+    await _secureStorage.delete(key: _keyStorageKey);
+    _key = null;
+    _dir = null;
+  }
 }

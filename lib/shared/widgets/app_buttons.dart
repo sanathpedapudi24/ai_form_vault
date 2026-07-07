@@ -13,6 +13,9 @@ class PrimaryButton extends StatelessWidget {
   final bool loading;
   final bool expanded;
 
+  /// Uses the error color instead of accent — for irreversible actions.
+  final bool danger;
+
   const PrimaryButton({
     super.key,
     required this.label,
@@ -20,6 +23,7 @@ class PrimaryButton extends StatelessWidget {
     this.icon,
     this.loading = false,
     this.expanded = true,
+    this.danger = false,
   });
 
   @override
@@ -34,7 +38,9 @@ class PrimaryButton extends StatelessWidget {
         width: expanded ? double.infinity : null,
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 15),
         decoration: BoxDecoration(
-          color: enabled ? AppColors.accent : AppColors.bgDeep,
+          color: enabled
+              ? (danger ? AppColors.error : AppColors.accent)
+              : AppColors.bgDeep,
           borderRadius: BorderRadius.circular(14),
         ),
         child: Row(

@@ -123,14 +123,47 @@ class _Header extends StatelessWidget {
             ],
           ),
         ),
-        TagChip(
-          label: AppConfig.aiEnabled ? 'AI on' : 'On-device',
-          color: AppConfig.aiEnabled ? AppColors.success : AppColors.info,
-          icon: AppConfig.aiEnabled
-              ? Icons.auto_awesome_rounded
-              : Icons.offline_bolt_outlined,
+        Row(
+          children: [
+            _HeaderIconButton(
+              icon: Icons.search_rounded,
+              onTap: () => context.push('/search'),
+            ),
+            const Gap(8),
+            TagChip(
+              label: AppConfig.aiEnabled ? 'AI on' : 'On-device',
+              color: AppConfig.aiEnabled ? AppColors.success : AppColors.info,
+              icon: AppConfig.aiEnabled
+                  ? Icons.auto_awesome_rounded
+                  : Icons.offline_bolt_outlined,
+            ),
+          ],
         ),
       ],
+    );
+  }
+}
+
+class _HeaderIconButton extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback onTap;
+
+  const _HeaderIconButton({required this.icon, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.surface,
+      shape: const CircleBorder(side: BorderSide(color: AppColors.border)),
+      child: InkWell(
+        customBorder: const CircleBorder(),
+        onTap: onTap,
+        child: SizedBox(
+          width: 32,
+          height: 32,
+          child: Icon(icon, size: 17, color: AppColors.textSecondary),
+        ),
+      ),
     );
   }
 }

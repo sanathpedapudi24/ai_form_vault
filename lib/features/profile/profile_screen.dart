@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/config/app_config.dart';
 import '../../core/models/document_model.dart';
 import '../../core/models/person_model.dart';
+import '../../core/providers/app_lock_provider.dart';
 import '../../core/providers/document_provider.dart';
 import '../../core/providers/person_provider.dart';
 import '../../core/providers/settings_provider.dart';
@@ -58,6 +59,7 @@ class ProfileScreen extends ConsumerWidget {
     final graph = ref.watch(identityGraphProvider);
     final docs = ref.watch(documentsProvider);
     final settings = ref.watch(settingsProvider);
+    final lock = ref.watch(appLockProvider);
     final user = graph.user;
     final factsAsync = user != null
         ? ref.watch(personFactsProvider(user.id))
@@ -139,10 +141,68 @@ class ProfileScreen extends ConsumerWidget {
             const Gap(24),
             FadeSlideIn(
               index: 5,
-              child: const SectionHeader(title: 'Settings'),
+              child: const SectionHeader(title: 'Security'),
             ),
             FadeSlideIn(
               index: 6,
+              child: lock.hasPin
+                  ? Column(
+                      children: [
+                        _NavCard(
+                          icon: Icons.password_rounded,
+                          title: 'Change PIN',
+                          subtitle: 'Update your 4-digit unlock code',
+                          onTap: () => context.push('/settings/change-pin'),
+                        ),
+                        if (lock.biometricAvailable) ...[
+                          const Gap(10),
+                          AppCard(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 4,
+                            ),
+                            child: SwitchListTile(
+                              contentPadding: EdgeInsets.zero,
+                              title: Text(
+                                'Biometric unlock',
+                                style: AppTextStyles.itemTitle,
+                              ),
+                              subtitle: Text(
+                                'Use your fingerprint or face instead of the PIN',
+                                style: AppTextStyles.caption,
+                              ),
+                              value: lock.biometricEnabled,
+                              activeThumbColor: Colors.white,
+                              onChanged: (v) => ref
+                                  .read(appLockProvider.notifier)
+                                  .setBiometricEnabled(v),
+                            ),
+                          ),
+                        ],
+                        const Gap(10),
+                        _NavCard(
+                          icon: Icons.lock_open_outlined,
+                          title: 'Turn off app lock',
+                          subtitle: 'Remove the PIN and biometric gate',
+                          onTap: () => context.push('/settings/disable-lock'),
+                        ),
+                      ],
+                    )
+                  : _NavCard(
+                      icon: Icons.lock_outline_rounded,
+                      title: 'Set up app lock',
+                      subtitle: 'Protect your vault with a PIN or biometrics',
+                      highlight: true,
+                      onTap: () => context.push('/settings/setup-pin'),
+                    ),
+            ),
+            const Gap(24),
+            FadeSlideIn(
+              index: 7,
+              child: const SectionHeader(title: 'Settings'),
+            ),
+            FadeSlideIn(
+              index: 8,
               child: Column(
                 children: [
                   AppCard(

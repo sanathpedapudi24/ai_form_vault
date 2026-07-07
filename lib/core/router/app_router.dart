@@ -4,6 +4,9 @@ import 'package:go_router/go_router.dart';
 import '../../features/capture/document_capture_screen.dart';
 import '../../features/dashboard/dashboard_screen.dart';
 import '../../features/document/document_detail_screen.dart';
+import '../../features/lock/change_pin_screen.dart';
+import '../../features/lock/disable_lock_screen.dart';
+import '../../features/lock/pin_setup_screen.dart';
 import '../../features/profile/profile_screen.dart';
 import '../../features/relationships/relationships_screen.dart';
 import '../../features/review/review_screen.dart';
@@ -46,15 +49,6 @@ final appRouter = GoRouter(
         StatefulShellBranch(
           routes: [
             GoRoute(
-              path: '/search',
-              pageBuilder: (context, state) =>
-                  const NoTransitionPage(child: SearchScreen()),
-            ),
-          ],
-        ),
-        StatefulShellBranch(
-          routes: [
-            GoRoute(
               path: '/profile',
               pageBuilder: (context, state) =>
                   const NoTransitionPage(child: ProfileScreen()),
@@ -64,6 +58,11 @@ final appRouter = GoRouter(
       ],
     ),
     // Full-screen flows outside the shell.
+    GoRoute(
+      path: '/search',
+      parentNavigatorKey: _rootNavigatorKey,
+      builder: (context, state) => const SearchScreen(),
+    ),
     GoRoute(
       path: '/capture',
       parentNavigatorKey: _rootNavigatorKey,
@@ -107,6 +106,25 @@ final appRouter = GoRouter(
       path: '/snap-to-fill',
       parentNavigatorKey: _rootNavigatorKey,
       builder: (context, state) => const SnapToFillScreen(),
+    ),
+    // App-lock settings, pushed from Profile.
+    GoRoute(
+      path: '/settings/setup-pin',
+      parentNavigatorKey: _rootNavigatorKey,
+      builder: (context, state) => PinSetupScreen(
+        allowSkip: false,
+        onComplete: () => _rootNavigatorKey.currentState?.pop(),
+      ),
+    ),
+    GoRoute(
+      path: '/settings/change-pin',
+      parentNavigatorKey: _rootNavigatorKey,
+      builder: (context, state) => const ChangePinScreen(),
+    ),
+    GoRoute(
+      path: '/settings/disable-lock',
+      parentNavigatorKey: _rootNavigatorKey,
+      builder: (context, state) => const DisableLockScreen(),
     ),
   ],
 );

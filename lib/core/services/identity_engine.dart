@@ -4,6 +4,7 @@ import '../models/document_model.dart';
 import '../models/person_model.dart';
 import '../repositories/person_repository.dart';
 import 'document_intelligence.dart';
+import 'name_matcher.dart';
 
 /// What one document contributed to the identity graph.
 class IngestOutcome {
@@ -75,7 +76,7 @@ class IdentityEngine {
       final name = mention.name.trim();
       if (name.isEmpty) continue;
       // Don't create a person for the owner themselves.
-      if (_normalize(name) == _normalize(document.ownerName)) continue;
+      if (NameMatcher.isSameName(name, document.ownerName)) continue;
 
       final person = await _persons.getOrCreateByName(name);
       if (person.id == ownerPersonId) continue;
@@ -139,9 +140,6 @@ class IdentityEngine {
         'sister' => RelationshipType.sister,
         _ => RelationshipType.other,
       };
-
-  static String _normalize(String name) =>
-      name.toLowerCase().replaceAll(RegExp(r'[^a-z]'), '');
 
   static String _titleCase(String value) => value
       .split(RegExp(r'\s+'))

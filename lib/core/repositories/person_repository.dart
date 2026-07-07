@@ -2,6 +2,7 @@ import 'package:uuid/uuid.dart';
 
 import '../db/app_database.dart';
 import '../models/person_model.dart';
+import '../services/name_matcher.dart';
 
 /// Persistence for the identity graph: persons, facts, relationships.
 class PersonRepository {
@@ -45,27 +46,49 @@ class PersonRepository {
     return person;
   }
 
-  /// Finds a person whose name matches (case/space-insensitive), else null.
+  /// Finds the closest matching existing person by fuzzy name similarity
+  /// (handles OCR typos, honorifics, reordered or partial names — see
+  /// [NameMatcher]), or null if nothing crosses the match threshold.
   Future<Person?> findByName(String name) async {
-    final normalized = _normalizeName(name);
-    if (normalized.isEmpty) return null;
+    if (NameMatcher.normalize(name).isEmpty) return null;
     final all = await getAllPersons();
+
+    Person? best;
+    var bestScore = 0.0;
     for (final p in all) {
-      if (_normalizeName(p.displayName) == normalized) return p;
+      if (!NameMatcher.isSameName(name, p.displayName)) continue;
+      final score = NameMatcher.similarity(name, p.displayName);
+      if (score > bestScore) {
+        bestScore = score;
+        best = p;
+      }
     }
-    return null;
+    return best;
   }
 
   Future<Person> getOrCreateByName(String name) async {
     final existing = await findByName(name);
-    if (existing != null) return existing;
-    final person = Person(
-      id: const Uuid().v4(),
-      displayName: _titleCase(name.trim()),
-      createdAt: DateTime.now(),
-    );
-    await insertPerson(person);
-    return person;
+    if (existing == null) {
+      final person = Person(
+        id: const Uuid().v4(),
+        displayName: _titleCase(name.trim()),
+        createdAt: DateTime.now(),
+      );
+      await insertPerson(person);
+      return person;
+    }
+
+    // A fuller name (more tokens — e.g. a middle name this document adds)
+    // is a strict upgrade over what's stored; keep the record complete.
+    final candidate = _titleCase(name.trim());
+    final existingTokens = existing.displayName.split(RegExp(r'\s+')).length;
+    final candidateTokens = candidate.split(RegExp(r'\s+')).length;
+    if (candidateTokens > existingTokens) {
+      final updated = existing.copyWith(displayName: candidate);
+      await updatePerson(updated);
+      return updated;
+    }
+    return existing;
   }
 
   Future<void> insertPerson(Person person) async {
@@ -253,9 +276,6 @@ class PersonRepository {
     sourceDocumentId: row['source_document_id'] as String?,
     createdAt: DateTime.fromMillisecondsSinceEpoch(row['created_at'] as int),
   );
-
-  static String _normalizeName(String name) =>
-      name.toLowerCase().replaceAll(RegExp(r'[^a-zऀ-ॿ]'), '');
 
   static String _titleCase(String value) => value
       .split(RegExp(r'\s+'))
