@@ -23,6 +23,23 @@ class DocumentDetailScreen extends ConsumerWidget {
 
   const DocumentDetailScreen({super.key, required this.documentId});
 
+  void _openFullScreen(BuildContext context, DocumentModel doc) {
+    Navigator.of(context).push(
+      PageRouteBuilder(
+        opaque: false,
+        barrierColor: Colors.black,
+        transitionDuration: const Duration(milliseconds: 220),
+        pageBuilder: (context, animation, _) => FadeTransition(
+          opacity: animation,
+          child: _FullScreenImageViewer(
+            heroTag: 'doc-image-${doc.id}',
+            imageFile: doc.imageFile,
+          ),
+        ),
+      ),
+    );
+  }
+
   Future<void> _share(WidgetRef ref, DocumentModel doc) async {
     final bytes = await ImageVault.instance.read(doc.imageFile);
     if (bytes == null) return;
@@ -109,24 +126,29 @@ class DocumentDetailScreen extends ConsumerWidget {
           children: [
             FadeSlideIn(
               index: 0,
-              child: Hero(
-                tag: 'doc-image-${doc.id}',
-                child: AspectRatio(
-                  aspectRatio: 4 / 3,
-                  child: doc.imageFile.isNotEmpty
-                      ? VaultImage(
-                          fileName: doc.imageFile,
-                          borderRadius: BorderRadius.circular(20),
-                        )
-                      : Container(
-                          decoration: BoxDecoration(
-                            color: AppColors.bgSunken,
+              child: GestureDetector(
+                onTap: doc.imageFile.isEmpty
+                    ? null
+                    : () => _openFullScreen(context, doc),
+                child: Hero(
+                  tag: 'doc-image-${doc.id}',
+                  child: AspectRatio(
+                    aspectRatio: 4 / 3,
+                    child: doc.imageFile.isNotEmpty
+                        ? VaultImage(
+                            fileName: doc.imageFile,
                             borderRadius: BorderRadius.circular(20),
+                          )
+                        : Container(
+                            decoration: BoxDecoration(
+                              color: AppColors.bgSunken,
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Center(
+                              child: CategoryVisual(category: doc.category, size: 64),
+                            ),
                           ),
-                          child: Center(
-                            child: CategoryVisual(category: doc.category, size: 64),
-                          ),
-                        ),
+                  ),
                 ),
               ),
             ),
@@ -243,6 +265,62 @@ class _DetailFieldRow extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Full-screen, pinch-to-zoom preview of a vault document image.
+class _FullScreenImageViewer extends StatelessWidget {
+  final String heroTag;
+  final String imageFile;
+
+  const _FullScreenImageViewer({
+    required this.heroTag,
+    required this.imageFile,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: GestureDetector(
+        onTap: () => Navigator.of(context).pop(),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            Hero(
+              tag: heroTag,
+              child: InteractiveViewer(
+                minScale: 1,
+                maxScale: 5,
+                child: Center(
+                  child: VaultImage(
+                    fileName: imageFile,
+                    fit: BoxFit.contain,
+                    borderRadius: BorderRadius.zero,
+                  ),
+                ),
+              ),
+            ),
+            SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Align(
+                  alignment: Alignment.topLeft,
+                  child: Material(
+                    color: Colors.black.withValues(alpha: 0.4),
+                    shape: const CircleBorder(),
+                    child: IconButton(
+                      icon: const Icon(Icons.close_rounded, color: Colors.white),
+                      onPressed: () => Navigator.of(context).pop(),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

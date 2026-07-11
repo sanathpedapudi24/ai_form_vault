@@ -254,6 +254,8 @@ class FactKeys {
   static const phone = 'phone';
   static const email = 'email';
   static const address = 'address';
+  static const careOf = 'care_of';
+  static const state = 'state';
   static const pinCode = 'pin_code';
   static const aadhaarNumber = 'aadhaar_number';
   static const panNumber = 'pan_number';
@@ -281,6 +283,8 @@ class FactKeys {
     phone: 'Phone',
     email: 'Email',
     address: 'Address',
+    careOf: 'Care Of',
+    state: 'State',
     pinCode: 'PIN Code',
     aadhaarNumber: 'Aadhaar Number',
     panNumber: 'PAN',

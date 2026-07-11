@@ -223,6 +223,8 @@ class DocumentParser {
     _parseDob(text, fields, confidences);
     _parseGender(text, fields, confidences);
     _parseAddress(text, fields, confidences);
+    _parseCareOf(text, fields, confidences);
+    _parseState(text, fields, confidences);
     _parsePhone(text, fields, confidences);
     _parseEmail(text, fields, confidences);
     _parsePinCode(text, fields, confidences);
@@ -1020,18 +1022,55 @@ class DocumentParser {
   // ---------------------------------------------------------------------------
   // Date of Birth
   // ---------------------------------------------------------------------------
+  static const _dobLabels = [
+    'DOB',
+    'Date of Birth',
+    'Birth',
+    'जन्म',
+    'D.O.B',
+    'BIRTH',
+  ];
+
+  /// Indian documents print dates as DD/MM/YYYY — reject anything that
+  /// can't plausibly be a birth date so a garbled OCR read (or the wrong
+  /// date on the page, e.g. an issue/expiry date) doesn't get accepted
+  /// silently. This was the direct cause of "DOB extracted incorrectly":
+  /// the old fallback took the *first* date-shaped string anywhere in the
+  /// document with no validation at all.
+  (int, int, int)? _validDob(String raw) {
+    final m = RegExp(
+      r'^(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{2,4})$',
+    ).firstMatch(raw.trim());
+    if (m == null) return null;
+    final day = int.tryParse(m.group(1)!);
+    final month = int.tryParse(m.group(2)!);
+    var year = int.tryParse(m.group(3)!);
+    if (day == null || month == null || year == null) return null;
+    if (year < 100) year += (year <= DateTime.now().year % 100) ? 2000 : 1900;
+    if (day < 1 || day > 31 || month < 1 || month > 12) return null;
+    if (year < 1900 || year > DateTime.now().year) return null;
+    try {
+      // Catches "31/02/1995"-style dates that pass the range checks above
+      // but aren't real calendar dates.
+      final d = DateTime(year, month, day);
+      if (d.month != month || d.day != day) return null;
+    } catch (_) {
+      return null;
+    }
+    return (day, month, year);
+  }
+
   void _parseDob(
     String text,
     List<ExtractedField> fields,
     List<double> confidences,
   ) {
-    final labels = ['DOB', 'Date of Birth', 'Birth', 'जन्म', 'D.O.B', 'BIRTH'];
-    final labeled = _extractLabeledValue(text, labels);
+    final labeled = _extractLabeledValue(text, _dobLabels);
     if (labeled != null) {
       final dateMatch = RegExp(
-        r'(\d{1,2}[/\-\.]\d{1,2}[/\-\.]\d{2,4})',
+        r'(\d{1,2}[/\-.]\d{1,2}[/\-.]\d{2,4})',
       ).firstMatch(labeled);
-      if (dateMatch != null) {
+      if (dateMatch != null && _validDob(dateMatch.group(1)!) != null) {
         fields.add(
           ExtractedField(
             label: 'Date of Birth',
@@ -1044,19 +1083,47 @@ class DocumentParser {
       }
     }
 
-    // Fallback: any date-like pattern in the text
-    final dateMatch = RegExp(
-      r'\b(\d{2}[/\-\.]\d{2}[/\-\.](?:\d{4}|\d{2}))\b',
-    ).firstMatch(text);
-    if (dateMatch != null) {
-      fields.add(
-        ExtractedField(
-          label: 'Date of Birth',
-          value: dateMatch.group(0)!,
-          confidence: 0.7,
-        ),
+    // Fallback: search near a DOB-ish label first (same or next line) so a
+    // document with several dates printed on it — issue date, validity,
+    // enrollment — doesn't get the wrong one picked just because it comes
+    // first in reading order.
+    final lines = text.split('\n');
+    final dateRe = RegExp(r'\b(\d{1,2}[/\-.]\d{1,2}[/\-.](?:\d{4}|\d{2}))\b');
+    for (var i = 0; i < lines.length; i++) {
+      final hasLabel = _dobLabels.any(
+        (l) => lines[i].toUpperCase().contains(l.toUpperCase()),
       );
-      confidences.add(0.7);
+      if (!hasLabel) continue;
+      for (final line in [lines[i], if (i + 1 < lines.length) lines[i + 1]]) {
+        final match = dateRe.firstMatch(line);
+        if (match != null && _validDob(match.group(1)!) != null) {
+          fields.add(
+            ExtractedField(
+              label: 'Date of Birth',
+              value: match.group(1)!,
+              confidence: 0.82,
+            ),
+          );
+          confidences.add(0.82);
+          return;
+        }
+      }
+    }
+
+    // Last resort: first *plausible* date anywhere, lower confidence since
+    // we can no longer be sure it's actually the birth date.
+    for (final match in dateRe.allMatches(text)) {
+      if (_validDob(match.group(1)!) != null) {
+        fields.add(
+          ExtractedField(
+            label: 'Date of Birth',
+            value: match.group(1)!,
+            confidence: 0.55,
+          ),
+        );
+        confidences.add(0.55);
+        return;
+      }
     }
   }
 
@@ -1116,32 +1183,132 @@ class DocumentParser {
   // ---------------------------------------------------------------------------
   // Address
   // ---------------------------------------------------------------------------
+  static const _otherFieldLabels = [
+    'DOB',
+    'Date of Birth',
+    'Gender',
+    'Sex',
+    'Mobile',
+    'Phone',
+    'Aadhaar',
+    'VID',
+    'PAN',
+    'Signature',
+    'Email',
+  ];
+
   void _parseAddress(
     String text,
     List<ExtractedField> fields,
     List<double> confidences,
   ) {
     final labels = ['Address', 'पता', 'Add'];
-    final labeled = _extractLabeledValue(text, labels);
-    if (labeled != null) {
-      fields.add(
-        ExtractedField(label: 'Address', value: labeled, confidence: 0.8),
-      );
-      confidences.add(0.8);
-      return;
-    }
+    final lines = text.split('\n');
 
-    final addrMatch = RegExp(
-      r'(?:Address|पता)\s*[:\-–—]\s*([\s\S]+?)(?=\n[A-Z]|\n\d|\Z)',
-      caseSensitive: false,
-    ).firstMatch(text);
-    if (addrMatch != null) {
-      final addr = addrMatch.group(1)!.trim();
-      if (addr.isNotEmpty) {
+    for (var i = 0; i < lines.length; i++) {
+      final line = lines[i].trim();
+      final isLabelLine = labels.any(
+        (l) => RegExp(
+          '^${RegExp.escape(l)}\\s*[:.\\-–—]?\\s*',
+          caseSensitive: false,
+        ).hasMatch(line),
+      );
+      if (!isLabelLine) continue;
+
+      // Same-line value ("Address: 12 MG Road, ...") starts the block;
+      // otherwise the block starts on the next line.
+      final sameLine = line.replaceFirst(
+        RegExp('^(${labels.map(RegExp.escape).join('|')})\\s*[:.\\-–—]?\\s*',
+            caseSensitive: false),
+        '',
+      );
+      final blockLines = <String>[if (sameLine.trim().isNotEmpty) sameLine.trim()];
+
+      // Keep consuming lines until a PIN code (Indian addresses end in one),
+      // a blank line, or another known field's label — real multi-line
+      // addresses were getting cut after their first line before this.
+      var j = i + 1;
+      while (j < lines.length && blockLines.length < 6) {
+        final next = lines[j].trim();
+        if (next.isEmpty) break;
+        if (_otherFieldLabels.any(
+          (l) => next.toUpperCase().startsWith(l.toUpperCase()),
+        )) {
+          break;
+        }
+        blockLines.add(next);
+        if (RegExp(r'\b\d{6}\b').hasMatch(next)) {
+          j++;
+          break;
+        }
+        j++;
+      }
+
+      final addr = blockLines.join(', ').trim();
+      if (addr.length > 3) {
         fields.add(
-          ExtractedField(label: 'Address', value: addr, confidence: 0.8),
+          ExtractedField(label: 'Address', value: addr, confidence: 0.82),
         );
-        confidences.add(0.8);
+        confidences.add(0.82);
+        return;
+      }
+    }
+  }
+
+  static const _careOfLabels = ['C/O', 'S/O', 'D/O', 'W/O', 'Care of'];
+
+  void _parseCareOf(
+    String text,
+    List<ExtractedField> fields,
+    List<double> confidences,
+  ) {
+    for (final label in _careOfLabels) {
+      final match = RegExp(
+        '${RegExp.escape(label)}\\s*[:.\\-–—]?\\s*([A-Za-z][A-Za-z .]{2,60})',
+        caseSensitive: false,
+      ).firstMatch(text);
+      if (match != null) {
+        final value = match.group(1)!.trim();
+        if (value.isNotEmpty) {
+          fields.add(
+            ExtractedField(label: "Care Of", value: value, confidence: 0.78),
+          );
+          confidences.add(0.78);
+          return;
+        }
+      }
+    }
+  }
+
+  static const _indianStates = [
+    'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh',
+    'Goa', 'Gujarat', 'Haryana', 'Himachal Pradesh', 'Jharkhand',
+    'Karnataka', 'Kerala', 'Madhya Pradesh', 'Maharashtra', 'Manipur',
+    'Meghalaya', 'Mizoram', 'Nagaland', 'Odisha', 'Punjab', 'Rajasthan',
+    'Sikkim', 'Tamil Nadu', 'Telangana', 'Tripura', 'Uttar Pradesh',
+    'Uttarakhand', 'West Bengal', 'Andaman and Nicobar', 'Chandigarh',
+    'Dadra and Nagar Haveli', 'Daman and Diu', 'Delhi', 'Jammu and Kashmir',
+    'Ladakh', 'Lakshadweep', 'Puducherry',
+  ];
+
+  /// India has a fixed, small set of states/UTs, which makes this a
+  /// reliable lookup — unlike districts (thousands of names, no closed
+  /// set), state is worth extracting as its own field.
+  void _parseState(
+    String text,
+    List<ExtractedField> fields,
+    List<double> confidences,
+  ) {
+    for (final state in _indianStates) {
+      if (RegExp(
+        '\\b${RegExp.escape(state)}\\b',
+        caseSensitive: false,
+      ).hasMatch(text)) {
+        fields.add(
+          ExtractedField(label: 'State', value: state, confidence: 0.85),
+        );
+        confidences.add(0.85);
+        return;
       }
     }
   }

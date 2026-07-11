@@ -1,5 +1,3 @@
-import 'api_keys.dart';
-
 /// Central app configuration: model names, endpoints, tunables.
 /// Everything that might need turning without hunting through code.
 class AppConfig {
@@ -7,9 +5,19 @@ class AppConfig {
 
   // --- AI availability -------------------------------------------------
 
-  /// True when a Gemini key is configured. When false the app runs fully
-  /// on-device: regex extraction, keyword search, manual relationships.
-  static bool get aiEnabled => ApiKeys.gemini.trim().isNotEmpty;
+  /// Hard privacy guarantee, not a placeholder: document images and OCR
+  /// text must never leave the device, full stop. This is a deliberate
+  /// product decision (made after weighing it against Gemini-quality
+  /// extraction accuracy) — not something that flips on the moment a key
+  /// is pasted into `ApiKeys.gemini`.
+  ///
+  /// Every network-touching code path (DocumentIntelligence, Embedding
+  /// Service, FormFillService) is gated on `AppConfig.aiEnabled`, and nothing
+  /// else — so this one constant is the single, airtight kill switch for
+  /// cloud AI in the whole app. Re-enabling it is a decision to make
+  /// deliberately, not a side effect of adding a key: change this back to
+  /// `ApiKeys.gemini.trim().isNotEmpty` only if that decision is made again.
+  static const bool aiEnabled = false;
 
   // --- Gemini models ----------------------------------------------------
 

@@ -260,6 +260,11 @@ ${ocrText.length > 4000 ? ocrText.substring(0, 4000) : ocrText}
     if (l.contains('email')) return FactKeys.email;
     if (l.contains('pin code') || l.contains('pincode')) return FactKeys.pinCode;
     if (l.contains('address')) return FactKeys.address;
+    if (l.contains('care of') || l == 'c/o' || l == 's/o' || l == 'd/o' ||
+        l == 'w/o') {
+      return FactKeys.careOf;
+    }
+    if (l == 'state') return FactKeys.state;
     if (l.contains('blood')) return FactKeys.bloodGroup;
     if (l.contains('roll')) return FactKeys.rollNumber;
     if (l.contains('school') || l.contains('college') ||

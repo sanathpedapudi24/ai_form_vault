@@ -12,32 +12,23 @@
 flutter pub get
 ```
 
-## Adding a Gemini API key (optional but recommended)
+## Cloud AI: permanently off, by design
 
-Without a key the app works fully offline: on-device OCR + a regex parser
-extract Indian-document fields, search is keyword-only, and relationship
-detection only picks up what the regex parser recognizes (currently
-father's name). With a key, Gemini vision reads documents directly (higher
-accuracy, handles regional scripts and handwriting better) and semantic
-search understands natural-language queries.
+This app runs entirely on-device: on-device OCR + a regex parser extract
+Indian-document fields, search is keyword + light natural-language
+matching, and relationship detection picks up what the regex parser
+recognizes (currently father's name). No document image or OCR text is
+ever sent anywhere.
 
-1. Get a free key at [aistudio.google.com](https://aistudio.google.com) →
-   "Get API key".
-2. Copy the template:
-   ```bash
-   cp lib/core/config/api_keys.example.dart lib/core/config/api_keys.dart
-   ```
-3. Paste your key into `api_keys.dart`:
-   ```dart
-   class ApiKeys {
-     ApiKeys._();
-     static const String gemini = 'AIza...your-key...';
-   }
-   ```
-
-`api_keys.dart` is gitignored — it will never be committed. The app detects
-the key automatically at build time (`AppConfig.aiEnabled`); no other
-config is needed. The Profile screen shows whether AI is active.
+This isn't the state you get by leaving a key blank — `AppConfig.aiEnabled`
+is a hardcoded `false`, and it's the single switch every network-touching
+code path is gated on (see [PRIVACY.md](PRIVACY.md)). The Gemini
+integration code (`gemini_client.dart`, `document_intelligence.dart`,
+`embedding_service.dart`) is still in the repo — it's a real, working
+integration — but pasting a key into `lib/core/config/api_keys.dart` will
+**not** turn it back on. Re-enabling cloud AI means deliberately changing
+`AppConfig.aiEnabled` back to reading the key, which is a call to make on
+purpose, not a side effect of adding credentials.
 
 ## Running
 

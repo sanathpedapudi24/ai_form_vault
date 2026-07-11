@@ -8,10 +8,14 @@ import 'package:gap/gap.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:share_plus/share_plus.dart';
 
+import 'package:uuid/uuid.dart';
+
+import '../../core/models/person_model.dart';
 import '../../core/providers/app_lock_provider.dart';
 import '../../core/providers/person_provider.dart';
 import '../../core/providers/service_providers.dart';
 import '../../core/services/form_fill_service.dart';
+import '../../core/services/form_overlay_renderer.dart';
 import '../../core/services/image_prep.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
@@ -37,6 +41,7 @@ class _SnapToFillScreenState extends ConsumerState<SnapToFillScreen> {
   String? _imagePath;
   FormAnalysis? _analysis;
   String? _error;
+  bool _sharing = false;
 
   Future<void> _pick(ImageSource source) async {
     ref.read(appLockProvider.notifier).suppressAutoLock();
@@ -110,15 +115,50 @@ class _SnapToFillScreenState extends ConsumerState<SnapToFillScreen> {
 
   Future<void> _shareImage() async {
     final path = _imagePath;
-    if (path == null) return;
+    final analysis = _analysis;
+    if (path == null || analysis == null || _sharing) return;
+
+    setState(() => _sharing = true);
     ref.read(appLockProvider.notifier).suppressAutoLock();
     try {
+      // Render onto the original full-resolution photo — label positions
+      // came from OCR run on this exact file, and it makes a better shared
+      // image than the downscaled copy used for on-device analysis.
+      final originalBytes = await File(path).readAsBytes();
+      final filled = FormOverlayRenderer.render(originalBytes, analysis.fields);
+
       await SharePlus.instance.share(
-        ShareParams(files: [XFile(path)], text: 'Filled with AI Form & Vault'),
+        ShareParams(
+          files: [
+            XFile.fromData(filled, mimeType: 'image/jpeg', name: 'filled_form.jpg'),
+          ],
+          text: 'Filled with AI Form & Vault',
+        ),
       );
     } finally {
       ref.read(appLockProvider.notifier).resumeAutoLock();
+      if (mounted) setState(() => _sharing = false);
     }
+  }
+
+  /// Saves a manually-typed value back to the profile so it's already
+  /// there next time — otherwise a correction only lasts for this one
+  /// share and has to be retyped on every future form.
+  Future<void> _rememberField(String semanticKey, String value) async {
+    if (semanticKey.isEmpty || value.isEmpty) return;
+    final user = await ref.read(personRepositoryProvider).getOrCreateUser();
+    await ref.read(personRepositoryProvider).upsertFact(
+      PersonFact(
+        id: const Uuid().v4(),
+        personId: user.id,
+        factKey: semanticKey,
+        value: value,
+        confidence: 1.0,
+        verified: true,
+        updatedAt: DateTime.now(),
+      ),
+    );
+    if (mounted) await ref.read(identityGraphProvider.notifier).refresh();
   }
 
   void _editField(int index) {
@@ -152,10 +192,11 @@ class _SnapToFillScreenState extends ConsumerState<SnapToFillScreen> {
             PrimaryButton(
               label: 'Update',
               onPressed: () {
+                final value = controller.text.trim();
                 setState(() {
                   final fields = [...analysis.fields];
                   fields[index] = fields[index].copyWith(
-                    value: controller.text,
+                    value: value,
                     confidence: 1.0,
                   );
                   _analysis = FormAnalysis(
@@ -165,6 +206,7 @@ class _SnapToFillScreenState extends ConsumerState<SnapToFillScreen> {
                   );
                 });
                 Navigator.pop(context);
+                _rememberField(field.semanticKey, value);
               },
             ),
           ],
@@ -195,6 +237,7 @@ class _SnapToFillScreenState extends ConsumerState<SnapToFillScreen> {
             analysis: _analysis!,
             onEditField: _editField,
             onShare: _shareImage,
+            sharing: _sharing,
           ),
           _Stage.failed => _FailedView(
             message: _error ?? 'Something went wrong.',
@@ -324,12 +367,14 @@ class _ReviewView extends StatelessWidget {
   final FormAnalysis analysis;
   final void Function(int) onEditField;
   final VoidCallback onShare;
+  final bool sharing;
 
   const _ReviewView({
     required this.imagePath,
     required this.analysis,
     required this.onEditField,
     required this.onShare,
+    required this.sharing,
   });
 
   @override
@@ -410,6 +455,7 @@ class _ReviewView extends StatelessWidget {
             child: PrimaryButton(
               label: 'Share filled form',
               icon: Icons.ios_share_rounded,
+              loading: sharing,
               onPressed: total == 0 ? null : onShare,
             ),
           ),

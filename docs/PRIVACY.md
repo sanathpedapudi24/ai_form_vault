@@ -21,27 +21,27 @@ honest, specific answer.
   encrypted store from the main vault, containing only the fields you've
   opted to share (see below).
 
-## What leaves the device, and when
+## What leaves the device: nothing
 
-Nothing leaves the device unless a Gemini API key is configured. With one:
+Document images and OCR text never leave the device. This isn't a default
+that happens to be true because no API key is configured — `AppConfig.aiEnabled`
+is a hardcoded `false` (see [app_config.dart](../lib/core/config/app_config.dart)),
+and every network-touching code path (document scanning, search embeddings,
+Snap-to-Fill field detection) is gated on that one constant. Pasting a
+Gemini key into `api_keys.dart` does **not** turn any of this back on — the
+Gemini client code stays in the repo (it's a real, working integration),
+but it's wired to a switch that's deliberately nailed shut.
 
-- **Scanning a document**: the downscaled document image (long edge capped
-  at 1600px) and the on-device OCR text are sent to Google's
-  `generateContent` API to extract structured fields. This is a single
-  request per scan — Google's standard API terms apply to that request.
-- **Search**: the query text and, for indexing, a text summary of each
-  document (type, owner, non-sensitive field labels/values — **ID numbers
-  are explicitly excluded** from what gets embedded) are sent to the
-  embeddings endpoint.
-- **Snap-to-Fill**: the photographed *blank form* (not your stored
-  documents) and its OCR text are sent to detect fields. Your fact values
-  used to fill the form are matched and inserted locally — they are not
-  part of this request.
+Document scanning, search, and Snap-to-Fill field detection all run
+entirely on-device: a regex-based parser tuned for Indian ID documents,
+keyword + light natural-language query matching, and OCR-heuristic field
+detection. The tradeoff is a lower extraction-accuracy ceiling than a cloud
+vision model would give — that tradeoff was made deliberately in exchange
+for the guarantee above, not as a placeholder.
 
-Without a key (`AppConfig.aiEnabled == false`), no network request is ever
-made by the document-intelligence, search, or form-fill pipelines — the
-regex parser, keyword search, and OCR-heuristic field detection run
-entirely on-device.
+If that decision is ever revisited, it should be a deliberate code change
+(flipping `AppConfig.aiEnabled` back to reading `ApiKeys.gemini`), not
+something that happens by accident.
 
 ## System-wide autofill: what other apps can see
 

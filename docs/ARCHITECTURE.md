@@ -1,5 +1,15 @@
 # Architecture
 
+> **Cloud AI is permanently disabled.** The Gemini integration described
+> below (`GeminiClient`, `DocumentIntelligence._analyzeWithGemini`,
+> `EmbeddingService`, `FormFillService`'s vision path) is real, working
+> code, but it's gated behind `AppConfig.aiEnabled`, which is a hardcoded
+> `false` — not a check on whether an API key is present. No document
+> image or OCR text is ever sent anywhere. See [PRIVACY.md](PRIVACY.md).
+> The rest of this document describes the full architecture including the
+> disabled Gemini path, since the code is still there and still the
+> designed fallback target if that decision is ever revisited.
+
 ## The four-layer model
 
 The roadmap's core mental model, and the one this codebase is built around:

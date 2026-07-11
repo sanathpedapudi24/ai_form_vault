@@ -68,6 +68,83 @@ void main() {
     });
   });
 
+  group('DocumentParser — date of birth accuracy', () {
+    test('picks the date near "Date of Birth" over an earlier unrelated date', () {
+      final result = parser.parse('''
+        UIDAI
+        Issue Date: 01/01/2020
+        Name: Ravi Kumar Sharma
+        Date of Birth
+        15/08/1995
+        Male
+      ''');
+      final dob = result.fields.firstWhere(
+        (f) => f.label == 'Date of Birth',
+        orElse: () => const ExtractedField(label: '', value: ''),
+      );
+      expect(dob.value, '15/08/1995');
+    });
+
+    test('rejects an impossible date (month 13) rather than accepting it', () {
+      final result = parser.parse('''
+        UIDAI
+        Date of Birth: 31/13/1995
+        Name: Ravi Kumar
+      ''');
+      final dob = result.fields.firstWhere(
+        (f) => f.label == 'Date of Birth',
+        orElse: () => const ExtractedField(label: '', value: ''),
+      );
+      // No plausible date anywhere in the text — must not fabricate one.
+      expect(dob.value, isEmpty);
+    });
+  });
+
+  group('DocumentParser — address, care-of, and state', () {
+    test('captures a multi-line address up to the PIN code', () {
+      final result = parser.parse('''
+        UIDAI
+        Name: Ravi Kumar Sharma
+        Address:
+        S/O Suresh Kumar Sharma
+        12 MG Road, Indiranagar
+        Bengaluru, Karnataka - 560038
+      ''');
+      final address = result.fields.firstWhere(
+        (f) => f.label == 'Address',
+        orElse: () => const ExtractedField(label: '', value: ''),
+      );
+      expect(address.value, contains('MG Road'));
+      expect(address.value, contains('Bengaluru'));
+    });
+
+    test('extracts Care Of from S/O', () {
+      final result = parser.parse('''
+        UIDAI
+        Name: Ravi Kumar Sharma
+        S/O: Suresh Kumar Sharma
+        Address: 12 MG Road
+      ''');
+      final careOf = result.fields.firstWhere(
+        (f) => f.label == 'Care Of',
+        orElse: () => const ExtractedField(label: '', value: ''),
+      );
+      expect(careOf.value, contains('Suresh'));
+    });
+
+    test('extracts a known Indian state', () {
+      final result = parser.parse('''
+        UIDAI
+        Address: 12 MG Road, Bengaluru, Karnataka - 560038
+      ''');
+      final state = result.fields.firstWhere(
+        (f) => f.label == 'State',
+        orElse: () => const ExtractedField(label: '', value: ''),
+      );
+      expect(state.value, 'Karnataka');
+    });
+  });
+
   group('DocumentIntelligence.semanticKeyForLabel', () {
     test('maps common labels to canonical fact keys', () {
       expect(
