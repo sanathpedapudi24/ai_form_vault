@@ -49,6 +49,15 @@ final appRouter = GoRouter(
         StatefulShellBranch(
           routes: [
             GoRoute(
+              path: '/people',
+              pageBuilder: (context, state) =>
+                  const NoTransitionPage(child: RelationshipsScreen()),
+            ),
+          ],
+        ),
+        StatefulShellBranch(
+          routes: [
+            GoRoute(
               path: '/profile',
               pageBuilder: (context, state) =>
                   const NoTransitionPage(child: ProfileScreen()),
@@ -96,11 +105,6 @@ final appRouter = GoRouter(
         final docId = state.pathParameters['id']!;
         return VirtualIdScreen(documentId: docId);
       },
-    ),
-    GoRoute(
-      path: '/relationships',
-      parentNavigatorKey: _rootNavigatorKey,
-      builder: (context, state) => const RelationshipsScreen(),
     ),
     GoRoute(
       path: '/snap-to-fill',

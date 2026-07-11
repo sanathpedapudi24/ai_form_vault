@@ -86,7 +86,7 @@ class ProfileScreen extends ConsumerWidget {
               child: SectionHeader(
                 title: 'Identity facts',
                 actionLabel: docs.isEmpty ? null : 'View all',
-                onAction: docs.isEmpty ? null : () => context.push('/relationships'),
+                onAction: docs.isEmpty ? null : () => context.go('/people'),
               ),
             ),
             factsAsync.when(
@@ -135,7 +135,7 @@ class ProfileScreen extends ConsumerWidget {
                     ? '${graph.pending.length} to review'
                     : '${graph.confirmed.length} connected',
                 highlight: graph.pending.isNotEmpty,
-                onTap: () => context.push('/relationships'),
+                onTap: () => context.go('/people'),
               ),
             ),
             const Gap(24),

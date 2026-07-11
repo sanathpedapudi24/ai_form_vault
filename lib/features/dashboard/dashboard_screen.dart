@@ -179,7 +179,7 @@ class _SuggestionsBanner extends StatelessWidget {
       color: AppColors.accentWash,
       border: const BorderSide(color: AppColors.accentWashBorder),
       shadow: false,
-      onTap: () => context.push('/relationships'),
+      onTap: () => context.go('/people'),
       child: Row(
         children: [
           Container(
