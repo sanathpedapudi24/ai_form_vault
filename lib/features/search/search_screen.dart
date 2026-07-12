@@ -63,13 +63,13 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                     hintText: AppConfig.aiEnabled
                         ? 'Ask anything about your documents…'
                         : 'Search your documents…',
-                    prefixIcon: const Icon(
+                    prefixIcon: Icon(
                       Icons.search_rounded,
                       color: AppColors.textTertiary,
                     ),
                     suffixIcon: _controller.text.isNotEmpty
                         ? IconButton(
-                            icon: const Icon(
+                            icon: Icon(
                               Icons.close_rounded,
                               color: AppColors.textTertiary,
                               size: 20,
@@ -238,7 +238,7 @@ class _ResultTile extends StatelessWidget {
               ),
             ),
             if (result.semantic)
-              const TagChip(
+              TagChip(
                 label: 'AI match',
                 color: AppColors.info,
                 icon: Icons.auto_awesome_rounded,

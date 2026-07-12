@@ -117,11 +117,11 @@ class _PinSetupScreenState extends ConsumerState<PinSetupScreen> {
                   Container(
                     width: 56,
                     height: 56,
-                    decoration: const BoxDecoration(
+                    decoration: BoxDecoration(
                       color: AppColors.accentWash,
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(
+                    child: Icon(
                       Icons.lock_outline_rounded,
                       color: AppColors.accentDeep,
                       size: 26,
@@ -182,11 +182,11 @@ class _BiometricOfferView extends StatelessWidget {
                     Container(
                       width: 64,
                       height: 64,
-                      decoration: const BoxDecoration(
+                      decoration: BoxDecoration(
                         color: AppColors.accentWash,
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(
+                      child: Icon(
                         Icons.fingerprint_rounded,
                         color: AppColors.accentDeep,
                         size: 30,

@@ -13,6 +13,8 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
+        // Required by flutter_local_notifications (java.time backport).
+        isCoreLibraryDesugaringEnabled = true
     }
 
     kotlinOptions {
@@ -49,6 +51,7 @@ dependencies {
     implementation("com.google.mlkit:text-recognition-devanagari:16.0.1")
     // Encrypted storage for facts shared with the system autofill service.
     implementation("androidx.security:security-crypto:1.1.0-alpha06")
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
 }
 
 flutter {

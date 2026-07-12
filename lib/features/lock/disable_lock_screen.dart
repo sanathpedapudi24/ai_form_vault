@@ -62,11 +62,11 @@ class _DisableLockScreenState extends ConsumerState<DisableLockScreen> {
                   Container(
                     width: 56,
                     height: 56,
-                    decoration: const BoxDecoration(
+                    decoration: BoxDecoration(
                       color: AppColors.errorWash,
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(
+                    child: Icon(
                       Icons.lock_open_outlined,
                       color: AppColors.error,
                       size: 26,

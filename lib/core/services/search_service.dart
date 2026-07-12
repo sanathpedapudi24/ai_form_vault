@@ -132,6 +132,10 @@ class SearchService {
         }
       }
 
+      // A user-written note is a deliberate signal — worth more than raw
+      // OCR noise ("visa application" in a note should rank well).
+      if (containsTerm(doc.note, term)) termScore = max(termScore, 0.45);
+
       if (termScore == 0 && containsTerm(doc.rawText, term)) termScore = 0.15;
       if (termScore == 0 && containsTerm(doc.summary, term)) termScore = 0.2;
 
@@ -163,7 +167,7 @@ class SearchService {
           matchedLabel = expiryField.label;
           matchedValue = expiryField.value;
         }
-        final expiry = _tryParseDate(expiryField.value);
+        final expiry = parseFlexibleDate(expiryField.value);
         if (expiry != null) {
           final daysLeft = expiry.difference(DateTime.now()).inDays;
           if (daysLeft < 0) {
@@ -189,8 +193,9 @@ class SearchService {
 
   /// Parses the common date formats this app's parser and Gemini extraction
   /// actually produce (dd/mm/yyyy, dd-mm-yyyy, yyyy-mm-dd, ISO). Returns
-  /// null rather than guessing when the format is ambiguous.
-  static DateTime? _tryParseDate(String value) {
+  /// null rather than guessing when the format is ambiguous. Public because
+  /// expiry reminders parse the same field values.
+  static DateTime? parseFlexibleDate(String value) {
     final trimmed = value.trim();
 
     final iso = DateTime.tryParse(trimmed);

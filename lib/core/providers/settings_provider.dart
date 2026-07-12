@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../config/app_config.dart';
 import '../repositories/settings_repository.dart';
 import '../services/autofill_bridge.dart';
+import '../services/notification_service.dart';
 import 'app_lock_provider.dart';
+import 'document_provider.dart';
 import 'person_provider.dart';
 import 'service_providers.dart';
 
@@ -13,21 +15,29 @@ class SettingsState {
   /// Whether the app is actually selected as the system autofill service.
   final bool autofillServiceActive;
   final bool aiEnabled;
+  final bool remindersEnabled;
+  final bool darkMode;
 
   const SettingsState({
     this.autofillEnabled = false,
     this.autofillServiceActive = false,
     this.aiEnabled = false,
+    this.remindersEnabled = true,
+    this.darkMode = false,
   });
 
   SettingsState copyWith({
     bool? autofillEnabled,
     bool? autofillServiceActive,
     bool? aiEnabled,
+    bool? remindersEnabled,
+    bool? darkMode,
   }) => SettingsState(
     autofillEnabled: autofillEnabled ?? this.autofillEnabled,
     autofillServiceActive: autofillServiceActive ?? this.autofillServiceActive,
     aiEnabled: aiEnabled ?? this.aiEnabled,
+    remindersEnabled: remindersEnabled ?? this.remindersEnabled,
+    darkMode: darkMode ?? this.darkMode,
   );
 }
 
@@ -44,11 +54,18 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
     final autofill = await _repo.getBool(
       SettingsRepository.systemAutofillEnabled,
     );
+    final reminders = await _repo.getBool(
+      SettingsRepository.expiryRemindersEnabled,
+      defaultValue: true,
+    );
+    final dark = await _repo.getBool(SettingsRepository.darkModeEnabled);
     final active = await AutofillBridge.isServiceEnabled();
     state = SettingsState(
       autofillEnabled: autofill,
       autofillServiceActive: active,
       aiEnabled: AppConfig.aiEnabled,
+      remindersEnabled: reminders,
+      darkMode: dark,
     );
     if (autofill) await syncAutofillData();
   }
@@ -74,6 +91,26 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
     } else {
       await AutofillBridge.clearAutofillData();
     }
+  }
+
+  /// Turns expiry reminders on/off — off cancels everything scheduled, on
+  /// re-registers reminders for every stored document.
+  Future<void> setRemindersEnabled(bool enabled) async {
+    await _repo.setBool(SettingsRepository.expiryRemindersEnabled, enabled);
+    state = state.copyWith(remindersEnabled: enabled);
+    if (enabled) {
+      await NotificationService.instance.requestPermission();
+      await NotificationService.instance.rescheduleAll(
+        _ref.read(documentsProvider),
+      );
+    } else {
+      await NotificationService.instance.cancelAll();
+    }
+  }
+
+  Future<void> setDarkMode(bool enabled) async {
+    await _repo.setBool(SettingsRepository.darkModeEnabled, enabled);
+    state = state.copyWith(darkMode: enabled);
   }
 
   /// Re-checks whether we're the selected service (call on app resume).

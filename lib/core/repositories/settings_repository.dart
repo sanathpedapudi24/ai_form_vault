@@ -9,6 +9,9 @@ class SettingsRepository {
   static const legacyMigrationDone = 'legacy_migration_done';
   static const systemAutofillEnabled = 'system_autofill_enabled';
   static const userDisplayName = 'user_display_name';
+  static const expiryRemindersEnabled = 'expiry_reminders_enabled';
+  static const darkModeEnabled = 'dark_mode_enabled';
+  static const onboardingDone = 'onboarding_done';
 
   Future<String?> get(String key) async {
     final db = await AppDatabase.instance;

@@ -18,6 +18,11 @@ class AppLockService {
   static const _kPinSalt = 'app_lock_pin_salt';
   static const _kBiometricEnabled = 'app_lock_biometric_enabled';
   static const _kOptedOut = 'app_lock_opted_out';
+  static const _kFailedAttempts = 'app_lock_failed_attempts';
+  static const _kLockoutUntil = 'app_lock_lockout_until';
+
+  /// Wrong attempts allowed before lockouts start.
+  static const maxFreeAttempts = 5;
 
   final LocalAuthentication _localAuth;
 
@@ -39,11 +44,51 @@ class AppLockService {
   }
 
   Future<bool> verifyPin(String pin) async {
+    // Refuse to even check while locked out — a 4-digit PIN only has
+    // 10,000 combinations, so unthrottled guessing must not be possible.
+    if (await lockoutRemaining() > Duration.zero) return false;
+
     final salt = await _storage.read(key: _kPinSalt);
     final storedHash = await _storage.read(key: _kPinHash);
     if (salt == null || storedHash == null) return false;
     final hash = await _hash(pin, salt);
-    return _constantTimeEquals(hash, storedHash);
+    final ok = _constantTimeEquals(hash, storedHash);
+
+    if (ok) {
+      await _storage.delete(key: _kFailedAttempts);
+      await _storage.delete(key: _kLockoutUntil);
+    } else {
+      await _recordFailure();
+    }
+    return ok;
+  }
+
+  /// How much longer PIN entry is blocked; [Duration.zero] when it isn't.
+  Future<Duration> lockoutRemaining() async {
+    final raw = await _storage.read(key: _kLockoutUntil);
+    if (raw == null) return Duration.zero;
+    final until = DateTime.fromMillisecondsSinceEpoch(int.tryParse(raw) ?? 0);
+    final remaining = until.difference(DateTime.now());
+    return remaining.isNegative ? Duration.zero : remaining;
+  }
+
+  Future<void> _recordFailure() async {
+    final attempts =
+        (int.tryParse(await _storage.read(key: _kFailedAttempts) ?? '0') ??
+            0) +
+        1;
+    await _storage.write(key: _kFailedAttempts, value: '$attempts');
+
+    if (attempts >= maxFreeAttempts) {
+      // 30s at the 5th failure, doubling each failure after, capped at 5min.
+      final exponent = attempts - maxFreeAttempts;
+      final seconds = (30 * (1 << exponent)).clamp(30, 300);
+      final until = DateTime.now().add(Duration(seconds: seconds));
+      await _storage.write(
+        key: _kLockoutUntil,
+        value: '${until.millisecondsSinceEpoch}',
+      );
+    }
   }
 
   /// Removes the PIN and biometric flag. Does not touch document data —
@@ -52,6 +97,8 @@ class AppLockService {
     await _storage.delete(key: _kPinHash);
     await _storage.delete(key: _kPinSalt);
     await _storage.delete(key: _kBiometricEnabled);
+    await _storage.delete(key: _kFailedAttempts);
+    await _storage.delete(key: _kLockoutUntil);
   }
 
   Future<bool> isBiometricEnabled() async =>

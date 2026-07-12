@@ -78,7 +78,7 @@ class DocumentDetailScreen extends ConsumerWidget {
               await ref.read(documentsProvider.notifier).remove(doc.id);
               if (context.mounted) context.pop();
             },
-            child: const Text(
+            child: Text(
               'Delete',
               style: TextStyle(color: AppColors.error),
             ),
@@ -222,14 +222,135 @@ class DocumentDetailScreen extends ConsumerWidget {
                   ],
                 ),
               ),
+            if (doc.extraPages.isNotEmpty) ...[
+              const Gap(24),
+              FadeSlideIn(
+                index: 6 + doc.extractedFields.length,
+                child: SectionHeader(
+                  title: 'More pages (${doc.extraPages.length})',
+                  padding: const EdgeInsets.fromLTRB(4, 0, 4, 10),
+                ),
+              ),
+              SizedBox(
+                height: 130,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: doc.extraPages.length,
+                  separatorBuilder: (_, _) => const Gap(10),
+                  itemBuilder: (context, i) => GestureDetector(
+                    onTap: () => _openFullScreenPage(context, doc.extraPages[i]),
+                    child: VaultImage(
+                      fileName: doc.extraPages[i],
+                      width: 98,
+                      height: 130,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+            const Gap(24),
+            FadeSlideIn(
+              index: 7 + doc.extractedFields.length,
+              child: const SectionHeader(
+                title: 'Notes',
+                padding: EdgeInsets.fromLTRB(4, 0, 4, 10),
+              ),
+            ),
+            AppCard(
+              onTap: () => _editNote(context, ref, doc),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      doc.note.isEmpty
+                          ? 'Add a note — e.g. "used for visa application". Notes are searchable.'
+                          : doc.note,
+                      style: doc.note.isEmpty
+                          ? AppTextStyles.bodySecondary.copyWith(
+                              fontStyle: FontStyle.italic,
+                            )
+                          : AppTextStyles.body,
+                    ),
+                  ),
+                  const Gap(10),
+                  Icon(
+                    Icons.edit_outlined,
+                    size: 16,
+                    color: AppColors.textTertiary,
+                  ),
+                ],
+              ),
+            ),
             const Gap(20),
             FadeSlideIn(
-              index: 6 + doc.extractedFields.length,
+              index: 8 + doc.extractedFields.length,
               child: SecondaryButton(
                 label: 'Use in Snap-to-Fill',
                 icon: Icons.edit_document,
                 onPressed: () => context.push('/snap-to-fill'),
               ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _openFullScreenPage(BuildContext context, String imageFile) {
+    Navigator.of(context).push(
+      PageRouteBuilder(
+        opaque: false,
+        barrierColor: Colors.black,
+        transitionDuration: const Duration(milliseconds: 220),
+        pageBuilder: (context, animation, _) => FadeTransition(
+          opacity: animation,
+          child: _FullScreenImageViewer(
+            heroTag: 'page-$imageFile',
+            imageFile: imageFile,
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _editNote(BuildContext context, WidgetRef ref, DocumentModel doc) {
+    final controller = TextEditingController(text: doc.note);
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (sheetContext) => Padding(
+        padding: EdgeInsets.only(
+          left: 20,
+          right: 20,
+          top: 20,
+          bottom: MediaQuery.of(sheetContext).viewInsets.bottom + 20,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Note', style: AppTextStyles.titleSmall),
+            const Gap(14),
+            TextField(
+              controller: controller,
+              autofocus: true,
+              maxLines: 4,
+              minLines: 1,
+              style: AppTextStyles.body,
+              decoration: const InputDecoration(
+                hintText: 'e.g. Used for visa application, June 2026',
+              ),
+            ),
+            const Gap(16),
+            PrimaryButton(
+              label: 'Save note',
+              onPressed: () {
+                ref
+                    .read(documentsProvider.notifier)
+                    .update(doc.copyWith(note: controller.text.trim()));
+                Navigator.pop(sheetContext);
+              },
             ),
           ],
         ),

@@ -153,7 +153,7 @@ class _Key extends StatelessWidget {
         (label != null
             ? Text(
                 label!,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.w500,
                   color: AppColors.textPrimary,

@@ -32,12 +32,30 @@ class AppDatabase {
     return openDatabase(
       path,
       password: password,
-      version: 1,
+      version: 2,
       onConfigure: (db) async {
         await db.execute('PRAGMA foreign_keys = ON');
       },
       onCreate: _createSchema,
+      onUpgrade: _upgradeSchema,
     );
+  }
+
+  static Future<void> _upgradeSchema(
+    Database db,
+    int oldVersion,
+    int newVersion,
+  ) async {
+    if (oldVersion < 2) {
+      // v2: free-text notes per document + extra pages for multi-page scans
+      // (JSON list of encrypted image filenames).
+      await db.execute(
+        "ALTER TABLE documents ADD COLUMN note TEXT NOT NULL DEFAULT ''",
+      );
+      await db.execute(
+        "ALTER TABLE documents ADD COLUMN extra_pages TEXT NOT NULL DEFAULT '[]'",
+      );
+    }
   }
 
   static Future<String> _getOrCreateDbKey() async {
@@ -68,7 +86,9 @@ class AppDatabase {
         image_file TEXT NOT NULL DEFAULT '',
         thumb_file TEXT NOT NULL DEFAULT '',
         source TEXT NOT NULL DEFAULT 'onDevice',
-        embedding BLOB
+        embedding BLOB,
+        note TEXT NOT NULL DEFAULT '',
+        extra_pages TEXT NOT NULL DEFAULT '[]'
       )
     ''');
 

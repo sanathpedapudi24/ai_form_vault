@@ -71,35 +71,36 @@ class ConfidenceBadge extends StatelessWidget {
 /// Small tinted tag ("Aadhaar", "Verified", category names).
 class TagChip extends StatelessWidget {
   final String label;
-  final Color color;
+  final Color? color;
   final IconData? icon;
 
   const TagChip({
     super.key,
     required this.label,
-    this.color = AppColors.textSecondary,
+    this.color,
     this.icon,
   });
 
   @override
   Widget build(BuildContext context) {
+    final c = color ?? AppColors.textSecondary;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
       decoration: BoxDecoration(
-        color: AppColors.wash(color),
+        color: AppColors.wash(c),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           if (icon != null) ...[
-            Icon(icon, size: 12, color: color),
+            Icon(icon, size: 12, color: c),
             const SizedBox(width: 4),
           ],
           Text(
             label,
             style: AppTextStyles.caption.copyWith(
-              color: color,
+              color: c,
               fontWeight: FontWeight.w600,
             ),
           ),

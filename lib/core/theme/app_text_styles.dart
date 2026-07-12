@@ -11,13 +11,13 @@ class AppTextStyles {
   static TextStyle _serif({
     required double size,
     FontWeight weight = FontWeight.w600,
-    Color color = AppColors.textPrimary,
+    Color? color,
     double? letterSpacing,
     double? height,
   }) => GoogleFonts.sourceSerif4(
     fontSize: size,
     fontWeight: weight,
-    color: color,
+    color: color ?? AppColors.textPrimary,
     letterSpacing: letterSpacing,
     height: height,
   );
@@ -25,13 +25,13 @@ class AppTextStyles {
   static TextStyle _sans({
     required double size,
     FontWeight weight = FontWeight.w400,
-    Color color = AppColors.textPrimary,
+    Color? color,
     double? letterSpacing,
     double? height,
   }) => GoogleFonts.inter(
     fontSize: size,
     fontWeight: weight,
-    color: color,
+    color: color ?? AppColors.textPrimary,
     letterSpacing: letterSpacing,
     height: height,
   );

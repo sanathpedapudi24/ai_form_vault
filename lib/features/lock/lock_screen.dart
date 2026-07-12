@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -31,16 +33,47 @@ class _LockScreenState extends ConsumerState<LockScreen> {
   bool _triedBiometricOnOpen = false;
   bool _confirmingReset = false;
   bool _resetting = false;
+  Duration _lockout = Duration.zero;
+  Timer? _lockoutTicker;
+
+  bool get _lockedOut => _lockout > Duration.zero;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (!_triedBiometricOnOpen) {
       _triedBiometricOnOpen = true;
+      _refreshLockout();
       final enabled = ref.read(appLockProvider).biometricEnabled;
       if (enabled) {
         WidgetsBinding.instance.addPostFrameCallback((_) => _tryBiometric());
       }
+    }
+  }
+
+  @override
+  void dispose() {
+    _lockoutTicker?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _refreshLockout() async {
+    final remaining =
+        await ref.read(appLockServiceProvider).lockoutRemaining();
+    if (!mounted) return;
+    setState(() => _lockout = remaining);
+    _lockoutTicker?.cancel();
+    if (remaining > Duration.zero) {
+      _lockoutTicker = Timer.periodic(const Duration(seconds: 1), (_) {
+        if (!mounted) return;
+        setState(() {
+          _lockout -= const Duration(seconds: 1);
+          if (_lockout <= Duration.zero) {
+            _lockout = Duration.zero;
+            _lockoutTicker?.cancel();
+          }
+        });
+      });
     }
   }
 
@@ -52,7 +85,7 @@ class _LockScreenState extends ConsumerState<LockScreen> {
   }
 
   void _onDigit(String digit) {
-    if (_entry.length >= 4) return;
+    if (_lockedOut || _entry.length >= 4) return;
     setState(() {
       _error = false;
       _entry += digit;
@@ -71,6 +104,7 @@ class _LockScreenState extends ConsumerState<LockScreen> {
     if (!ok) {
       HapticFeedback.heavyImpact();
       setState(() => _error = true);
+      await _refreshLockout();
       await Future<void>.delayed(const Duration(milliseconds: 500));
       if (mounted) {
         setState(() {
@@ -112,11 +146,11 @@ class _LockScreenState extends ConsumerState<LockScreen> {
                   Container(
                     width: 56,
                     height: 56,
-                    decoration: const BoxDecoration(
+                    decoration: BoxDecoration(
                       color: AppColors.accentWash,
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(
+                    child: Icon(
                       Icons.lock_outline_rounded,
                       color: AppColors.accentDeep,
                       size: 26,
@@ -124,6 +158,16 @@ class _LockScreenState extends ConsumerState<LockScreen> {
                   ),
                   const Gap(20),
                   Text('Enter your PIN', style: AppTextStyles.title),
+                  if (_lockedOut) ...[
+                    const Gap(8),
+                    Text(
+                      'Too many attempts — try again in ${_lockout.inSeconds}s',
+                      style: AppTextStyles.caption.copyWith(
+                        color: AppColors.error,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
                   const Gap(28),
                   PinDots(filled: _entry.length, error: _error),
                 ],
@@ -136,7 +180,7 @@ class _LockScreenState extends ConsumerState<LockScreen> {
               leftAccessory: biometricEnabled
                   ? IconButton(
                       onPressed: _checkingBiometric ? null : _tryBiometric,
-                      icon: const Icon(
+                      icon: Icon(
                         Icons.fingerprint_rounded,
                         color: AppColors.textPrimary,
                         size: 26,
@@ -189,11 +233,11 @@ class _ForgotPinConfirm extends StatelessWidget {
                     Container(
                       width: 64,
                       height: 64,
-                      decoration: const BoxDecoration(
+                      decoration: BoxDecoration(
                         color: AppColors.errorWash,
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(
+                      child: Icon(
                         Icons.warning_amber_rounded,
                         color: AppColors.error,
                         size: 30,

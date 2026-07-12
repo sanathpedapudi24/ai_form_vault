@@ -1,0 +1,32 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  analyze-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      # The real api_keys.dart is gitignored; CI builds against the
+      # committed template (cloud AI is hard-disabled anyway).
+      - name: Create api_keys.dart from template
+        run: cp lib/core/config/api_keys.example.dart lib/core/config/api_keys.dart
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Analyze
+        run: flutter analyze
+
+      - name: Test
+        run: flutter test

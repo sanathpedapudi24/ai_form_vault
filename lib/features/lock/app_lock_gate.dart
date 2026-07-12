@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/providers/app_lock_provider.dart';
+import '../../core/repositories/settings_repository.dart';
 import '../../core/theme/app_colors.dart';
+import '../onboarding/onboarding_screen.dart';
 import 'lock_screen.dart';
 import 'pin_setup_screen.dart';
 
@@ -20,10 +22,29 @@ class AppLockGate extends ConsumerStatefulWidget {
 
 class _AppLockGateState extends ConsumerState<AppLockGate>
     with WidgetsBindingObserver {
+  /// null = still reading from the DB, true/false = known.
+  bool? _onboardingDone;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _loadOnboardingFlag();
+  }
+
+  Future<void> _loadOnboardingFlag() async {
+    final done = await const SettingsRepository().getBool(
+      SettingsRepository.onboardingDone,
+    );
+    if (mounted) setState(() => _onboardingDone = done);
+  }
+
+  Future<void> _finishOnboarding() async {
+    await const SettingsRepository().setBool(
+      SettingsRepository.onboardingDone,
+      true,
+    );
+    if (mounted) setState(() => _onboardingDone = true);
   }
 
   @override
@@ -45,8 +66,12 @@ class _AppLockGateState extends ConsumerState<AppLockGate>
     final phase = ref.watch(appLockProvider.select((s) => s.phase));
 
     return switch (phase) {
-      AppLockPhase.loading => const Scaffold(backgroundColor: AppColors.bg),
-      AppLockPhase.needsSetup => const PinSetupScreen(),
+      AppLockPhase.loading => Scaffold(backgroundColor: AppColors.bg),
+      AppLockPhase.needsSetup => switch (_onboardingDone) {
+        null => Scaffold(backgroundColor: AppColors.bg),
+        false => OnboardingScreen(onDone: _finishOnboarding),
+        true => const PinSetupScreen(),
+      },
       AppLockPhase.locked => const LockScreen(),
       AppLockPhase.unlocked => widget.child ?? const SizedBox.shrink(),
     };

@@ -98,7 +98,7 @@ class _PendingCard extends ConsumerWidget {
     if (from == null || to == null) return const SizedBox.shrink();
 
     return AppCard(
-      border: const BorderSide(color: AppColors.accentWashBorder),
+      border: BorderSide(color: AppColors.accentWashBorder),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -137,7 +137,7 @@ class _PendingCard extends ConsumerWidget {
               ),
               child: Row(
                 children: [
-                  const Icon(
+                  Icon(
                     Icons.description_outlined,
                     size: 13,
                     color: AppColors.textTertiary,

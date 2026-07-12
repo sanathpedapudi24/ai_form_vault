@@ -6,14 +6,21 @@ import 'app_colors.dart';
 class AppTheme {
   AppTheme._();
 
-  static ThemeData get lightTheme {
+  static ThemeData light() => _build(dark: false);
+  static ThemeData dark() => _build(dark: true);
+
+  static ThemeData _build({required bool dark}) {
+    // AppColors reads this flag; set it before touching any color.
+    AppColors.dark = dark;
+
     final base = ThemeData(
       useMaterial3: true,
-      brightness: Brightness.light,
+      brightness: dark ? Brightness.dark : Brightness.light,
       scaffoldBackgroundColor: AppColors.bg,
       splashFactory: NoSplash.splashFactory,
       highlightColor: Colors.transparent,
-      colorScheme: const ColorScheme.light(
+      colorScheme:
+          (dark ? const ColorScheme.dark() : const ColorScheme.light()).copyWith(
         primary: AppColors.accent,
         onPrimary: AppColors.textOnAccent,
         secondary: AppColors.textPrimary,
@@ -28,7 +35,6 @@ class AppTheme {
 
     return base.copyWith(
       textTheme: GoogleFonts.interTextTheme(base.textTheme).copyWith(
-        // Serif display slots — used via Theme for large headings.
         displayLarge: GoogleFonts.sourceSerif4(
           fontSize: 32,
           fontWeight: FontWeight.w600,
@@ -100,7 +106,7 @@ class AppTheme {
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(18),
-          side: const BorderSide(color: AppColors.border, width: 1),
+          side: BorderSide(color: AppColors.border, width: 1),
         ),
         margin: EdgeInsets.zero,
       ),
@@ -134,7 +140,7 @@ class AppTheme {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: AppColors.accent, width: 1.5),
+          borderSide: BorderSide(color: AppColors.accent, width: 1.5),
         ),
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 16,
@@ -162,7 +168,7 @@ class AppTheme {
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
           foregroundColor: AppColors.textPrimary,
-          side: const BorderSide(color: AppColors.borderStrong),
+          side: BorderSide(color: AppColors.borderStrong),
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 15),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14),
@@ -183,17 +189,17 @@ class AppTheme {
           ),
         ),
       ),
-      dividerTheme: const DividerThemeData(
+      dividerTheme: DividerThemeData(
         color: AppColors.divider,
         thickness: 1,
         space: 1,
       ),
-      bottomSheetTheme: const BottomSheetThemeData(
+      bottomSheetTheme: BottomSheetThemeData(
         backgroundColor: AppColors.surface,
         surfaceTintColor: Colors.transparent,
         showDragHandle: true,
         dragHandleColor: AppColors.borderStrong,
-        shape: RoundedRectangleBorder(
+        shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
         ),
       ),
@@ -217,7 +223,7 @@ class AppTheme {
         ),
         trackOutlineColor: const WidgetStatePropertyAll(Colors.transparent),
       ),
-      progressIndicatorTheme: const ProgressIndicatorThemeData(
+      progressIndicatorTheme: ProgressIndicatorThemeData(
         color: AppColors.accent,
         linearTrackColor: AppColors.bgDeep,
         circularTrackColor: AppColors.bgDeep,

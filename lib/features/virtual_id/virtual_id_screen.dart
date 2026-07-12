@@ -24,7 +24,7 @@ class VirtualIdScreen extends ConsumerWidget {
     ));
 
     if (doc == null) {
-      return const Scaffold(
+      return Scaffold(
         backgroundColor: AppColors.surfaceInverse,
         body: Center(child: Text('Document not found')),
       );

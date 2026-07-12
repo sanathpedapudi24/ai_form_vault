@@ -148,7 +148,7 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
                 leading: CategoryVisual(category: category, size: 36),
                 title: Text(category.label, style: AppTextStyles.body),
                 trailing: draft.category == category
-                    ? const Icon(
+                    ? Icon(
                         Icons.check_rounded,
                         color: AppColors.accent,
                       )
@@ -195,6 +195,7 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
               child: _SummaryCard(
                 draft: draft,
                 imageBytes: state.imageBytes,
+                pageCount: 1 + state.extraPageBytes.length,
                 onEditName: () => _editName(draft),
                 onEditCategory: () => _pickCategory(draft),
               ),
@@ -272,12 +273,14 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
 class _SummaryCard extends StatelessWidget {
   final DocumentModel draft;
   final dynamic imageBytes;
+  final int pageCount;
   final VoidCallback onEditName;
   final VoidCallback onEditCategory;
 
   const _SummaryCard({
     required this.draft,
     required this.imageBytes,
+    required this.pageCount,
     required this.onEditName,
     required this.onEditCategory,
   });
@@ -291,14 +294,41 @@ class _SummaryCard extends StatelessWidget {
           Row(
             children: [
               if (imageBytes != null)
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: Image.memory(
-                    imageBytes,
-                    width: 56,
-                    height: 56,
-                    fit: BoxFit.cover,
-                  ),
+                Stack(
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Image.memory(
+                        imageBytes,
+                        width: 56,
+                        height: 56,
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                    if (pageCount > 1)
+                      Positioned(
+                        right: 3,
+                        bottom: 3,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 5,
+                            vertical: 1,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.surfaceInverse,
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            '$pageCount',
+                            style: AppTextStyles.caption.copyWith(
+                              color: AppColors.textOnInverse,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
                 )
               else
                 CategoryVisual(category: draft.category, size: 56),
@@ -320,7 +350,7 @@ class _SummaryCard extends StatelessWidget {
                             ),
                           ),
                           const Gap(4),
-                          const Icon(
+                          Icon(
                             Icons.edit_outlined,
                             size: 14,
                             color: AppColors.textTertiary,
@@ -393,7 +423,7 @@ class _FieldRow extends StatelessWidget {
             ),
             const Gap(8),
             if (field.verified)
-              const Icon(
+              Icon(
                 Icons.check_circle_rounded,
                 size: 16,
                 color: AppColors.success,

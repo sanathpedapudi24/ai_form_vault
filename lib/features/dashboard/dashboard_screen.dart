@@ -154,7 +154,7 @@ class _HeaderIconButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       color: AppColors.surface,
-      shape: const CircleBorder(side: BorderSide(color: AppColors.border)),
+      shape: CircleBorder(side: BorderSide(color: AppColors.border)),
       child: InkWell(
         customBorder: const CircleBorder(),
         onTap: onTap,
@@ -177,7 +177,7 @@ class _SuggestionsBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     return AppCard(
       color: AppColors.accentWash,
-      border: const BorderSide(color: AppColors.accentWashBorder),
+      border: BorderSide(color: AppColors.accentWashBorder),
       shadow: false,
       onTap: () => context.go('/people'),
       child: Row(
@@ -185,11 +185,11 @@ class _SuggestionsBanner extends StatelessWidget {
           Container(
             width: 40,
             height: 40,
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               color: AppColors.accent,
               shape: BoxShape.circle,
             ),
-            child: const Icon(
+            child: Icon(
               Icons.people_alt_outlined,
               color: AppColors.textOnAccent,
               size: 20,
@@ -214,7 +214,7 @@ class _SuggestionsBanner extends StatelessWidget {
               ],
             ),
           ),
-          const Icon(
+          Icon(
             Icons.chevron_right_rounded,
             color: AppColors.accentDeep,
           ),
@@ -271,7 +271,7 @@ class _ActionCard extends StatelessWidget {
       onTap: onTap,
       color: accent ? AppColors.surfaceInverse : AppColors.surface,
       border: accent
-          ? const BorderSide(color: AppColors.surfaceInverse)
+          ? BorderSide(color: AppColors.surfaceInverse)
           : null,
       padding: const EdgeInsets.all(18),
       child: Column(
@@ -409,7 +409,7 @@ class _RecentDocumentTile extends StatelessWidget {
           const Gap(8),
           ConfidenceBadge(confidence: document.confidence, compact: true),
           const Gap(10),
-          const Icon(
+          Icon(
             Icons.chevron_right_rounded,
             color: AppColors.textTertiary,
             size: 20,
@@ -453,7 +453,7 @@ class _FirstScanCard extends StatelessWidget {
                 ),
                 child: Row(
                   children: [
-                    const Icon(
+                    Icon(
                       Icons.document_scanner_outlined,
                       size: 16,
                       color: AppColors.textOnAccent,

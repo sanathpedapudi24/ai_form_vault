@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:sqflite_sqlcipher/sqflite.dart';
@@ -154,6 +155,8 @@ class DocumentRepository {
     'image_file': doc.imageFile,
     'thumb_file': doc.thumbFile,
     'source': doc.source.name,
+    'note': doc.note,
+    'extra_pages': jsonEncode(doc.extraPages),
   };
 
   DocumentModel _docFromRow(
@@ -176,8 +179,19 @@ class DocumentRepository {
     imageFile: row['image_file'] as String? ?? '',
     thumbFile: row['thumb_file'] as String? ?? '',
     source: ExtractionSource.fromName(row['source'] as String? ?? 'onDevice'),
+    note: row['note'] as String? ?? '',
+    extraPages: _decodePages(row['extra_pages'] as String?),
     extractedFields: fields,
   );
+
+  static List<String> _decodePages(String? raw) {
+    if (raw == null || raw.isEmpty) return const [];
+    try {
+      return (jsonDecode(raw) as List).map((e) => e as String).toList();
+    } catch (_) {
+      return const [];
+    }
+  }
 
   ExtractedField _fieldFromRow(Map<String, Object?> row) => ExtractedField(
     label: row['label'] as String,

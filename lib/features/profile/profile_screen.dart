@@ -15,6 +15,7 @@ import '../../core/theme/app_text_styles.dart';
 import '../../shared/widgets/app_card.dart';
 import '../../shared/widgets/fade_slide_in.dart';
 import '../../shared/widgets/section_header.dart';
+import 'widgets/backup_section.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -199,6 +200,12 @@ class ProfileScreen extends ConsumerWidget {
             const Gap(24),
             FadeSlideIn(
               index: 7,
+              child: const SectionHeader(title: 'Backup'),
+            ),
+            const FadeSlideIn(index: 7, child: BackupSection()),
+            const Gap(24),
+            FadeSlideIn(
+              index: 7,
               child: const SectionHeader(title: 'Settings'),
             ),
             FadeSlideIn(
@@ -225,6 +232,45 @@ class ProfileScreen extends ConsumerWidget {
                       activeThumbColor: Colors.white,
                       onChanged: (v) =>
                           ref.read(settingsProvider.notifier).setAutofillEnabled(v),
+                    ),
+                  ),
+                  const Gap(10),
+                  AppCard(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 4,
+                    ),
+                    child: SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: Text('Expiry reminders', style: AppTextStyles.itemTitle),
+                      subtitle: Text(
+                        'Notify me 90, 30, and 7 days before a document expires',
+                        style: AppTextStyles.caption,
+                      ),
+                      value: settings.remindersEnabled,
+                      activeThumbColor: Colors.white,
+                      onChanged: (v) => ref
+                          .read(settingsProvider.notifier)
+                          .setRemindersEnabled(v),
+                    ),
+                  ),
+                  const Gap(10),
+                  AppCard(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 4,
+                    ),
+                    child: SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: Text('Dark mode', style: AppTextStyles.itemTitle),
+                      subtitle: Text(
+                        'Warm dark theme for low light',
+                        style: AppTextStyles.caption,
+                      ),
+                      value: settings.darkMode,
+                      activeThumbColor: Colors.white,
+                      onChanged: (v) =>
+                          ref.read(settingsProvider.notifier).setDarkMode(v),
                     ),
                   ),
                   const Gap(10),
@@ -283,7 +329,7 @@ class _ProfileHeader extends StatelessWidget {
           Container(
             width: 56,
             height: 56,
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               color: AppColors.accentWash,
               shape: BoxShape.circle,
             ),
@@ -314,7 +360,7 @@ class _ProfileHeader extends StatelessWidget {
                         ),
                       ),
                       const Gap(4),
-                      const Icon(
+                      Icon(
                         Icons.edit_outlined,
                         size: 13,
                         color: AppColors.textTertiary,
@@ -366,7 +412,7 @@ class _FactRow extends StatelessWidget {
           ),
           if (fact.verified) ...[
             const Gap(6),
-            const Icon(
+            Icon(
               Icons.check_circle_rounded,
               size: 14,
               color: AppColors.success,
@@ -424,7 +470,7 @@ class _NavCard extends StatelessWidget {
               ],
             ),
           ),
-          const Icon(
+          Icon(
             Icons.chevron_right_rounded,
             color: AppColors.textTertiary,
           ),

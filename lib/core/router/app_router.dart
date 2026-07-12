@@ -81,8 +81,12 @@ final appRouter = GoRouter(
       path: '/scanning',
       parentNavigatorKey: _rootNavigatorKey,
       builder: (context, state) {
-        final imagePath = state.extra as String?;
-        return ScanningScreen(imagePath: imagePath);
+        final paths = switch (state.extra) {
+          final List<String> list => list,
+          final String single => [single],
+          _ => const <String>[],
+        };
+        return ScanningScreen(imagePaths: paths);
       },
     ),
     GoRoute(

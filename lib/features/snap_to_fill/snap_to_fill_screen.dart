@@ -329,7 +329,7 @@ class _OptionCard extends StatelessWidget {
           ),
           const Gap(14),
           Expanded(child: Text(title, style: AppTextStyles.headline)),
-          const Icon(
+          Icon(
             Icons.chevron_right_rounded,
             color: AppColors.textTertiary,
           ),
@@ -535,11 +535,11 @@ class _FailedView extends StatelessWidget {
             Container(
               width: 64,
               height: 64,
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 color: AppColors.errorWash,
                 shape: BoxShape.circle,
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.error_outline_rounded,
                 color: AppColors.error,
                 size: 28,

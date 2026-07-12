@@ -15,9 +15,10 @@ import '../../shared/widgets/app_buttons.dart';
 /// Runs the analysis pipeline with a calm, staged progress view, then hands
 /// off to the review screen.
 class ScanningScreen extends ConsumerStatefulWidget {
-  final String? imagePath;
+  /// One entry per page; multi-page scans and PDF imports pass several.
+  final List<String> imagePaths;
 
-  const ScanningScreen({super.key, this.imagePath});
+  const ScanningScreen({super.key, this.imagePaths = const []});
 
   @override
   ConsumerState<ScanningScreen> createState() => _ScanningScreenState();
@@ -28,9 +29,8 @@ class _ScanningScreenState extends ConsumerState<ScanningScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final path = widget.imagePath;
-      if (path != null) {
-        ref.read(captureProvider.notifier).process(path);
+      if (widget.imagePaths.isNotEmpty) {
+        ref.read(captureProvider.notifier).process(widget.imagePaths);
       } else {
         context.pop();
       }
@@ -55,9 +55,10 @@ class _ScanningScreenState extends ConsumerState<ScanningScreen> {
               ? _FailedView(
                   message: state.error ?? 'Something went wrong.',
                   onRetry: () {
-                    final path = widget.imagePath;
-                    if (path != null) {
-                      ref.read(captureProvider.notifier).process(path);
+                    if (widget.imagePaths.isNotEmpty) {
+                      ref
+                          .read(captureProvider.notifier)
+                          .process(widget.imagePaths);
                     }
                   },
                   onCancel: () {
@@ -66,7 +67,10 @@ class _ScanningScreenState extends ConsumerState<ScanningScreen> {
                   },
                 )
               : _ProgressView(
-                  imagePath: widget.imagePath,
+                  imagePath: widget.imagePaths.isNotEmpty
+                      ? widget.imagePaths.first
+                      : null,
+                  pageCount: widget.imagePaths.length,
                   stage: state.stage,
                 ),
         ),
@@ -77,9 +81,14 @@ class _ScanningScreenState extends ConsumerState<ScanningScreen> {
 
 class _ProgressView extends StatelessWidget {
   final String? imagePath;
+  final int pageCount;
   final CaptureStage stage;
 
-  const _ProgressView({required this.imagePath, required this.stage});
+  const _ProgressView({
+    required this.imagePath,
+    required this.pageCount,
+    required this.stage,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -91,7 +100,12 @@ class _ProgressView extends StatelessWidget {
         else
           const SizedBox(height: 220),
         const Gap(40),
-        Text('Reading your document', style: AppTextStyles.title),
+        Text(
+          pageCount > 1
+              ? 'Reading $pageCount pages'
+              : 'Reading your document',
+          style: AppTextStyles.title,
+        ),
         const Gap(6),
         Text(
           AppConfig.aiEnabled
@@ -236,7 +250,7 @@ class _StageStep extends StatelessWidget {
           AnimatedSwitcher(
             duration: AppMotion.base,
             child: switch (state) {
-              _StepState.done => const Icon(
+              _StepState.done => Icon(
                 Icons.check_circle_rounded,
                 key: ValueKey('done'),
                 color: AppColors.success,
@@ -296,11 +310,11 @@ class _FailedView extends StatelessWidget {
         Container(
           width: 72,
           height: 72,
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             color: AppColors.errorWash,
             shape: BoxShape.circle,
           ),
-          child: const Icon(
+          child: Icon(
             Icons.error_outline_rounded,
             color: AppColors.error,
             size: 32,

@@ -64,7 +64,7 @@ class _Placeholder extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       color: AppColors.bgSunken,
-      child: const Center(
+      child: Center(
         child: Icon(
           Icons.description_outlined,
           color: AppColors.textTertiary,

@@ -5,10 +5,12 @@ import 'package:uuid/uuid.dart';
 
 import '../models/document_model.dart';
 import '../models/person_model.dart';
+import '../repositories/settings_repository.dart';
 import '../services/document_intelligence.dart';
 import '../services/identity_engine.dart';
 import '../services/image_prep.dart';
 import '../services/image_vault.dart';
+import '../services/notification_service.dart';
 import 'document_provider.dart';
 import 'person_provider.dart';
 import 'service_providers.dart';
@@ -32,7 +34,12 @@ class CaptureState {
   final DocumentModel? draft;
   final DocumentAnalysis? analysis;
   final Person? suggestedOwner;
+
+  /// First page — the document's primary image.
   final Uint8List? imageBytes;
+
+  /// Pages beyond the first (multi-page scans, PDF imports).
+  final List<Uint8List> extraPageBytes;
   final String? error;
   final IngestOutcome? outcome;
 
@@ -42,6 +49,7 @@ class CaptureState {
     this.analysis,
     this.suggestedOwner,
     this.imageBytes,
+    this.extraPageBytes = const [],
     this.error,
     this.outcome,
   });
@@ -52,6 +60,7 @@ class CaptureState {
     DocumentAnalysis? analysis,
     Person? suggestedOwner,
     Uint8List? imageBytes,
+    List<Uint8List>? extraPageBytes,
     String? error,
     IngestOutcome? outcome,
   }) => CaptureState(
@@ -60,6 +69,7 @@ class CaptureState {
     analysis: analysis ?? this.analysis,
     suggestedOwner: suggestedOwner ?? this.suggestedOwner,
     imageBytes: imageBytes ?? this.imageBytes,
+    extraPageBytes: extraPageBytes ?? this.extraPageBytes,
     error: error ?? this.error,
     outcome: outcome ?? this.outcome,
   );
@@ -73,24 +83,38 @@ class CaptureNotifier extends StateNotifier<CaptureState> {
 
   final Ref _ref;
 
-  Future<void> process(String imagePath) async {
+  /// Processes one or more page images as a single document. The first
+  /// page drives classification; OCR text from every page is combined so
+  /// fields printed on later pages still get extracted.
+  Future<void> process(List<String> imagePaths) async {
+    if (imagePaths.isEmpty) return;
     state = const CaptureState(stage: CaptureStage.reading);
     try {
-      // 1. On-device OCR (also feeds the offline fallback).
-      final ocr = await _ref.read(ocrServiceProvider).processImage(imagePath);
+      // 1. On-device OCR across all pages (also feeds the offline fallback).
+      final ocrTexts = <String>[];
+      for (final path in imagePaths) {
+        final ocr = await _ref.read(ocrServiceProvider).processImage(path);
+        ocrTexts.add(ocr.text);
+      }
+      final combinedText = ocrTexts.join('\n\n');
 
-      // 2. Downscale once; the same bytes go to Gemini and the vault.
-      final imageBytes = await ImagePrep.prepareForUpload(imagePath);
+      // 2. Downscale each page once; the same bytes go into the vault.
+      final imageBytes = await ImagePrep.prepareForUpload(imagePaths.first);
+      final extraPageBytes = <Uint8List>[
+        for (final path in imagePaths.skip(1))
+          await ImagePrep.prepareForUpload(path),
+      ];
 
       state = state.copyWith(
         stage: CaptureStage.understanding,
         imageBytes: imageBytes,
+        extraPageBytes: extraPageBytes,
       );
 
       // 3. AI (or fallback) analysis.
       final analysis = await _ref
           .read(documentIntelligenceProvider)
-          .analyze(imageBytes: imageBytes, ocrText: ocr.text);
+          .analyze(imageBytes: imageBytes, ocrText: combinedText);
 
       state = state.copyWith(stage: CaptureStage.organizing);
 
@@ -110,7 +134,7 @@ class CaptureNotifier extends StateNotifier<CaptureState> {
         uploadDate: DateTime.now(),
         confidence: analysis.confidence,
         extractedFields: analysis.fields,
-        rawText: ocr.text,
+        rawText: combinedText,
         summary: analysis.summary,
         source: analysis.source,
       );
@@ -171,7 +195,15 @@ class CaptureNotifier extends StateNotifier<CaptureState> {
         final imageFile = await ImageVault.instance.save(imageBytes);
         final thumbBytes = await ImagePrep.makeThumbnail(imageBytes);
         final thumbFile = await ImageVault.instance.save(thumbBytes);
-        toSave = draft.copyWith(imageFile: imageFile, thumbFile: thumbFile);
+        final extraPages = <String>[
+          for (final page in state.extraPageBytes)
+            await ImageVault.instance.save(page),
+        ];
+        toSave = draft.copyWith(
+          imageFile: imageFile,
+          thumbFile: thumbFile,
+          extraPages: extraPages,
+        );
       }
 
       await _ref.read(documentsProvider.notifier).add(toSave);
@@ -186,6 +218,17 @@ class CaptureNotifier extends StateNotifier<CaptureState> {
         ownerPersonId: toSave.personId!,
       );
       await _ref.read(identityGraphProvider.notifier).refresh();
+
+      // Expiry reminders (local notifications; respects the settings
+      // toggle and no-ops when the document has no expiry date).
+      final remindersOn = await _ref
+          .read(settingsRepositoryProvider)
+          .getBool(SettingsRepository.expiryRemindersEnabled,
+              defaultValue: true);
+      if (remindersOn) {
+        await NotificationService.instance.requestPermission();
+        await NotificationService.instance.scheduleForDocument(toSave);
+      }
 
       state = state.copyWith(
         stage: CaptureStage.saved,

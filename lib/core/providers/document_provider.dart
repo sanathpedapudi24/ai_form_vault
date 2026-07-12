@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/document_model.dart';
 import '../repositories/document_repository.dart';
 import '../services/image_vault.dart';
+import '../services/notification_service.dart';
 import 'service_providers.dart';
 
 /// All documents in the vault, newest first, backed by the encrypted DB.
@@ -32,7 +33,11 @@ class DocumentsNotifier extends StateNotifier<List<DocumentModel>> {
     if (doc != null) {
       await ImageVault.instance.delete(doc.imageFile);
       await ImageVault.instance.delete(doc.thumbFile);
+      for (final page in doc.extraPages) {
+        await ImageVault.instance.delete(page);
+      }
     }
+    await NotificationService.instance.cancelForDocument(id);
     await _repo.delete(id);
     await refresh();
   }

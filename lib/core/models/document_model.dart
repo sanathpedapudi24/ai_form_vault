@@ -66,6 +66,13 @@ class DocumentModel {
   final String thumbFile;
   final ExtractionSource source;
 
+  /// User's free-text note ("used for visa application").
+  final String note;
+
+  /// Encrypted filenames of pages beyond the first, for multi-page scans
+  /// and PDF imports.
+  final List<String> extraPages;
+
   const DocumentModel({
     required this.id,
     required this.name,
@@ -82,6 +89,8 @@ class DocumentModel {
     this.imageFile = '',
     this.thumbFile = '',
     this.source = ExtractionSource.onDevice,
+    this.note = '',
+    this.extraPages = const [],
   });
 
   String get dateFormatted => DateFormat('d MMM yyyy').format(uploadDate);
@@ -118,6 +127,8 @@ class DocumentModel {
     'imageFile': imageFile,
     'thumbFile': thumbFile,
     'source': source.name,
+    'note': note,
+    'extraPages': extraPages,
   };
 
   factory DocumentModel.fromMap(Map<String, dynamic> map) => DocumentModel(
@@ -142,6 +153,10 @@ class DocumentModel {
     imageFile: map['imageFile'] as String? ?? map['imagePath'] as String? ?? '',
     thumbFile: map['thumbFile'] as String? ?? '',
     source: ExtractionSource.fromName(map['source'] as String? ?? 'onDevice'),
+    note: map['note'] as String? ?? '',
+    extraPages:
+        (map['extraPages'] as List?)?.map((e) => e as String).toList() ??
+        const [],
   );
 
   DocumentModel copyWith({
@@ -160,6 +175,8 @@ class DocumentModel {
     String? imageFile,
     String? thumbFile,
     ExtractionSource? source,
+    String? note,
+    List<String>? extraPages,
   }) {
     return DocumentModel(
       id: id ?? this.id,
@@ -177,6 +194,8 @@ class DocumentModel {
       imageFile: imageFile ?? this.imageFile,
       thumbFile: thumbFile ?? this.thumbFile,
       source: source ?? this.source,
+      note: note ?? this.note,
+      extraPages: extraPages ?? this.extraPages,
     );
   }
 }

@@ -222,7 +222,7 @@ class _ScanButton extends StatelessWidget {
               ),
             ],
           ),
-          child: const Icon(
+          child: Icon(
             Icons.document_scanner_outlined,
             color: AppColors.textOnAccent,
             size: 23,
