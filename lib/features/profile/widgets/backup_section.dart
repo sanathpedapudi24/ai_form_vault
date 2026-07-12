@@ -1,4 +1,6 @@
-import 'package:file_picker/file_picker.dart';
+import 'dart:typed_data';
+
+import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
@@ -148,13 +150,13 @@ class _BackupSectionState extends ConsumerState<BackupSection> {
   Future<void> _restore() async {
     if (_busy) return;
     ref.read(appLockProvider.notifier).suppressAutoLock();
-    FilePickerResult? picked;
+    Uint8List? data;
     try {
-      picked = await FilePicker.platform.pickFiles(withData: true);
+      final file = await openFile();
+      if (file != null) data = await file.readAsBytes();
     } finally {
       ref.read(appLockProvider.notifier).resumeAutoLock();
     }
-    final data = picked?.files.firstOrNull?.bytes;
     if (data == null) return;
 
     final passphrase = await _askPassphrase(

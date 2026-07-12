@@ -37,14 +37,9 @@ dependencies:
   flutter_local_notifications: ^22.0.1
   flutter_timezone: ^5.1.0
   timezone: ^0.11.1
-  file_picker: ^8.3.7
+  file_selector: ^1.0.3
   pdfx: ^2.9.2
   archive: ^4.0.9
-
-# file_picker pins win32 ^5 while share_plus needs ^6; win32 only matters
-# for Windows desktop builds, which this app doesn't ship.
-dependency_overrides:
-  win32: ^6.0.1
 
 dev_dependencies:
   flutter_test:

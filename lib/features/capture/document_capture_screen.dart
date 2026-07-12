@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:file_picker/file_picker.dart';
+import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_mlkit_document_scanner/google_mlkit_document_scanner.dart';
@@ -88,11 +88,13 @@ class _DocumentCaptureScreenState extends ConsumerState<DocumentCaptureScreen> {
     setState(() => _busy = true);
     ref.read(appLockProvider.notifier).suppressAutoLock();
     try {
-      final picked = await FilePicker.platform.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: ['pdf'],
+      const pdfType = XTypeGroup(
+        label: 'PDF',
+        extensions: ['pdf'],
+        mimeTypes: ['application/pdf'],
       );
-      final path = picked?.files.firstOrNull?.path;
+      final picked = await openFile(acceptedTypeGroups: [pdfType]);
+      final path = picked?.path;
       if (path == null) return;
 
       // Render pages to images so the PDF flows through the exact same
