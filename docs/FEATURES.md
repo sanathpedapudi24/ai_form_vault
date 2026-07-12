@@ -4,13 +4,34 @@ Everything below runs entirely on-device. No document image or extracted
 text is ever sent to a network API — see [PRIVACY.md](PRIVACY.md) for the
 code-level guarantee behind that claim.
 
+## Onboarding
+
+A 3-page intro shown once on first launch (before PIN setup): what the app
+does, the on-device privacy guarantee, and the fill-forms features. Skippable.
+
 ## App lock
 
 4-digit PIN (salted, hashed, Keystore-held) with optional biometric unlock
 on top. Required on first run (skippable, with a nag to set it up later
-from Profile), re-locks whenever the app is backgrounded. "Forgot PIN"
-wipes the local vault as a last resort — there's no cloud account to
+from Profile), re-locks whenever the app is backgrounded. After 5 wrong
+attempts an escalating cooldown kicks in (30s, doubling, capped at 5 min)
+with a live countdown, so the 4-digit space can't be brute-forced. "Forgot
+PIN" wipes the local vault as a last resort — there's no cloud account to
 recover through otherwise.
+
+## Backup & restore
+
+Export an encrypted `.aivault` file (passphrase-protected: PBKDF2 +
+AES-256-GCM, containing all documents, facts, relationships and images) and
+store it anywhere — Drive, email, a USB drive. Restore merges it back into
+the vault. Because the file is encrypted with your passphrase, this gives
+you "don't lose everything if the phone dies" without putting plaintext in
+any cloud. From Profile → Backup.
+
+## Dark mode
+
+A full warm-dark Claude palette, toggled from Profile → Settings. Both
+themes are designed, not inverted.
 
 ## Home (Dashboard)
 
@@ -20,9 +41,16 @@ people, connections), and the five most recent documents.
 
 ## Scan a document
 
-`Add document` → camera (edge-detecting document scanner) or gallery →
-`Scanning` (staged progress: reading → understanding → organizing) →
-`Review`.
+`Add document` → camera (edge-detecting document scanner, up to 5 pages),
+gallery, or **Import a PDF** (first 5 pages rendered and read like a scan)
+→ `Scanning` (staged progress: reading → understanding → organizing) →
+`Review`. Multi-page documents keep their extra pages, swipeable and
+zoomable on the detail screen.
+
+Documents with an expiry date get **local reminders** 90, 30, and 7 days
+before they lapse (toggle in Profile → Settings). Each document also has a
+free-text **note** field on its detail screen — searchable, good for "used
+for visa application".
 
 - **Reading**: ML Kit OCR on-device (Latin + Devanagari).
 - **Understanding**: a regex parser tuned for Aadhaar, PAN, Voter ID,
