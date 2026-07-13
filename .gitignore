@@ -11,6 +11,7 @@
 .svn/
 .swiftpm/
 migrate_working_dir/
+node_modules/
 
 # IntelliJ related
 *.iml
@@ -47,3 +48,7 @@ app.*.map.json
 # Secrets — real API keys live here, never committed.
 # Copy lib/core/config/api_keys.example.dart to api_keys.dart and fill in.
 lib/core/config/api_keys.dart
+
+# npm artifacts from firebase-tools (Flutter app uses pub, not npm)
+package.json
+package-lock.json
