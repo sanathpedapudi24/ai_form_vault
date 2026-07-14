@@ -60,3 +60,8 @@ dependencies {
 flutter {
     source = "../.."
 }
+
+// Disable Crashlytics mapping upload for local builds (DNS / network issues).
+tasks.matching { it.name.startsWith("uploadCrashlyticsMappingFile") }.configureEach {
+    enabled = false
+}
