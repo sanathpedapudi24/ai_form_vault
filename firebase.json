@@ -1,0 +1,14 @@
+{
+  "auth": {
+    "providers": {
+      "emailPassword": true,
+      "googleSignIn": {
+        "oAuthBrandDisplayName": "AI Form & Vault",
+        "supportEmail": "vardioindia@gmail.com"
+      }
+    }
+  },
+  "firestore": {
+    "rules": "firestore.rules"
+  }
+}

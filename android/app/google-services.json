@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "191591955909",
+    "project_id": "aiautofiller",
+    "storage_bucket": "aiautofiller.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:191591955909:android:86542ae4b39b667b085fac",
+        "android_client_info": {
+          "package_name": "com.aiformvault.ai_form_vault"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDv-iSE8ECKl4Rt63sB9IdLL_d-B8mCqog"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

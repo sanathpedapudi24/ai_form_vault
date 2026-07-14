@@ -1,3 +1,7 @@
+import 'dart:async';
+
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,22 +12,39 @@ import 'core/router/app_router.dart';
 import 'core/theme/app_colors.dart';
 import 'core/theme/app_theme.dart';
 import 'features/lock/app_lock_gate.dart';
+import 'firebase_options.dart';
 
 Future<void> main() async {
-  WidgetsFlutterBinding.ensureInitialized();
+  // runZonedGuarded catches async errors Flutter's own handler misses and
+  // forwards them to Crashlytics.
+  runZonedGuarded(
+    () async {
+      WidgetsFlutterBinding.ensureInitialized();
 
-  await SystemChrome.setPreferredOrientations([
-    DeviceOrientation.portraitUp,
-  ]);
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      );
 
-  // Import documents saved by pre-database builds (no-op after first run).
-  try {
-    await const LegacyMigration().runIfNeeded();
-  } catch (_) {
-    // Never block startup on migration issues.
-  }
+      // Route framework + async errors to Crashlytics.
+      FlutterError.onError =
+          FirebaseCrashlytics.instance.recordFlutterFatalError;
 
-  runApp(const ProviderScope(child: AIFormVaultApp()));
+      await SystemChrome.setPreferredOrientations([
+        DeviceOrientation.portraitUp,
+      ]);
+
+      // Import documents saved by pre-database builds (no-op after first run).
+      try {
+        await const LegacyMigration().runIfNeeded();
+      } catch (_) {
+        // Never block startup on migration issues.
+      }
+
+      runApp(const ProviderScope(child: AIFormVaultApp()));
+    },
+    (error, stack) =>
+        FirebaseCrashlytics.instance.recordError(error, stack, fatal: true),
+  );
 }
 
 class AIFormVaultApp extends ConsumerWidget {

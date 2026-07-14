@@ -7,15 +7,18 @@ import '../../core/config/app_config.dart';
 import '../../core/models/document_model.dart';
 import '../../core/models/person_model.dart';
 import '../../core/providers/app_lock_provider.dart';
+import '../../core/providers/auth_provider.dart';
 import '../../core/providers/document_provider.dart';
 import '../../core/providers/person_provider.dart';
 import '../../core/providers/settings_provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
+import '../../shared/widgets/app_buttons.dart';
 import '../../shared/widgets/app_card.dart';
 import '../../shared/widgets/fade_slide_in.dart';
 import '../../shared/widgets/section_header.dart';
 import 'widgets/backup_section.dart';
+import 'widgets/cloud_sync_section.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -200,7 +203,13 @@ class ProfileScreen extends ConsumerWidget {
             const Gap(24),
             FadeSlideIn(
               index: 7,
-              child: const SectionHeader(title: 'Backup'),
+              child: const SectionHeader(title: 'Cloud sync'),
+            ),
+            const FadeSlideIn(index: 7, child: CloudSyncSection()),
+            const Gap(24),
+            FadeSlideIn(
+              index: 7,
+              child: const SectionHeader(title: 'Local backup'),
             ),
             const FadeSlideIn(index: 7, child: BackupSection()),
             const Gap(24),
@@ -299,10 +308,52 @@ class ProfileScreen extends ConsumerWidget {
                       ],
                     ),
                   ),
+                  const Gap(10),
+                  _NavCard(
+                    icon: Icons.logout_rounded,
+                    title: 'Sign out',
+                    subtitle: ref.watch(authStateProvider).asData?.value?.email ??
+                        ref.watch(authStateProvider).asData?.value?.phoneNumber ??
+                        'Signed in',
+                    onTap: () => _confirmSignOut(context, ref),
+                  ),
                 ],
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  void _confirmSignOut(BuildContext context, WidgetRef ref) {
+    showModalBottomSheet(
+      context: context,
+      builder: (sheetContext) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Sign out?', style: AppTextStyles.titleSmall),
+              const Gap(6),
+              Text(
+                'Your documents stay on this device. You\'ll need to sign in '
+                'again to open the vault.',
+                style: AppTextStyles.bodySecondary,
+              ),
+              const Gap(16),
+              PrimaryButton(
+                label: 'Sign out',
+                danger: true,
+                onPressed: () async {
+                  Navigator.pop(sheetContext);
+                  await ref.read(authServiceProvider).signOut();
+                },
+              ),
+            ],
+          ),
         ),
       ),
     );
