@@ -1,6 +1,7 @@
 {
   "auth": {
     "providers": {
+      "anonymous": false,
       "emailPassword": true,
       "googleSignIn": {
         "oAuthBrandDisplayName": "AI Form & Vault",
