@@ -97,7 +97,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                       color: AppColors.accent,
                       borderRadius: BorderRadius.circular(18),
                     ),
-                    child: const Icon(
+                    child: Icon(
                       Icons.document_scanner_outlined,
                       color: AppColors.textOnAccent,
                       size: 28,
