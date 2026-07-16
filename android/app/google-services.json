@@ -12,7 +12,20 @@
           "package_name": "com.aiformvault.ai_form_vault"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "191591955909-q0uvbmfp022b47bbreo7ecleve9gj8l0.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.aiformvault.ai_form_vault",
+            "certificate_hash": "6dfa87055e68735e76b267d3b909bb3ac4aaff05"
+          }
+        },
+        {
+          "client_id": "191591955909-gl7100sk2f2nd2cg0t5gldi97lobo9rf.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyDv-iSE8ECKl4Rt63sB9IdLL_d-B8mCqog"
@@ -20,7 +33,12 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "191591955909-gl7100sk2f2nd2cg0t5gldi97lobo9rf.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }

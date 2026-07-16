@@ -1,8 +1,7 @@
 import '../models/document_model.dart';
 
 /// What an on-device search query is actually asking for, extracted with
-/// plain heuristics (no LLM required) so search still feels conversational
-/// without a Gemini key.
+/// plain heuristics (no LLM required) so search still feels conversational.
 class QueryIntent {
   /// Cleaned search terms with question phrasing and noise words removed.
   final List<String> terms;
@@ -18,10 +17,6 @@ class QueryIntent {
     this.wantsExpiry = false,
     this.categoryHint,
   });
-}
-
-class NaturalLanguageQuery {
-  NaturalLanguageQuery._();
 
   /// Leading question/command phrasing to strip so what's left is the
   /// subject of the query — "find my passport" -> "passport".
@@ -37,38 +32,14 @@ class NaturalLanguageQuery {
     RegExp(r'^(get|open|view)\s+(my|the)?\s*', caseSensitive: false),
   ];
 
-  /// Words that signal an expiry/validity question rather than being part
-  /// of the subject — pulled out of the term list once detected.
   static const _expiryWords = {
-    'expire',
-    'expires',
-    'expiry',
-    'expiring',
-    'valid',
-    'validity',
+    'expire', 'expires', 'expiry', 'expiring', 'valid', 'validity',
   };
 
-  /// Trailing filler once the subject has been isolated ("passport expire"
-  /// after stripping "when does my").
   static const _stopWords = {
-    'a',
-    'an',
-    'the',
-    'my',
-    'me',
-    'is',
-    'are',
-    'of',
-    'for',
-    'to',
-    'in',
+    'a', 'an', 'the', 'my', 'me', 'is', 'are', 'of', 'for', 'to', 'in',
   };
 
-  /// Deliberately generic words only — a query like "passport" already
-  /// matches the specific document via its literal type/name, and if
-  /// "passport" also hinted the *identity* category, it would spuriously
-  /// boost every unrelated identity document (Aadhaar, PAN, Voter ID) too.
-  /// Specific document-type words stay out of this map for that reason.
   static const Map<DocumentCategory, List<String>> _categorySynonyms = {
     DocumentCategory.identity: ['id', 'identity'],
     DocumentCategory.education: ['education'],
@@ -78,6 +49,7 @@ class NaturalLanguageQuery {
     DocumentCategory.family: ['family'],
   };
 
+  /// Parses a raw search string into a [QueryIntent].
   static QueryIntent parse(String rawQuery) {
     var query = rawQuery.trim().toLowerCase();
     query = query.replaceAll(RegExp(r'[?!.]+$'), '').trim();
@@ -114,8 +86,6 @@ class NaturalLanguageQuery {
       }
     }
 
-    // A pure "when does X expire" with nothing left to search by should
-    // still search by something — fall back to the original terms.
     return QueryIntent(
       terms: terms.isEmpty ? rawTerms : terms,
       wantsExpiry: wantsExpiry,

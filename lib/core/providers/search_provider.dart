@@ -10,25 +10,21 @@ class SearchState {
   final String query;
   final List<SearchResult> results;
   final bool searching;
-  final bool semanticUsed;
 
   const SearchState({
     this.query = '',
     this.results = const [],
     this.searching = false,
-    this.semanticUsed = false,
   });
 
   SearchState copyWith({
     String? query,
     List<SearchResult>? results,
     bool? searching,
-    bool? semanticUsed,
   }) => SearchState(
     query: query ?? this.query,
     results: results ?? this.results,
     searching: searching ?? this.searching,
-    semanticUsed: semanticUsed ?? this.semanticUsed,
   );
 }
 
@@ -58,7 +54,6 @@ class SearchNotifier extends StateNotifier<SearchState> {
     state = state.copyWith(
       results: results,
       searching: false,
-      semanticUsed: results.any((r) => r.semantic),
     );
   }
 

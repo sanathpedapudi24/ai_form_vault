@@ -10,6 +10,16 @@ class AuthService {
   final FirebaseAuth _auth;
   bool _googleInitialized = false;
 
+  /// Android (type 1) OAuth client from google-services.json.
+  /// Required by Credential Manager to identify the app.
+  static const String _googleAndroidClientId =
+      '191591955909-q0uvbmfp022b47bbreo7ecleve9gj8l0.apps.googleusercontent.com';
+
+  /// Web (type 3) OAuth client from google-services.json. Passed as
+  /// serverClientId so Google returns an ID token Firebase can consume.
+  static const String _googleServerClientId =
+      '191591955909-gl7100sk2f2nd2cg0t5gldi97lobo9rf.apps.googleusercontent.com';
+
   Stream<User?> authStateChanges() => _auth.authStateChanges();
   User? get currentUser => _auth.currentUser;
 
@@ -50,16 +60,24 @@ class AuthService {
   Future<void> signInWithGoogle() async {
     try {
       if (!_googleInitialized) {
-        // serverClientId omitted → the plugin reads default_web_client_id
-        // that the google-services Gradle plugin bakes into resources once
-        // the Google provider's OAuth client exists.
-        await GoogleSignIn.instance.initialize();
+        // Both clientId (Android OAuth) and serverClientId (Web OAuth)
+        // are required.  clientId lets Credential Manager resolve the
+        // app identity; serverClientId tells Google which audience the
+        // ID token should target so Firebase can consume it.
+        await GoogleSignIn.instance.initialize(
+          clientId: _googleAndroidClientId,
+          serverClientId: _googleServerClientId,
+        );
         _googleInitialized = true;
       }
       final account = await GoogleSignIn.instance.authenticate();
       final idToken = account.authentication.idToken;
       if (idToken == null) {
-        throw const AuthException('Google sign-in did not return a token.');
+        throw const AuthException(
+          'Google sign-in succeeded but no ID token was returned. '
+          'Ensure the Google provider is enabled in Firebase Console '
+          'and the OAuth consent screen is published.',
+        );
       }
       final credential = GoogleAuthProvider.credential(idToken: idToken);
       await _auth.signInWithCredential(credential);
@@ -67,9 +85,13 @@ class AuthService {
       if (e.code == GoogleSignInExceptionCode.canceled) {
         throw const AuthException.cancelled();
       }
-      throw const AuthException('Google sign-in failed. Please try again.');
+      throw AuthException(
+        'Google sign-in failed: ${e.description ?? e.code.name}',
+      );
     } on FirebaseAuthException catch (e) {
       throw AuthException(e.message ?? 'Google sign-in failed.');
+    } catch (e) {
+      throw AuthException('Google sign-in failed: $e');
     }
   }
 

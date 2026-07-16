@@ -8,7 +8,6 @@ import '../../core/providers/search_provider.dart';
 import '../../core/services/search_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
-import '../../shared/widgets/badges.dart';
 import '../../shared/widgets/empty_state.dart';
 import '../../shared/widgets/fade_slide_in.dart';
 import '../../shared/widgets/vault_image.dart';
@@ -237,12 +236,6 @@ class _ResultTile extends StatelessWidget {
                 ],
               ),
             ),
-            if (result.semantic)
-              TagChip(
-                label: 'AI match',
-                color: AppColors.info,
-                icon: Icons.auto_awesome_rounded,
-              ),
           ],
         ),
       ),

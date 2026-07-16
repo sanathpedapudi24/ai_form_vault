@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:typed_data';
 
 import 'package:sqflite_sqlcipher/sqflite.dart';
 import 'package:uuid/uuid.dart';
@@ -71,50 +70,6 @@ class DocumentRepository {
     final db = await AppDatabase.instance;
     // fields cascade via FK
     await db.delete('documents', where: 'id = ?', whereArgs: [id]);
-  }
-
-  // --- Embeddings ---------------------------------------------------------
-
-  Future<void> saveEmbedding(String documentId, List<double> embedding) async {
-    final db = await AppDatabase.instance;
-    final floats = Float32List.fromList(embedding);
-    await db.update(
-      'documents',
-      {'embedding': floats.buffer.asUint8List()},
-      where: 'id = ?',
-      whereArgs: [documentId],
-    );
-  }
-
-  /// Returns id → embedding for every document that has one.
-  Future<Map<String, Float32List>> getAllEmbeddings() async {
-    final db = await AppDatabase.instance;
-    final rows = await db.query(
-      'documents',
-      columns: ['id', 'embedding'],
-      where: 'embedding IS NOT NULL',
-    );
-    final result = <String, Float32List>{};
-    for (final row in rows) {
-      final blob = row['embedding'] as Uint8List?;
-      if (blob == null || blob.isEmpty) continue;
-      result[row['id'] as String] = blob.buffer.asFloat32List(
-        blob.offsetInBytes,
-        blob.lengthInBytes ~/ 4,
-      );
-    }
-    return result;
-  }
-
-  /// Ids of documents that still need an embedding (for backfill).
-  Future<List<String>> getIdsWithoutEmbedding() async {
-    final db = await AppDatabase.instance;
-    final rows = await db.query(
-      'documents',
-      columns: ['id'],
-      where: 'embedding IS NULL',
-    );
-    return rows.map((r) => r['id'] as String).toList();
   }
 
   // --- Row mapping ---------------------------------------------------------

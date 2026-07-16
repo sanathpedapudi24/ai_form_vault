@@ -1,10 +1,7 @@
 import 'dart:math';
-import 'dart:typed_data';
 
 import '../config/app_config.dart';
 import '../models/document_model.dart';
-import '../repositories/document_repository.dart';
-import 'embedding_service.dart';
 import 'query_intent.dart';
 
 /// One search hit: the document, why it matched, and how strongly.
@@ -15,34 +12,22 @@ class SearchResult {
   /// The field or snippet that matched, for highlighting in results.
   final String matchedLabel;
   final String matchedValue;
-  final bool semantic;
 
   const SearchResult({
     required this.document,
     required this.score,
     this.matchedLabel = '',
     this.matchedValue = '',
-    this.semantic = false,
   });
 }
 
-/// Hybrid search: semantic (vector cosine) + keyword, merged.
+/// Keyword search with natural-language intent parsing.
 ///
-/// With a Gemini key, natural-language queries like "when does my insurance
-/// expire" rank by meaning; without one, [NaturalLanguageQuery] strips the
-/// question phrasing and reasons about expiry/category intent directly, so
-/// search still feels conversational rather than purely literal keyword
-/// matching. Both paths run entirely over local data.
+/// [QueryIntent.parse] strips question phrasing and reasons about
+/// expiry/category intent directly, so search feels conversational
+/// rather than purely literal keyword matching. Runs entirely over
+/// local data — no network calls.
 class SearchService {
-  SearchService({
-    EmbeddingService? embeddings,
-    DocumentRepository? documents,
-  }) : _embeddings = embeddings ?? EmbeddingService(),
-       _documents = documents ?? const DocumentRepository();
-
-  final EmbeddingService _embeddings;
-  final DocumentRepository _documents;
-
   Future<List<SearchResult>> search(
     String query,
     List<DocumentModel> docs,
@@ -50,50 +35,15 @@ class SearchService {
     final q = query.trim();
     if (q.isEmpty || docs.isEmpty) return [];
 
-    final intent = NaturalLanguageQuery.parse(q);
+    final intent = QueryIntent.parse(q);
 
-    final keywordScores = <String, SearchResult>{};
+    final scores = <String, SearchResult>{};
     for (final doc in docs) {
       final result = _keywordScore(intent, doc);
-      if (result != null) keywordScores[doc.id] = result;
+      if (result != null) scores[doc.id] = result;
     }
 
-    // Semantic pass (only when AI is configured and embeddings exist).
-    // The raw query goes to the embedding model — it handles phrasing on
-    // its own and shouldn't be pre-stripped the way the keyword path is.
-    final semanticScores = <String, double>{};
-    final queryVector = await _embeddings.embedQuery(q);
-    if (queryVector != null) {
-      final stored = await _documents.getAllEmbeddings();
-      stored.forEach((id, vector) {
-        final score = _cosine(queryVector, vector);
-        if (score >= AppConfig.semanticSearchThreshold) {
-          semanticScores[id] = score;
-        }
-      });
-    }
-
-    // Merge: semantic similarity dominates, keyword hits boost/anchor.
-    final byId = {for (final d in docs) d.id: d};
-    final merged = <String, SearchResult>{};
-
-    semanticScores.forEach((id, score) {
-      final doc = byId[id];
-      if (doc == null) return;
-      final keyword = keywordScores[id];
-      merged[id] = SearchResult(
-        document: doc,
-        score: score + (keyword != null ? 0.15 : 0),
-        matchedLabel: keyword?.matchedLabel ?? '',
-        matchedValue: keyword?.matchedValue ?? '',
-        semantic: true,
-      );
-    });
-    keywordScores.forEach((id, result) {
-      merged.putIfAbsent(id, () => result);
-    });
-
-    final results = merged.values.toList()
+    final results = scores.values.toList()
       ..sort((a, b) => b.score.compareTo(a.score));
     return results.take(AppConfig.searchMaxResults).toList();
   }
@@ -217,17 +167,5 @@ class SearchService {
     } catch (_) {
       return null;
     }
-  }
-
-  static double _cosine(List<double> a, Float32List b) {
-    final n = min(a.length, b.length);
-    var dot = 0.0, magA = 0.0, magB = 0.0;
-    for (var i = 0; i < n; i++) {
-      dot += a[i] * b[i];
-      magA += a[i] * a[i];
-      magB += b[i] * b[i];
-    }
-    if (magA == 0 || magB == 0) return 0;
-    return dot / (sqrt(magA) * sqrt(magB));
   }
 }

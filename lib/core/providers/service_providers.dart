@@ -4,7 +4,6 @@ import '../repositories/document_repository.dart';
 import '../repositories/person_repository.dart';
 import '../repositories/settings_repository.dart';
 import '../services/document_intelligence.dart';
-import '../services/embedding_service.dart';
 import '../services/form_fill_service.dart';
 import '../services/gemini_client.dart';
 import '../services/identity_engine.dart';
@@ -38,21 +37,11 @@ final settingsRepositoryProvider = Provider<SettingsRepository>(
 );
 
 final documentIntelligenceProvider = Provider<DocumentIntelligence>(
-  (ref) => DocumentIntelligence(gemini: ref.watch(geminiClientProvider)),
-);
-
-final embeddingServiceProvider = Provider<EmbeddingService>(
-  (ref) => EmbeddingService(
-    gemini: ref.watch(geminiClientProvider),
-    documents: ref.watch(documentRepositoryProvider),
-  ),
+  (ref) => DocumentIntelligence(),
 );
 
 final searchServiceProvider = Provider<SearchService>(
-  (ref) => SearchService(
-    embeddings: ref.watch(embeddingServiceProvider),
-    documents: ref.watch(documentRepositoryProvider),
-  ),
+  (ref) => SearchService(),
 );
 
 final identityEngineProvider = Provider<IdentityEngine>(

@@ -208,9 +208,6 @@ class CaptureNotifier extends StateNotifier<CaptureState> {
 
       await _ref.read(documentsProvider.notifier).add(toSave);
 
-      // Semantic index (no-op when offline; backfilled later).
-      await _ref.read(embeddingServiceProvider).embedDocument(toSave);
-
       // Identity graph: facts + relationship suggestions.
       final outcome = await _ref.read(identityEngineProvider).ingest(
         document: toSave,
