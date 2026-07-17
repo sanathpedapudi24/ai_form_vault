@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../core/config/app_config.dart';
 import '../../core/models/document_model.dart';
 import '../../core/models/person_model.dart';
 import '../../core/providers/app_lock_provider.dart';
@@ -18,7 +17,6 @@ import '../../shared/widgets/app_card.dart';
 import '../../shared/widgets/fade_slide_in.dart';
 import '../../shared/widgets/section_header.dart';
 import 'widgets/backup_section.dart';
-import 'widgets/cloud_sync_section.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -203,12 +201,6 @@ class ProfileScreen extends ConsumerWidget {
             const Gap(24),
             FadeSlideIn(
               index: 7,
-              child: const SectionHeader(title: 'Cloud sync'),
-            ),
-            const FadeSlideIn(index: 7, child: CloudSyncSection()),
-            const Gap(24),
-            FadeSlideIn(
-              index: 7,
               child: const SectionHeader(title: 'Local backup'),
             ),
             const FadeSlideIn(index: 7, child: BackupSection()),
@@ -280,32 +272,6 @@ class ProfileScreen extends ConsumerWidget {
                       activeThumbColor: Colors.white,
                       onChanged: (v) =>
                           ref.read(settingsProvider.notifier).setDarkMode(v),
-                    ),
-                  ),
-                  const Gap(10),
-                  AppCard(
-                    padding: const EdgeInsets.all(16),
-                    child: Row(
-                      children: [
-                        Icon(
-                          AppConfig.aiEnabled
-                              ? Icons.auto_awesome_rounded
-                              : Icons.offline_bolt_outlined,
-                          size: 18,
-                          color: AppConfig.aiEnabled
-                              ? AppColors.success
-                              : AppColors.info,
-                        ),
-                        const Gap(10),
-                        Expanded(
-                          child: Text(
-                            AppConfig.aiEnabled
-                                ? 'AI extraction is on (Gemini)'
-                                : 'Running fully on-device — no API key configured',
-                            style: AppTextStyles.bodySecondary,
-                          ),
-                        ),
-                      ],
                     ),
                   ),
                   const Gap(10),

@@ -13,7 +13,6 @@ import '../../features/review/review_screen.dart';
 import '../../features/scanning/scanning_screen.dart';
 import '../../features/search/search_screen.dart';
 import '../../features/shell/app_shell.dart';
-import '../../features/snap_to_fill/snap_to_fill_screen.dart';
 import '../../features/vault/vault_screen.dart';
 import '../../features/virtual_id/virtual_id_screen.dart';
 
@@ -109,11 +108,6 @@ final appRouter = GoRouter(
         final docId = state.pathParameters['id']!;
         return VirtualIdScreen(documentId: docId);
       },
-    ),
-    GoRoute(
-      path: '/snap-to-fill',
-      parentNavigatorKey: _rootNavigatorKey,
-      builder: (context, state) => const SnapToFillScreen(),
     ),
     // App-lock settings, pushed from Profile.
     GoRoute(

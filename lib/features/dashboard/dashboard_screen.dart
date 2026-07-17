@@ -239,14 +239,6 @@ class _QuickActions extends StatelessWidget {
             onTap: () => context.push('/capture'),
           ),
         ),
-        const Gap(12),
-        Expanded(
-          child: _ActionCard(
-            icon: Icons.edit_document,
-            title: 'Snap\nto fill',
-            onTap: () => context.push('/snap-to-fill'),
-          ),
-        ),
       ],
     );
   }

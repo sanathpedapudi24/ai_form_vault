@@ -283,14 +283,6 @@ class DocumentDetailScreen extends ConsumerWidget {
               ),
             ),
             const Gap(20),
-            FadeSlideIn(
-              index: 8 + doc.extractedFields.length,
-              child: SecondaryButton(
-                label: 'Use in Snap-to-Fill',
-                icon: Icons.edit_document,
-                onPressed: () => context.push('/snap-to-fill'),
-              ),
-            ),
           ],
         ),
       ),
