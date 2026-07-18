@@ -184,16 +184,42 @@ class PersonRepository {
 
   /// True if an edge between the two people already exists (either way).
   Future<bool> relationshipExists(String personA, String personB) async {
+    return (await findRelationship(personA, personB)) != null;
+  }
+
+  /// Returns an existing edge between the two people (either direction), or
+  /// null. Prefers a directed [from]→[to] match when several exist.
+  Future<Relationship?> findRelationship(String from, String to) async {
     final db = await AppDatabase.instance;
     final rows = await db.query(
       'relationships',
       where:
           '(from_person_id = ? AND to_person_id = ?) OR '
           '(from_person_id = ? AND to_person_id = ?)',
-      whereArgs: [personA, personB, personB, personA],
-      limit: 1,
+      whereArgs: [from, to, to, from],
     );
-    return rows.isNotEmpty;
+    if (rows.isEmpty) return null;
+    final rels = rows.map(_relFromRow).toList();
+    return rels.firstWhere(
+      (r) => r.fromPersonId == from && r.toPersonId == to,
+      orElse: () => rels.first,
+    );
+  }
+
+  /// Strengthens a pending relationship when another document corroborates
+  /// it: raises confidence and appends the new evidence line.
+  Future<void> upgradeRelationship(
+    String id, {
+    required double confidence,
+    required String evidence,
+  }) async {
+    final db = await AppDatabase.instance;
+    await db.update(
+      'relationships',
+      {'confidence': confidence, 'evidence': evidence},
+      where: 'id = ?',
+      whereArgs: [id],
+    );
   }
 
   Future<void> insertRelationship(Relationship rel) async {

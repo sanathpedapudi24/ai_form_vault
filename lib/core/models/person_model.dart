@@ -11,6 +11,21 @@ enum RelationshipType {
   son('Son'),
   daughter('Daughter'),
   guardian('Guardian'),
+  grandfather('Grandfather'),
+  grandmother('Grandmother'),
+  grandson('Grandson'),
+  granddaughter('Granddaughter'),
+  uncle('Uncle'),
+  aunt('Aunt'),
+  nephew('Nephew'),
+  niece('Niece'),
+  cousin('Cousin'),
+  fatherInLaw('Father-in-law'),
+  motherInLaw('Mother-in-law'),
+  sonInLaw('Son-in-law'),
+  daughterInLaw('Daughter-in-law'),
+  brotherInLaw('Brother-in-law'),
+  sisterInLaw('Sister-in-law'),
   friend('Friend'),
   other('Related');
 
@@ -23,6 +38,70 @@ enum RelationshipType {
       orElse: () => RelationshipType.other,
     );
   }
+
+  /// The reverse of this relationship, resolving gender-dependent types from
+  /// the counterpart's gender ('male'/'female', or null when unknown).
+  /// Returns null when the inverse can't be represented meaningfully.
+  RelationshipType? inverse(String? counterpartGender) {
+    final m = counterpartGender?.toLowerCase().startsWith('m') ?? false;
+    final f = counterpartGender?.toLowerCase().startsWith('f') ?? false;
+    RelationshipType? byGender(RelationshipType male, RelationshipType female) =>
+        m ? male : (f ? female : null);
+
+    switch (this) {
+      case RelationshipType.father:
+      case RelationshipType.mother:
+        return byGender(RelationshipType.son, RelationshipType.daughter);
+      case RelationshipType.son:
+      case RelationshipType.daughter:
+        return byGender(RelationshipType.father, RelationshipType.mother);
+      case RelationshipType.brother:
+      case RelationshipType.sister:
+        return byGender(RelationshipType.brother, RelationshipType.sister);
+      case RelationshipType.spouse:
+        return RelationshipType.spouse;
+      case RelationshipType.grandfather:
+      case RelationshipType.grandmother:
+        return byGender(
+            RelationshipType.grandson, RelationshipType.granddaughter);
+      case RelationshipType.grandson:
+      case RelationshipType.granddaughter:
+        return byGender(
+            RelationshipType.grandfather, RelationshipType.grandmother);
+      case RelationshipType.uncle:
+      case RelationshipType.aunt:
+        return byGender(RelationshipType.nephew, RelationshipType.niece);
+      case RelationshipType.nephew:
+      case RelationshipType.niece:
+        return byGender(RelationshipType.uncle, RelationshipType.aunt);
+      case RelationshipType.cousin:
+        return RelationshipType.cousin;
+      case RelationshipType.fatherInLaw:
+      case RelationshipType.motherInLaw:
+        return byGender(
+            RelationshipType.sonInLaw, RelationshipType.daughterInLaw);
+      case RelationshipType.sonInLaw:
+      case RelationshipType.daughterInLaw:
+        return byGender(
+            RelationshipType.fatherInLaw, RelationshipType.motherInLaw);
+      case RelationshipType.brotherInLaw:
+      case RelationshipType.sisterInLaw:
+        return byGender(
+            RelationshipType.brotherInLaw, RelationshipType.sisterInLaw);
+      case RelationshipType.friend:
+        return RelationshipType.friend;
+      case RelationshipType.guardian:
+      case RelationshipType.other:
+        return null;
+    }
+  }
+
+  /// If this edge (from → to) encodes a parent→child link, returns whether
+  /// [from] is the parent. Used to derive siblings transitively.
+  bool get fromIsParent =>
+      this == RelationshipType.father || this == RelationshipType.mother;
+  bool get fromIsChild =>
+      this == RelationshipType.son || this == RelationshipType.daughter;
 }
 
 /// Lifecycle of an AI-suggested relationship. Nothing is treated as real

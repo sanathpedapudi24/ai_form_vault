@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ai_form_vault/core/models/document_model.dart';
+import 'package:ai_form_vault/core/models/person_model.dart';
 import 'package:ai_form_vault/core/services/document_intelligence.dart';
 import 'package:ai_form_vault/core/services/document_parser.dart';
 
@@ -142,6 +143,52 @@ void main() {
         orElse: () => const ExtractedField(label: '', value: ''),
       );
       expect(state.value, 'Karnataka');
+    });
+  });
+
+  group('DocumentParser — multi-page field voting', () {
+    test('a clean read on one page beats a garbled read on another', () {
+      const page1 = 'INCOME TAX DEPARTMENT\nName\nRAVL SHRMA\nABCDE1234F';
+      const page2 = 'PERMANENT ACCOUNT NUMBER\nName\nRAVI SHARMA\nABCDE1234F';
+
+      final result = parser.parseMultiPage([page1, page2]);
+      final pan = result.fields.firstWhere((f) => f.label == 'PAN Number');
+      expect(pan.value, 'ABCDE1234F');
+
+      // The PAN appears on both pages → confidence boosted above single-page.
+      final single = parser
+          .parse(page1)
+          .fields
+          .firstWhere((f) => f.label == 'PAN Number');
+      expect(pan.confidence, greaterThan(single.confidence));
+    });
+
+    test('a single page routes to a plain parse', () {
+      final multi = parser.parseMultiPage(['My PAN is ABCDE1234F']);
+      final single = parser.parse('My PAN is ABCDE1234F');
+      expect(multi.fields.length, single.fields.length);
+    });
+  });
+
+  group('RelationshipType.inverse', () {
+    test('father inverts to son or daughter by the child gender', () {
+      expect(RelationshipType.father.inverse('Male'), RelationshipType.son);
+      expect(
+        RelationshipType.father.inverse('Female'),
+        RelationshipType.daughter,
+      );
+      expect(RelationshipType.father.inverse(null), isNull);
+    });
+
+    test('son inverts to a parent by the parent gender', () {
+      expect(RelationshipType.son.inverse('Male'), RelationshipType.father);
+      expect(RelationshipType.son.inverse('Female'), RelationshipType.mother);
+    });
+
+    test('spouse and cousin are self-inverse; guardian has none', () {
+      expect(RelationshipType.spouse.inverse(null), RelationshipType.spouse);
+      expect(RelationshipType.cousin.inverse(null), RelationshipType.cousin);
+      expect(RelationshipType.guardian.inverse('Male'), isNull);
     });
   });
 

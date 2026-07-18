@@ -58,7 +58,7 @@ class RelationshipsScreen extends ConsumerWidget {
                       ),
                     const Gap(20),
                   ],
-                  if (graph.confirmed.isNotEmpty) ...[
+                  if (graph.confirmedUniquePairs.isNotEmpty) ...[
                     FadeSlideIn(
                       index: 10,
                       child: const SectionHeader(
@@ -66,13 +66,13 @@ class RelationshipsScreen extends ConsumerWidget {
                         padding: EdgeInsets.fromLTRB(4, 0, 4, 10),
                       ),
                     ),
-                    for (var i = 0; i < graph.confirmed.length; i++)
+                    for (var i = 0; i < graph.confirmedUniquePairs.length; i++)
                       FadeSlideIn(
                         index: 11 + i,
                         child: Padding(
                           padding: const EdgeInsets.only(bottom: 10),
                           child: _ConfirmedTile(
-                            relationship: graph.confirmed[i],
+                            relationship: graph.confirmedUniquePairs[i],
                             graph: graph,
                           ),
                         ),

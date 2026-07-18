@@ -43,6 +43,10 @@ class CaptureState {
   final String? error;
   final IngestOutcome? outcome;
 
+  /// True when the primary page's scan quality (focus/brightness) was poor
+  /// enough that the review screen should offer a retake.
+  final bool lowQualityScan;
+
   const CaptureState({
     this.stage = CaptureStage.idle,
     this.draft,
@@ -52,6 +56,7 @@ class CaptureState {
     this.extraPageBytes = const [],
     this.error,
     this.outcome,
+    this.lowQualityScan = false,
   });
 
   CaptureState copyWith({
@@ -63,6 +68,7 @@ class CaptureState {
     List<Uint8List>? extraPageBytes,
     String? error,
     IngestOutcome? outcome,
+    bool? lowQualityScan,
   }) => CaptureState(
     stage: stage ?? this.stage,
     draft: draft ?? this.draft,
@@ -72,6 +78,7 @@ class CaptureState {
     extraPageBytes: extraPageBytes ?? this.extraPageBytes,
     error: error ?? this.error,
     outcome: outcome ?? this.outcome,
+    lowQualityScan: lowQualityScan ?? this.lowQualityScan,
   );
 }
 
@@ -90,10 +97,16 @@ class CaptureNotifier extends StateNotifier<CaptureState> {
     if (imagePaths.isEmpty) return;
     state = const CaptureState(stage: CaptureStage.reading);
     try {
-      // 1. On-device OCR across all pages (also feeds the offline fallback).
+      // 1. Preprocess (deskew/grayscale/contrast/sharpen) + OCR each page.
+      //    The first page is the primary side — its scan quality drives the
+      //    "retake?" prompt on review.
       final ocrTexts = <String>[];
-      for (final path in imagePaths) {
-        final ocr = await _ref.read(ocrServiceProvider).processImage(path);
+      var lowQuality = false;
+      for (var i = 0; i < imagePaths.length; i++) {
+        final prepped = await ImagePrep.prepareForOcr(imagePaths[i]);
+        if (i == 0) lowQuality = prepped.looksPoor;
+        final ocr =
+            await _ref.read(ocrServiceProvider).processImage(prepped.path);
         ocrTexts.add(ocr.text);
       }
       final combinedText = ocrTexts.join('\n\n');
@@ -109,12 +122,17 @@ class CaptureNotifier extends StateNotifier<CaptureState> {
         stage: CaptureStage.understanding,
         imageBytes: imageBytes,
         extraPageBytes: extraPageBytes,
+        lowQualityScan: lowQuality,
       );
 
-      // 3. AI (or fallback) analysis.
+      // 3. AI (or fallback) analysis, voting fields across pages.
       final analysis = await _ref
           .read(documentIntelligenceProvider)
-          .analyze(imageBytes: imageBytes, ocrText: combinedText);
+          .analyze(
+            imageBytes: imageBytes,
+            ocrText: combinedText,
+            pageTexts: ocrTexts,
+          );
 
       state = state.copyWith(stage: CaptureStage.organizing);
 

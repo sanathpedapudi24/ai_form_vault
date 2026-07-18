@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/config/app_config.dart';
 import '../../core/models/document_model.dart';
 import '../../core/providers/capture_provider.dart';
 import '../../core/theme/app_colors.dart';
@@ -190,6 +191,20 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
           children: [
+            if (state.lowQualityScan ||
+                draft.confidence < AppConfig.confidenceMedium) ...[
+              FadeSlideIn(
+                index: 0,
+                child: _QualityBanner(
+                  blurry: state.lowQualityScan,
+                  onRetake: () {
+                    ref.read(captureProvider.notifier).reset();
+                    context.go('/capture');
+                  },
+                ),
+              ),
+              const Gap(14),
+            ],
             FadeSlideIn(
               index: 0,
               child: _SummaryCard(
@@ -265,6 +280,57 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
           borderRadius: BorderRadius.circular(16),
           child: InteractiveViewer(child: Image.memory(imageBytes)),
         ),
+      ),
+    );
+  }
+}
+
+class _QualityBanner extends StatelessWidget {
+  final bool blurry;
+  final VoidCallback onRetake;
+
+  const _QualityBanner({required this.blurry, required this.onRetake});
+
+  @override
+  Widget build(BuildContext context) {
+    return AppCard(
+      color: AppColors.warningWash,
+      border: BorderSide(color: AppColors.warning.withValues(alpha: 0.4)),
+      child: Row(
+        children: [
+          Icon(Icons.info_outline_rounded, size: 20, color: AppColors.warning),
+          const Gap(12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  blurry ? 'This scan looks unclear' : 'Low-confidence read',
+                  style: AppTextStyles.label,
+                ),
+                const Gap(2),
+                Text(
+                  blurry
+                      ? 'A blurry or dim photo means some details may be wrong. '
+                            'Check them below, or retake for a cleaner read.'
+                      : 'Some details were read with low confidence. Please '
+                            'double-check them below.',
+                  style: AppTextStyles.caption,
+                ),
+              ],
+            ),
+          ),
+          const Gap(8),
+          TextButton(
+            onPressed: onRetake,
+            child: Text(
+              'Retake',
+              style: AppTextStyles.buttonSmall.copyWith(
+                color: AppColors.accentDeep,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

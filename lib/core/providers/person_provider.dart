@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/person_model.dart';
 import '../repositories/person_repository.dart';
+import '../services/identity_engine.dart';
 import 'service_providers.dart';
 
 /// The identity graph: persons + relationships, with confirm/reject actions.
@@ -25,6 +26,26 @@ class IdentityGraphState {
   List<Relationship> get confirmed => relationships
       .where((r) => r.status == RelationshipStatus.confirmed)
       .toList();
+
+  /// Confirmed relationships with reciprocal duplicates collapsed — one row
+  /// per pair of people. Prefers the direction where the subject isn't the
+  /// vault owner, so it reads "Ramesh is Father of You" rather than the
+  /// reverse.
+  List<Relationship> get confirmedUniquePairs {
+    final userId = user?.id;
+    final ordered = [...confirmed]..sort((a, b) {
+      final aFromUser = a.fromPersonId == userId ? 1 : 0;
+      final bFromUser = b.fromPersonId == userId ? 1 : 0;
+      return aFromUser.compareTo(bFromUser);
+    });
+    final seen = <String>{};
+    final result = <Relationship>[];
+    for (final r in ordered) {
+      final key = ([r.fromPersonId, r.toPersonId]..sort()).join('|');
+      if (seen.add(key)) result.add(r);
+    }
+    return result;
+  }
 
   Person? personById(String id) =>
       persons.where((p) => p.id == id).firstOrNull;
@@ -58,11 +79,22 @@ class IdentityGraphNotifier extends StateNotifier<IdentityGraphState> {
   }
 
   Future<void> confirm(String relationshipId, {RelationshipType? type}) async {
+    final rel = state.relationships
+        .where((r) => r.id == relationshipId)
+        .firstOrNull;
     await _repo.setRelationshipStatus(
       relationshipId,
       RelationshipStatus.confirmed,
       type: type,
     );
+    // Fill in the reverse edge and suggest siblings among shared-parent people.
+    if (rel != null) {
+      final confirmed = rel.copyWith(
+        status: RelationshipStatus.confirmed,
+        type: type ?? rel.type,
+      );
+      await IdentityEngine(persons: _repo).propagateConfirmed(confirmed);
+    }
     await refresh();
   }
 

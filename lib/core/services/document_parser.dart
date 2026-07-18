@@ -209,6 +209,93 @@ class DocumentParser {
   }
 
   // ---------------------------------------------------------------------------
+  // Multi-page parse with field voting
+  // ---------------------------------------------------------------------------
+  /// Parses a multi-page document by parsing each page independently and
+  /// merging the fields, so a value the OCR nailed on one page beats a
+  /// garbled read of the same field on another — and a value that agrees
+  /// across pages is trusted more (corroboration boost). Classification and
+  /// type detection still run on the combined text, which has more context.
+  ParseResult parseMultiPage(List<String> pageTexts) {
+    final pages = pageTexts.where((t) => t.trim().isNotEmpty).toList();
+    if (pages.length <= 1) return parse(pages.isEmpty ? '' : pages.first);
+
+    final base = parse(pages.join('\n\n'));
+    final perPage = pages.map(parse).toList();
+
+    // Gather every candidate reading of each labelled field.
+    final candidates = <String, List<ExtractedField>>{};
+    void collect(List<ExtractedField> fs) {
+      for (final f in fs) {
+        (candidates.putIfAbsent(f.label, () => <ExtractedField>[])).add(f);
+      }
+    }
+    collect(base.fields);
+    for (final r in perPage) {
+      collect(r.fields);
+    }
+
+    // Keep the combined parse's field order, then any labels only pages saw.
+    final order = <String>[
+      ...base.fields.map((f) => f.label),
+      ...candidates.keys.where((l) => !base.fields.any((f) => f.label == l)),
+    ];
+
+    final merged = <ExtractedField>[];
+    for (final label in order) {
+      final cands = candidates[label];
+      if (cands == null || cands.isEmpty) continue;
+      merged.add(_voteField(cands));
+    }
+
+    final overall = merged.isEmpty
+        ? 0.0
+        : merged.map((f) => f.confidence).reduce((a, b) => a + b) /
+              merged.length;
+
+    return ParseResult(
+      category: base.category,
+      documentType: base.documentType,
+      detectedType: base.detectedType,
+      fields: merged,
+      overallConfidence: overall,
+    );
+  }
+
+  /// Picks the best reading among candidates for one field: group by value,
+  /// score each group by its strongest reading plus a bonus for how many
+  /// pages agreed, and return the winner with the boosted confidence.
+  ExtractedField _voteField(List<ExtractedField> candidates) {
+    final groups = <String, List<ExtractedField>>{};
+    for (final c in candidates) {
+      final key = _valueKey(c.value);
+      if (key.isEmpty) continue;
+      (groups.putIfAbsent(key, () => <ExtractedField>[])).add(c);
+    }
+    if (groups.isEmpty) return candidates.first;
+
+    ExtractedField? best;
+    var bestScore = -1.0;
+    for (final group in groups.values) {
+      final top = group.reduce((a, b) => a.confidence >= b.confidence ? a : b);
+      // Each additional page that agrees adds a little trust, capped so a
+      // corroborated read can reach — but not exceed — a verified one.
+      final corroboration = (group.length - 1) * 0.08;
+      final score = (top.confidence + corroboration).clamp(0.0, 0.98);
+      if (score > bestScore) {
+        bestScore = score;
+        best = top.copyWith(confidence: score);
+      }
+    }
+    return best ?? candidates.first;
+  }
+
+  /// Normalizes a value for cross-page comparison — case/spacing/punctuation
+  /// insensitive so "Ravi Sharma" and "RAVI  SHARMA" count as agreement.
+  String _valueKey(String value) =>
+      value.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
+
+  // ---------------------------------------------------------------------------
   // Main parse entry point
   // ---------------------------------------------------------------------------
   ParseResult parse(String rawText) {

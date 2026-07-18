@@ -49,16 +49,21 @@ class DocumentIntelligence {
 
   final DocumentParser _parser;
 
-  /// Analyzes a document from OCR text.
+  /// Analyzes a document from OCR text. When [pageTexts] holds more than one
+  /// page, fields are voted across pages (see [DocumentParser.parseMultiPage]);
+  /// otherwise a single-page parse runs on [ocrText].
   Future<DocumentAnalysis> analyze({
     required Uint8List imageBytes,
     required String ocrText,
+    List<String> pageTexts = const [],
   }) async {
-    return _analyzeOnDevice(ocrText);
+    return _analyzeOnDevice(ocrText, pageTexts);
   }
 
-  DocumentAnalysis _analyzeOnDevice(String ocrText) {
-    final parsed = _parser.parse(ocrText);
+  DocumentAnalysis _analyzeOnDevice(String ocrText, List<String> pageTexts) {
+    final parsed = pageTexts.length > 1
+        ? _parser.parseMultiPage(pageTexts)
+        : _parser.parse(ocrText);
 
     final fields = parsed.fields
         .map((f) => f.copyWith(semanticKey: semanticKeyForLabel(f.label)))
