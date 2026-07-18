@@ -3,8 +3,9 @@ import 'package:flutter/services.dart';
 
 import '../../core/theme/motion.dart';
 
-/// Wraps any child with iOS-style press feedback: a quick scale-down and
-/// slight fade while the finger is down, springing back on release.
+/// CRED-style tactile press: the card sinks quickly under the finger, then
+/// springs back with a soft overshoot on release — weight in, bounce out.
+/// A light haptic fires on touch-down so the surface feels physical.
 class Pressable extends StatefulWidget {
   final Widget child;
   final VoidCallback? onTap;
@@ -19,7 +20,7 @@ class Pressable extends StatefulWidget {
     required this.child,
     this.onTap,
     this.onLongPress,
-    this.pressedScale = 0.97,
+    this.pressedScale = 0.96,
     this.enableHaptics = true,
   });
 
@@ -39,22 +40,25 @@ class _PressableState extends State<Pressable> {
     final enabled = widget.onTap != null || widget.onLongPress != null;
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
-      onTapDown: enabled ? (_) => _setPressed(true) : null,
+      onTapDown: enabled
+          ? (_) {
+              if (widget.enableHaptics) HapticFeedback.lightImpact();
+              _setPressed(true);
+            }
+          : null,
       onTapCancel: enabled ? () => _setPressed(false) : null,
       onTapUp: enabled ? (_) => _setPressed(false) : null,
-      onTap: widget.onTap == null
-          ? null
-          : () {
-              if (widget.enableHaptics) HapticFeedback.selectionClick();
-              widget.onTap!();
-            },
+      onTap: widget.onTap,
       onLongPress: widget.onLongPress,
       child: AnimatedScale(
         scale: _pressed ? widget.pressedScale : 1.0,
-        duration: AppMotion.fast,
-        curve: AppMotion.ease,
+        // Sink fast under the finger; spring back with overshoot on release.
+        duration: _pressed
+            ? const Duration(milliseconds: 110)
+            : const Duration(milliseconds: 360),
+        curve: _pressed ? Curves.easeOut : AppMotion.spring,
         child: AnimatedOpacity(
-          opacity: _pressed ? 0.85 : 1.0,
+          opacity: _pressed ? 0.9 : 1.0,
           duration: AppMotion.fast,
           child: widget.child,
         ),

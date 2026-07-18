@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'dart:math';
 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -29,17 +30,33 @@ class AppDatabase {
     final path = p.join(dir.path, _dbFileName);
     final password = await _getOrCreateDbKey();
 
-    return openDatabase(
-      path,
-      password: password,
-      version: 2,
-      onConfigure: (db) async {
-        await db.execute('PRAGMA foreign_keys = ON');
-      },
-      onCreate: _createSchema,
-      onUpgrade: _upgradeSchema,
-    );
+    try {
+      return await _openWithKey(path, password);
+    } catch (_) {
+      // The file exists but this key can't decrypt it — happens when a
+      // reinstall restored the DB file while the Keystore key was lost.
+      // The data is cryptographically unrecoverable; set the wreck aside
+      // (don't delete) and start fresh so the app can still boot.
+      final wreck = File(path);
+      if (await wreck.exists()) {
+        final ts = DateTime.now().millisecondsSinceEpoch;
+        await wreck.rename('$path.unreadable-$ts');
+      }
+      return await _openWithKey(path, password);
+    }
   }
+
+  static Future<Database> _openWithKey(String path, String password) =>
+      openDatabase(
+        path,
+        password: password,
+        version: 2,
+        onConfigure: (db) async {
+          await db.execute('PRAGMA foreign_keys = ON');
+        },
+        onCreate: _createSchema,
+        onUpgrade: _upgradeSchema,
+      );
 
   static Future<void> _upgradeSchema(
     Database db,
@@ -59,7 +76,16 @@ class AppDatabase {
   }
 
   static Future<String> _getOrCreateDbKey() async {
-    final existing = await _secureStorage.read(key: _dbKeyStorageKey);
+    String? existing;
+    try {
+      existing = await _secureStorage.read(key: _dbKeyStorageKey);
+    } catch (_) {
+      // Restored-but-undecryptable secure prefs (Keystore key lost on
+      // reinstall). Clear the wedged entries so a fresh key can be written.
+      try {
+        await _secureStorage.deleteAll();
+      } catch (_) {}
+    }
     if (existing != null && existing.isNotEmpty) return existing;
 
     final random = Random.secure();

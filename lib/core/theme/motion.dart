@@ -26,6 +26,7 @@ class AppMotion {
   /// Gentle overshoot for playful moments (checkmarks, success states).
   static const Curve spring = Cubic(0.34, 1.4, 0.64, 1);
 
-  /// Stagger interval between list items animating in.
-  static const Duration stagger = Duration(milliseconds: 40);
+  /// Stagger interval between list items animating in. Long enough that the
+  /// cascade reads as deliberate (CRED-style), short enough not to drag.
+  static const Duration stagger = Duration(milliseconds: 60);
 }

@@ -57,25 +57,32 @@ class AppLockNotifier extends StateNotifier<AppLockState> {
   final AppLockService _service;
 
   Future<void> _init() async {
-    final hasPin = await _service.isPinSet();
-    final biometricAvailable = await _service.isBiometricAvailable();
-    final biometricEnabled = hasPin && await _service.isBiometricEnabled();
+    try {
+      final hasPin = await _service.isPinSet();
+      final biometricAvailable = await _service.isBiometricAvailable();
+      final biometricEnabled = hasPin && await _service.isBiometricEnabled();
 
-    AppLockPhase phase;
-    if (hasPin) {
-      phase = AppLockPhase.locked;
-    } else if (await _service.isOptedOut()) {
-      phase = AppLockPhase.unlocked;
-    } else {
-      phase = AppLockPhase.needsSetup;
+      AppLockPhase phase;
+      if (hasPin) {
+        phase = AppLockPhase.locked;
+      } else if (await _service.isOptedOut()) {
+        phase = AppLockPhase.unlocked;
+      } else {
+        phase = AppLockPhase.needsSetup;
+      }
+
+      state = AppLockState(
+        phase: phase,
+        hasPin: hasPin,
+        biometricAvailable: biometricAvailable,
+        biometricEnabled: biometricEnabled,
+      );
+    } catch (_) {
+      // Secure storage can throw after a reinstall restored undecryptable
+      // prefs. Leaving the phase on `loading` would blank-screen the app
+      // forever — fall back to setup, which rewrites storage from scratch.
+      state = const AppLockState(phase: AppLockPhase.needsSetup);
     }
-
-    state = AppLockState(
-      phase: phase,
-      hasPin: hasPin,
-      biometricAvailable: biometricAvailable,
-      biometricEnabled: biometricEnabled,
-    );
   }
 
   /// Completes first-time (or re-enabled) setup. Setting the PIN implicitly

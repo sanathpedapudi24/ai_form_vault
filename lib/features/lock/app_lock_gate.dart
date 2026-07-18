@@ -36,9 +36,16 @@ class _AppLockGateState extends ConsumerState<AppLockGate>
   }
 
   Future<void> _loadOnboardingFlag() async {
-    final done = await const SettingsRepository().getBool(
-      SettingsRepository.onboardingDone,
-    );
+    bool done;
+    try {
+      done = await const SettingsRepository().getBool(
+        SettingsRepository.onboardingDone,
+      );
+    } catch (_) {
+      // If the encrypted DB can't be read, treat it as a first run rather
+      // than blank-screening — worst case the user sees onboarding again.
+      done = false;
+    }
     if (mounted) setState(() => _onboardingDone = done);
   }
 
@@ -71,7 +78,7 @@ class _AppLockGateState extends ConsumerState<AppLockGate>
     final signedIn = auth.asData?.value != null;
 
     if (auth.isLoading) {
-      return Scaffold(backgroundColor: AppColors.bg);
+      return _waiting();
     }
     if (!signedIn) {
       return const AuthScreen();
@@ -81,9 +88,9 @@ class _AppLockGateState extends ConsumerState<AppLockGate>
     final phase = ref.watch(appLockProvider.select((s) => s.phase));
 
     return switch (phase) {
-      AppLockPhase.loading => Scaffold(backgroundColor: AppColors.bg),
+      AppLockPhase.loading => _waiting(),
       AppLockPhase.needsSetup => switch (_onboardingDone) {
-        null => Scaffold(backgroundColor: AppColors.bg),
+        null => _waiting(),
         false => OnboardingScreen(onDone: _finishOnboarding),
         true => const PinSetupScreen(),
       },
@@ -91,4 +98,18 @@ class _AppLockGateState extends ConsumerState<AppLockGate>
       AppLockPhase.unlocked => widget.child ?? const SizedBox.shrink(),
     };
   }
+
+  Widget _waiting() => Scaffold(
+    backgroundColor: AppColors.bg,
+    body: Center(
+      child: SizedBox(
+        width: 28,
+        height: 28,
+        child: CircularProgressIndicator(
+          strokeWidth: 2.5,
+          color: AppColors.accent,
+        ),
+      ),
+    ),
+  );
 }

@@ -5,10 +5,15 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
+    <!-- allowBackup=false: auto-backup restores the encrypted DB and secure
+         prefs on reinstall, but Keystore keys never survive reinstall — the
+         restored data is undecryptable and wedges first launch. -->
     <application
         android:label="AI Form &amp; Vault"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:allowBackup="false"
+        android:fullBackupContent="false">
         <activity
             android:name=".MainActivity"
             android:exported="true"
