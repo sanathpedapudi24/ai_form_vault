@@ -71,22 +71,30 @@ class AppColors {
   // [dark] flag (which only re-resolves on a full rebuild).
   static Color _cc(bool d, int light, int dark_) => Color(d ? dark_ : light);
 
+  /// Three-stop gradient: a distinctly brighter sliver at the very top (the
+  /// light-catching edge), fading fast into the card body which then deepens
+  /// toward the bottom. This is the CRED signature — a slab that looks lit
+  /// from above with real depth, not a flat rectangle.
   static LinearGradient cardGradientFor(bool d) => LinearGradient(
     begin: Alignment.topCenter,
     end: Alignment.bottomCenter,
+    stops: const [0.0, 0.10, 1.0],
     colors: [
-      _cc(d, 0xFFFFFFFF, 0xFF20202A),
-      _cc(d, 0xFFFBFAF7, 0xFF141419),
+      _cc(d, 0xFFFFFFFF, 0xFF3A3A47),
+      _cc(d, 0xFFFCFBF8, 0xFF20202A),
+      _cc(d, 0xFFF1EEE6, 0xFF131318),
     ],
   );
 
-  static Color cardBorderFor(bool d) => _cc(d, 0xFFE7E5DB, 0xFF2E2E39);
+  /// A visibly brighter rim — pronounced in dark so the card edge reads as a
+  /// lifted pane, and a clear warm hairline in light.
+  static Color cardBorderFor(bool d) => _cc(d, 0xFFDFDCCF, 0xFF3C3C4A);
 
   static List<BoxShadow> cardShadowFor(bool d) => [
     BoxShadow(
-      color: Colors.black.withValues(alpha: d ? 0.45 : 0.04),
-      blurRadius: 12,
-      offset: const Offset(0, 2),
+      color: Colors.black.withValues(alpha: d ? 0.55 : 0.07),
+      blurRadius: d ? 20 : 14,
+      offset: const Offset(0, 6),
     ),
   ];
 
