@@ -46,6 +46,50 @@ class AppColors {
   static Color get borderStrong => _c(0xFFCFCDC1, 0xFF35353E);
   static Color get divider => _c(0xFFECEAE1, 0xFF1C1C22);
 
+  // --- CRED-style card surface --------------------------------------------
+  // Cards read as a single lit slab of obsidian: a soft top-to-bottom
+  // gradient (lighter at the top, as if catching light) over a hairline
+  // edge that's brighter than the surrounding ground. In light mode this
+  // stays near-flat white so the paper aesthetic is preserved.
+  static Color get cardGradientTop => _c(0xFFFFFFFF, 0xFF20202A);
+  static Color get cardGradientBottom => _c(0xFFFBFAF7, 0xFF141419);
+
+  /// Hairline that rims each card — a touch brighter than the card so the
+  /// edge catches light (the CRED "lifted glass" look).
+  static Color get cardBorder => _c(0xFFE7E5DB, 0xFF2E2E39);
+
+  /// The card fill as a gradient, for [BoxDecoration.gradient].
+  static LinearGradient get cardGradient => LinearGradient(
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+    colors: [cardGradientTop, cardGradientBottom],
+  );
+
+  // Brightness-parameterized variants of the card tokens. These take the
+  // dark flag explicitly so a widget can resolve them from its inherited
+  // Theme (reactive across a live dark-mode toggle) instead of the global
+  // [dark] flag (which only re-resolves on a full rebuild).
+  static Color _cc(bool d, int light, int dark_) => Color(d ? dark_ : light);
+
+  static LinearGradient cardGradientFor(bool d) => LinearGradient(
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+    colors: [
+      _cc(d, 0xFFFFFFFF, 0xFF20202A),
+      _cc(d, 0xFFFBFAF7, 0xFF141419),
+    ],
+  );
+
+  static Color cardBorderFor(bool d) => _cc(d, 0xFFE7E5DB, 0xFF2E2E39);
+
+  static List<BoxShadow> cardShadowFor(bool d) => [
+    BoxShadow(
+      color: Colors.black.withValues(alpha: d ? 0.45 : 0.04),
+      blurRadius: 12,
+      offset: const Offset(0, 2),
+    ),
+  ];
+
   // --- Semantic (muted, paper-friendly) ------------------------------------
   static Color get success => _c(0xFF4C8055, 0xFF7DB587);
   static Color get successWash => _c(0xFFE4EEE5, 0xFF16241C);
