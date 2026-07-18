@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ai_form_vault/core/models/document_model.dart';
+import 'package:ai_form_vault/core/models/person_model.dart';
 import 'package:ai_form_vault/core/services/search_service.dart';
 
 DocumentModel _doc({
@@ -124,6 +125,66 @@ void main() {
       final results = await service.search('when does my passport expire', docs);
       expect(results, isNotEmpty);
       expect(results.first.document.id, '1');
+    });
+  });
+
+  group('SearchService — fuzzy + synonym + scopes', () {
+    test('tolerates a typo in the query', () async {
+      final docs = [
+        _doc(id: '1', name: 'Aadhaar Card'),
+        _doc(id: '2', name: 'Passport'),
+      ];
+      final results = await service.search('adhaar', docs); // misspelled
+      expect(results.first.document.id, '1');
+    });
+
+    test('a synonym matches the underlying document', () async {
+      final docs = [
+        _doc(
+          id: '1',
+          name: 'Aadhaar Card',
+          fields: const [
+            ExtractedField(label: 'Aadhaar Number', value: '1234 5678 9012'),
+          ],
+        ),
+        _doc(id: '2', name: 'Passport'),
+      ];
+      final results = await service.search('uid', docs); // uid → aadhaar
+      expect(results.first.document.id, '1');
+    });
+
+    test('person scope filters to the related person\'s documents', () async {
+      final now = DateTime(2026, 1, 1);
+      final user = Person(id: 'u', displayName: 'You', isUser: true, createdAt: now);
+      final wife = Person(id: 'w', displayName: 'Priya', createdAt: now);
+      final rel = Relationship(
+        id: 'r',
+        fromPersonId: 'w',
+        toPersonId: 'u',
+        type: RelationshipType.spouse,
+        status: RelationshipStatus.confirmed,
+        createdAt: now,
+      );
+      final docs = [
+        DocumentModel(
+          id: 'd1', name: 'Passport', ownerName: 'You', personId: 'u',
+          category: DocumentCategory.travel, type: 'Passport',
+          detectedType: 'Passport', uploadDate: now,
+        ),
+        DocumentModel(
+          id: 'd2', name: 'Passport', ownerName: 'Priya', personId: 'w',
+          category: DocumentCategory.travel, type: 'Passport',
+          detectedType: 'Passport', uploadDate: now,
+        ),
+      ];
+      final results = await service.search(
+        "my wife's passport",
+        docs,
+        persons: [user, wife],
+        rels: [rel],
+      );
+      expect(results, hasLength(1));
+      expect(results.first.document.id, 'd2');
     });
   });
 }

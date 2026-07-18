@@ -3,10 +3,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:uuid/uuid.dart';
 
 import '../../core/models/document_model.dart';
+import '../../core/models/person_model.dart';
 import '../../core/providers/app_lock_provider.dart';
 import '../../core/providers/document_provider.dart';
+import '../../core/providers/person_provider.dart';
+import '../../core/providers/service_providers.dart';
+import '../../core/services/document_intelligence.dart';
 import '../../core/services/image_vault.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
@@ -191,17 +196,20 @@ class DocumentDetailScreen extends ConsumerWidget {
             const Gap(24),
             FadeSlideIn(
               index: 4,
-              child: const SectionHeader(
+              child: SectionHeader(
                 title: 'Details',
-                padding: EdgeInsets.fromLTRB(4, 0, 4, 10),
+                actionLabel: 'Add',
+                onAction: () => _addField(context, ref, doc),
+                padding: const EdgeInsets.fromLTRB(4, 0, 4, 10),
               ),
             ),
             if (doc.extractedFields.isEmpty)
               FadeSlideIn(
                 index: 5,
                 child: AppCard(
+                  onTap: () => _addField(context, ref, doc),
                   child: Text(
-                    'No details were extracted from this document.',
+                    'No details were extracted. Tap to add one manually.',
                     style: AppTextStyles.bodySecondary,
                   ),
                 ),
@@ -216,7 +224,10 @@ class DocumentDetailScreen extends ConsumerWidget {
                         const Divider(height: 1, indent: 16, endIndent: 16),
                       FadeSlideIn(
                         index: 5 + i,
-                        child: _DetailFieldRow(field: doc.extractedFields[i]),
+                        child: _DetailFieldRow(
+                          field: doc.extractedFields[i],
+                          onTap: () => _editField(context, ref, doc, i),
+                        ),
                       ),
                     ],
                   ],
@@ -306,6 +317,174 @@ class DocumentDetailScreen extends ConsumerWidget {
     );
   }
 
+  /// Writes edited fields back to the document and re-syncs the owner's facts
+  /// so a correction here propagates to search, autofill, and Q&A.
+  Future<void> _persistFields(
+    WidgetRef ref,
+    DocumentModel doc,
+    List<ExtractedField> fields,
+  ) async {
+    await ref
+        .read(documentsProvider.notifier)
+        .update(doc.copyWith(extractedFields: fields));
+
+    final personId = doc.personId;
+    if (personId != null) {
+      final repo = ref.read(personRepositoryProvider);
+      for (final f in fields) {
+        if (f.semanticKey.isNotEmpty &&
+            f.value.trim().isNotEmpty &&
+            f.verified) {
+          await repo.upsertFact(
+            PersonFact(
+              id: const Uuid().v4(),
+              personId: personId,
+              factKey: f.semanticKey,
+              value: f.value.trim(),
+              confidence: 1,
+              sourceDocumentId: doc.id,
+              verified: true,
+              updatedAt: DateTime.now(),
+            ),
+          );
+        }
+      }
+      await ref.read(identityGraphProvider.notifier).refresh();
+    }
+  }
+
+  void _editField(
+    BuildContext context,
+    WidgetRef ref,
+    DocumentModel doc,
+    int index,
+  ) {
+    final field = doc.extractedFields[index];
+    final controller = TextEditingController(text: field.value);
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (sheetContext) => Padding(
+        padding: EdgeInsets.only(
+          left: 20,
+          right: 20,
+          top: 20,
+          bottom: MediaQuery.of(sheetContext).viewInsets.bottom + 20,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(field.label, style: AppTextStyles.titleSmall),
+            const Gap(14),
+            TextField(
+              controller: controller,
+              autofocus: true,
+              style: AppTextStyles.body,
+              decoration: const InputDecoration(hintText: 'Enter value'),
+            ),
+            const Gap(16),
+            Row(
+              children: [
+                Expanded(
+                  child: SecondaryButton(
+                    label: 'Delete',
+                    onPressed: () {
+                      final fields = [...doc.extractedFields]..removeAt(index);
+                      _persistFields(ref, doc, fields);
+                      Navigator.pop(sheetContext);
+                    },
+                  ),
+                ),
+                const Gap(10),
+                Expanded(
+                  child: PrimaryButton(
+                    label: 'Save',
+                    onPressed: () {
+                      final fields = [...doc.extractedFields];
+                      fields[index] = field.copyWith(
+                        value: controller.text.trim(),
+                        verified: true,
+                        confidence: 1,
+                      );
+                      _persistFields(ref, doc, fields);
+                      Navigator.pop(sheetContext);
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _addField(BuildContext context, WidgetRef ref, DocumentModel doc) {
+    final labelController = TextEditingController();
+    final valueController = TextEditingController();
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (sheetContext) => Padding(
+        padding: EdgeInsets.only(
+          left: 20,
+          right: 20,
+          top: 20,
+          bottom: MediaQuery.of(sheetContext).viewInsets.bottom + 20,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Add a detail', style: AppTextStyles.titleSmall),
+            const Gap(14),
+            TextField(
+              controller: labelController,
+              autofocus: true,
+              style: AppTextStyles.body,
+              decoration: const InputDecoration(
+                hintText: 'Field name — e.g. Blood Group',
+              ),
+            ),
+            const Gap(10),
+            TextField(
+              controller: valueController,
+              style: AppTextStyles.body,
+              decoration: const InputDecoration(hintText: 'Value'),
+            ),
+            const Gap(16),
+            PrimaryButton(
+              label: 'Add',
+              onPressed: () {
+                final label = labelController.text.trim();
+                final value = valueController.text.trim();
+                if (label.isEmpty || value.isEmpty) {
+                  Navigator.pop(sheetContext);
+                  return;
+                }
+                final newField = ExtractedField(
+                  label: label,
+                  value: value,
+                  semanticKey:
+                      DocumentIntelligence.semanticKeyForLabel(label),
+                  confidence: 1,
+                  verified: true,
+                );
+                _persistFields(
+                  ref,
+                  doc,
+                  [...doc.extractedFields, newField],
+                );
+                Navigator.pop(sheetContext);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   void _editNote(BuildContext context, WidgetRef ref, DocumentModel doc) {
     final controller = TextEditingController(text: doc.note);
     showModalBottomSheet(
@@ -353,31 +532,39 @@ class DocumentDetailScreen extends ConsumerWidget {
 
 class _DetailFieldRow extends StatelessWidget {
   final ExtractedField field;
+  final VoidCallback? onTap;
 
-  const _DetailFieldRow({required this.field});
+  const _DetailFieldRow({required this.field, this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
-      child: Row(
-        children: [
-          Expanded(
-            flex: 2,
-            child: Text(field.label, style: AppTextStyles.label),
-          ),
-          Expanded(
-            flex: 3,
-            child: Text(
-              field.value,
-              style: (FactKeys.sensitive.contains(field.semanticKey)
-                      ? AppTextStyles.mono
-                      : AppTextStyles.body)
-                  .copyWith(fontSize: 14.5),
-              textAlign: TextAlign.right,
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+        child: Row(
+          children: [
+            Expanded(
+              flex: 2,
+              child: Text(field.label, style: AppTextStyles.label),
             ),
-          ),
-        ],
+            Expanded(
+              flex: 3,
+              child: Text(
+                field.value,
+                style: (FactKeys.sensitive.contains(field.semanticKey)
+                        ? AppTextStyles.mono
+                        : AppTextStyles.body)
+                    .copyWith(fontSize: 14.5),
+                textAlign: TextAlign.right,
+              ),
+            ),
+            if (onTap != null) ...[
+              const Gap(8),
+              Icon(Icons.edit_outlined, size: 14, color: AppColors.textTertiary),
+            ],
+          ],
+        ),
       ),
     );
   }

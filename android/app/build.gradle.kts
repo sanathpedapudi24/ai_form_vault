@@ -29,8 +29,9 @@ android {
         applicationId = "com.aiformvault.ai_form_vault"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
-        // local_auth's biometric prompt requires API 23+.
-        minSdk = maxOf(flutter.minSdkVersion, 23)
+        // API 26+ (Android 8.0): required by ML Kit entity-extraction; also
+        // comfortably above local_auth's biometric minimum (23).
+        minSdk = maxOf(flutter.minSdkVersion, 26)
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName

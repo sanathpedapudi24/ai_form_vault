@@ -1,3 +1,5 @@
+import 'text_similarity.dart';
+
 /// Decides whether two extracted names likely refer to the same person.
 ///
 /// Document OCR/AI extraction of the same real person rarely produces
@@ -94,18 +96,9 @@ class NameMatcher {
     return intersection / union;
   }
 
-  static Set<String> _bigrams(String s) {
-    if (s.length < 2) return {s};
-    return {for (var i = 0; i < s.length - 1; i++) s.substring(i, i + 2)};
-  }
-
   /// Dice coefficient over character bigrams — tolerant of single-letter
   /// OCR misreads ("Sarma" vs "Sharma") without needing full edit distance.
-  static double _bigramDice(String a, String b) {
-    final bigramsA = _bigrams(a.replaceAll(' ', ''));
-    final bigramsB = _bigrams(b.replaceAll(' ', ''));
-    if (bigramsA.isEmpty || bigramsB.isEmpty) return 0;
-    final shared = bigramsA.intersection(bigramsB).length;
-    return (2 * shared) / (bigramsA.length + bigramsB.length);
-  }
+  /// Delegates to the shared [TextSimilarity] implementation.
+  static double _bigramDice(String a, String b) =>
+      TextSimilarity.diceCoefficient(a, b);
 }

@@ -32,6 +32,18 @@ void main() {
       final result = parser.parse('Just some random shopping list text');
       expect(result.category, DocumentCategory.other);
     });
+
+    test('weighted scoring keeps a PAN card as identity despite tax words', () {
+      final r = parser.classify(
+        'INCOME TAX DEPARTMENT\nPERMANENT ACCOUNT NUMBER\nABCDE1234F',
+      );
+      expect(r.category, DocumentCategory.identity);
+      expect(r.confidence, greaterThan(0.5));
+    });
+
+    test('classification confidence is 0 for unrecognized text', () {
+      expect(parser.classify('random noise').confidence, 0);
+    });
   });
 
   group('DocumentParser — field extraction', () {

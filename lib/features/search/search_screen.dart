@@ -4,10 +4,13 @@ import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/config/app_config.dart';
+import '../../core/models/document_model.dart';
 import '../../core/providers/search_provider.dart';
+import '../../core/services/ask_engine.dart';
 import '../../core/services/search_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
+import '../../shared/widgets/app_card.dart';
 import '../../shared/widgets/empty_state.dart';
 import '../../shared/widgets/fade_slide_in.dart';
 import '../../shared/widgets/vault_image.dart';
@@ -32,10 +35,11 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   }
 
   static const _suggestions = [
-    'Find my passport',
+    "What's my PAN number",
+    'When does my passport expire',
+    "My father's name",
     'Aadhaar card',
-    'When does my ID expire',
-    'Bank documents',
+    'Documents expiring soon',
   ];
 
   @override
@@ -169,23 +173,122 @@ class _ResultsView extends StatelessWidget {
     if (state.searching) {
       return const Center(child: CircularProgressIndicator());
     }
-    if (state.results.isEmpty) {
+    final answer = state.answer;
+    if (answer == null && state.results.isEmpty) {
       return EmptyState(
         icon: Icons.search_off_rounded,
         title: 'No matches',
         message: 'Try a different word, or check the spelling.',
       );
     }
+
+    // Answer card (if any) is item 0, then the ranked results.
+    final hasAnswer = answer != null;
     return ListView.builder(
       padding: const EdgeInsets.fromLTRB(20, 4, 20, 120),
-      itemCount: state.results.length,
-      itemBuilder: (context, index) => FadeSlideIn(
-        index: index,
-        offset: 8,
-        child: Padding(
-          padding: const EdgeInsets.only(bottom: 10),
-          child: _ResultTile(result: state.results[index]),
-        ),
+      itemCount: state.results.length + (hasAnswer ? 1 : 0),
+      itemBuilder: (context, index) {
+        if (hasAnswer && index == 0) {
+          return FadeSlideIn(
+            offset: 8,
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: 14),
+              child: _AnswerCard(answer: answer),
+            ),
+          );
+        }
+        final result = state.results[index - (hasAnswer ? 1 : 0)];
+        return FadeSlideIn(
+          index: index,
+          offset: 8,
+          child: Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: _ResultTile(result: result),
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// The direct-answer card shown above search results when the query reads as
+/// a question. Sensitive values (Aadhaar, PAN…) are masked until tapped.
+class _AnswerCard extends StatefulWidget {
+  final AskResult answer;
+
+  const _AnswerCard({required this.answer});
+
+  @override
+  State<_AnswerCard> createState() => _AnswerCardState();
+}
+
+class _AnswerCardState extends State<_AnswerCard> {
+  bool _revealed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final a = widget.answer;
+    final showValue = a.value.isNotEmpty && !a.notFound;
+    final display = a.isSensitive && !_revealed ? a.maskedValue : a.value;
+
+    return AppCard(
+      color: AppColors.accentWash,
+      border: BorderSide(color: AppColors.accentWashBorder),
+      onTap: a.sourceDocumentId != null
+          ? () => context.push('/document/${a.sourceDocumentId}')
+          : null,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.auto_awesome_rounded, size: 15, color: AppColors.accentDeep),
+              const Gap(6),
+              Text('ANSWER', style: AppTextStyles.overline),
+            ],
+          ),
+          const Gap(8),
+          if (showValue) ...[
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Expanded(
+                  child: Text(
+                    display,
+                    style: (FactKeys.sensitive.contains(a.factKey)
+                            ? AppTextStyles.mono
+                            : AppTextStyles.title)
+                        .copyWith(fontSize: 20),
+                  ),
+                ),
+                if (a.isSensitive)
+                  IconButton(
+                    icon: Icon(
+                      _revealed
+                          ? Icons.visibility_off_outlined
+                          : Icons.visibility_outlined,
+                      size: 20,
+                      color: AppColors.textTertiary,
+                    ),
+                    onPressed: () => setState(() => _revealed = !_revealed),
+                  ),
+              ],
+            ),
+            const Gap(4),
+          ],
+          Text(a.answer, style: AppTextStyles.bodySecondary),
+          if (a.sourceDocumentId != null) ...[
+            const Gap(8),
+            Row(
+              children: [
+                Icon(Icons.description_outlined,
+                    size: 13, color: AppColors.textTertiary),
+                const Gap(4),
+                Text('Tap to open the source', style: AppTextStyles.caption),
+              ],
+            ),
+          ],
+        ],
       ),
     );
   }

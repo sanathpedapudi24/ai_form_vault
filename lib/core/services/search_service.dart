@@ -2,7 +2,10 @@ import 'dart:math';
 
 import '../config/app_config.dart';
 import '../models/document_model.dart';
+import '../models/person_model.dart';
 import 'query_intent.dart';
+import 'text_similarity.dart';
+import 'vault_lexicon.dart';
 
 /// One search hit: the document, why it matched, and how strongly.
 class SearchResult {
@@ -21,34 +24,71 @@ class SearchResult {
   });
 }
 
-/// Keyword search with natural-language intent parsing.
+/// Natural-language, fuzzy, on-device search.
 ///
-/// [QueryIntent.parse] strips question phrasing and reasons about
-/// expiry/category intent directly, so search feels conversational
-/// rather than purely literal keyword matching. Runs entirely over
-/// local data — no network calls.
+/// [QueryIntent] extracts field/person/time/expiry intent; matching tolerates
+/// typos (bigram similarity), expands synonyms ("uid" → "aadhaar"), and honors
+/// person scope ("wife's passport") and relative time ("expiring next month").
+/// Runs entirely over local data — no network.
 class SearchService {
   Future<List<SearchResult>> search(
     String query,
-    List<DocumentModel> docs,
-  ) async {
+    List<DocumentModel> docs, {
+    List<Person> persons = const [],
+    List<Relationship> rels = const [],
+  }) async {
     final q = query.trim();
     if (q.isEmpty || docs.isEmpty) return [];
 
     final intent = QueryIntent.parse(q);
+    final personScopeId = _resolvePersonScope(intent, persons, rels);
 
     final scores = <String, SearchResult>{};
     for (final doc in docs) {
+      // Hard filters first.
+      if (personScopeId != null && doc.personId != personScopeId) continue;
+      if (intent.timeScope != null &&
+          !intent.timeScope!.matches(doc, parseFlexibleDate)) {
+        continue;
+      }
+
       final result = _keywordScore(intent, doc);
-      if (result != null) scores[doc.id] = result;
+      if (result != null) {
+        scores[doc.id] = result;
+      } else if (intent.terms.isEmpty &&
+          (personScopeId != null || intent.timeScope != null)) {
+        // "documents expiring next month" / "wife's documents" — no search
+        // terms, but the filters matched; include, ranked by recency.
+        scores[doc.id] = SearchResult(document: doc, score: 0.4);
+      }
     }
 
     final results = scores.values.toList()
-      ..sort((a, b) => b.score.compareTo(a.score));
+      ..sort((a, b) {
+        final byScore = b.score.compareTo(a.score);
+        if (byScore != 0) return byScore;
+        return b.document.uploadDate.compareTo(a.document.uploadDate);
+      });
     return results.take(AppConfig.searchMaxResults).toList();
   }
 
-  // --- Keyword scoring ---------------------------------------------------------
+  String? _resolvePersonScope(
+    QueryIntent intent,
+    List<Person> persons,
+    List<Relationship> rels,
+  ) {
+    final relation = intent.personRelation;
+    if (relation == null) return null;
+    final user = persons.where((p) => p.isUser).firstOrNull;
+    if (user == null) return null;
+    // "X is the [relation] of user" → from=X, to=user.
+    final match = rels
+        .where((r) => r.type == relation && r.toPersonId == user.id)
+        .firstOrNull;
+    return match?.fromPersonId;
+  }
+
+  // --- Scoring ----------------------------------------------------------------
 
   SearchResult? _keywordScore(QueryIntent intent, DocumentModel doc) {
     final terms = intent.terms;
@@ -58,53 +98,60 @@ class SearchService {
     var matchedLabel = '';
     var matchedValue = '';
 
-    bool containsTerm(String haystack, String term) =>
-        haystack.toLowerCase().contains(term);
-
     for (final term in terms) {
+      // Expand the term to its concept aliases so "uid" hits "aadhaar".
+      final variants = VaultLexicon.expand(term);
       var termScore = 0.0;
 
-      if (containsTerm(doc.name, term)) termScore = max(termScore, 0.5);
-      if (containsTerm(doc.detectedType, term)) termScore = max(termScore, 0.5);
-      if (containsTerm(doc.type, term)) termScore = max(termScore, 0.45);
-      if (containsTerm(doc.ownerName, term)) termScore = max(termScore, 0.45);
-      if (containsTerm(doc.category.label, term)) {
-        termScore = max(termScore, 0.35);
+      double hit(String haystack, double weight) {
+        for (final v in variants) {
+          if (TextSimilarity.fuzzyContains(haystack, v)) return weight;
+        }
+        return 0;
       }
 
+      termScore = max(termScore, hit(doc.name, 0.5));
+      termScore = max(termScore, hit(doc.detectedType, 0.5));
+      termScore = max(termScore, hit(doc.type, 0.45));
+      termScore = max(termScore, hit(doc.ownerName, 0.45));
+      termScore = max(termScore, hit(doc.category.label, 0.35));
+
       for (final field in doc.extractedFields) {
-        if (containsTerm(field.value, term) || containsTerm(field.label, term)) {
-          if (termScore < 0.4) {
-            termScore = 0.4;
-            matchedLabel = field.label;
-            matchedValue = field.value;
-          }
+        final fieldHit =
+            hit(field.value, 0.4) > 0 || hit(field.label, 0.4) > 0;
+        if (fieldHit && termScore < 0.4) {
+          termScore = 0.4;
+          matchedLabel = field.label;
+          matchedValue = field.value;
         }
       }
 
-      // A user-written note is a deliberate signal — worth more than raw
-      // OCR noise ("visa application" in a note should rank well).
-      if (containsTerm(doc.note, term)) termScore = max(termScore, 0.45);
-
-      if (termScore == 0 && containsTerm(doc.rawText, term)) termScore = 0.15;
-      if (termScore == 0 && containsTerm(doc.summary, term)) termScore = 0.2;
+      if (hit(doc.note, 0.45) > 0) termScore = max(termScore, 0.45);
+      if (termScore == 0 && hit(doc.rawText, 0.15) > 0) termScore = 0.15;
+      if (termScore == 0 && hit(doc.summary, 0.2) > 0) termScore = 0.2;
 
       score += termScore;
     }
 
-    // A category synonym ("find my ID") counts as a real signal even when
-    // the word itself never appears on the document.
+    // Category synonym ("find my ID") counts even when the word isn't printed.
     if (intent.categoryHint != null && intent.categoryHint == doc.category) {
       score += terms.length * 0.25;
+    }
+
+    // Boost the document that actually holds the targeted field.
+    if (intent.fieldHint != null && doc.fieldByKey(intent.fieldHint!) != null) {
+      score += 0.3;
+      final f = doc.fieldByKey(intent.fieldHint!)!;
+      if (matchedLabel.isEmpty) {
+        matchedLabel = f.label;
+        matchedValue = f.value;
+      }
     }
 
     if (score <= 0 && !(intent.wantsExpiry && _hasExpiryData(doc))) {
       return null;
     }
 
-    // Normalize by term count so long queries don't inflate scores, then
-    // apply expiry reasoning on top — this is what makes "when does my
-    // passport expire" surface the right document even offline.
     var normalized = terms.isEmpty
         ? 0.0
         : (score / terms.length).clamp(0.0, 1.0) * 0.6;
@@ -121,9 +168,9 @@ class SearchService {
         if (expiry != null) {
           final daysLeft = expiry.difference(DateTime.now()).inDays;
           if (daysLeft < 0) {
-            normalized += 0.15; // already expired — surface it prominently
+            normalized += 0.15;
           } else if (daysLeft <= 90) {
-            normalized += 0.1; // expiring soon
+            normalized += 0.1;
           }
         }
       }
@@ -141,10 +188,8 @@ class SearchService {
   bool _hasExpiryData(DocumentModel doc) =>
       doc.fieldByKey(FactKeys.expiryDate) != null;
 
-  /// Parses the common date formats this app's parser and Gemini extraction
-  /// actually produce (dd/mm/yyyy, dd-mm-yyyy, yyyy-mm-dd, ISO). Returns
-  /// null rather than guessing when the format is ambiguous. Public because
-  /// expiry reminders parse the same field values.
+  /// Parses the common date formats this app produces (dd/mm/yyyy, dd-mm-yyyy,
+  /// yyyy-mm-dd, ISO). Returns null rather than guessing when ambiguous.
   static DateTime? parseFlexibleDate(String value) {
     final trimmed = value.trim();
 

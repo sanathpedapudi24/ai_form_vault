@@ -7,6 +7,7 @@ import '../models/document_model.dart';
 import '../models/person_model.dart';
 import '../repositories/settings_repository.dart';
 import '../services/document_intelligence.dart';
+import '../services/field_enrichment.dart';
 import '../services/identity_engine.dart';
 import '../services/image_prep.dart';
 import '../services/image_vault.dart';
@@ -134,6 +135,14 @@ class CaptureNotifier extends StateNotifier<CaptureState> {
             pageTexts: ocrTexts,
           );
 
+      // 3b. On-device entity extraction + value normalization: cleans up the
+      //     regex parser's values and fills phone/email/address gaps. Fully
+      //     local; degrades to no-op if the ML Kit model isn't available.
+      final entities =
+          await _ref.read(entityExtractorProvider).extract(combinedText);
+      final enrichedFields =
+          FieldEnrichment.enrich(analysis.fields, entities);
+
       state = state.copyWith(stage: CaptureStage.organizing);
 
       // 4. Suggest an owner for the review screen.
@@ -151,7 +160,7 @@ class CaptureNotifier extends StateNotifier<CaptureState> {
         detectedType: analysis.documentType,
         uploadDate: DateTime.now(),
         confidence: analysis.confidence,
-        extractedFields: analysis.fields,
+        extractedFields: enrichedFields,
         rawText: combinedText,
         summary: analysis.summary,
         source: analysis.source,

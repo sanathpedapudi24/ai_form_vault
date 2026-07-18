@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/person_model.dart';
 import '../repositories/person_repository.dart';
 import '../services/identity_engine.dart';
+import '../services/name_matcher.dart';
 import 'service_providers.dart';
 
 /// The identity graph: persons + relationships, with confirm/reject actions.
@@ -49,6 +50,32 @@ class IdentityGraphState {
 
   Person? personById(String id) =>
       persons.where((p) => p.id == id).firstOrNull;
+
+  /// Pairs of people whose names look like the same person (fuzzy match) —
+  /// candidates for merging. Each pair is (keep, drop): the person to keep is
+  /// the vault owner if present, else the one with more documents.
+  List<(Person keep, Person drop)> get duplicatePersonPairs {
+    final result = <(Person, Person)>[];
+    for (var i = 0; i < persons.length; i++) {
+      for (var j = i + 1; j < persons.length; j++) {
+        final a = persons[i];
+        final b = persons[j];
+        if (a.isUser && b.isUser) continue;
+        if (!NameMatcher.isSameName(a.displayName, b.displayName)) continue;
+        final Person keep;
+        if (a.isUser) {
+          keep = a;
+        } else if (b.isUser) {
+          keep = b;
+        } else {
+          keep = a.documentCount >= b.documentCount ? a : b;
+        }
+        final drop = keep.id == a.id ? b : a;
+        result.add((keep, drop));
+      }
+    }
+    return result;
+  }
 
   IdentityGraphState copyWith({
     List<Person>? persons,
@@ -110,6 +137,11 @@ class IdentityGraphNotifier extends StateNotifier<IdentityGraphState> {
     final person = state.personById(personId);
     if (person == null || name.trim().isEmpty) return;
     await _repo.updatePerson(person.copyWith(displayName: name.trim()));
+    await refresh();
+  }
+
+  Future<void> mergePersons(String keepId, String dropId) async {
+    await _repo.mergePersons(keepId, dropId);
     await refresh();
   }
 }

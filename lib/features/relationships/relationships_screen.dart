@@ -37,6 +37,22 @@ class RelationshipsScreen extends ConsumerWidget {
             : ListView(
                 padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
                 children: [
+                  if (graph.duplicatePersonPairs.isNotEmpty) ...[
+                    FadeSlideIn(
+                      child: const SectionHeader(
+                        title: 'Possible duplicates',
+                        padding: EdgeInsets.fromLTRB(4, 0, 4, 10),
+                      ),
+                    ),
+                    for (final pair in graph.duplicatePersonPairs)
+                      FadeSlideIn(
+                        child: Padding(
+                          padding: const EdgeInsets.only(bottom: 10),
+                          child: _DuplicateCard(keep: pair.$1, drop: pair.$2),
+                        ),
+                      ),
+                    const Gap(20),
+                  ],
                   if (graph.pending.isNotEmpty) ...[
                     FadeSlideIn(
                       index: 0,
@@ -80,6 +96,69 @@ class RelationshipsScreen extends ConsumerWidget {
                   ],
                 ],
               ),
+      ),
+    );
+  }
+}
+
+class _DuplicateCard extends ConsumerWidget {
+  final Person keep;
+  final Person drop;
+
+  const _DuplicateCard({required this.keep, required this.drop});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return AppCard(
+      border: BorderSide(color: AppColors.warning.withValues(alpha: 0.4)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.merge_rounded, size: 18, color: AppColors.warning),
+              const Gap(8),
+              Expanded(
+                child: Text(
+                  '"${keep.displayName}" and "${drop.displayName}" look like '
+                  'the same person.',
+                  style: AppTextStyles.body,
+                ),
+              ),
+            ],
+          ),
+          const Gap(12),
+          Row(
+            children: [
+              Expanded(
+                child: SecondaryButton(
+                  label: 'Keep separate',
+                  onPressed: () {
+                    // Renaming the dropped one slightly is overkill; simply
+                    // dismissing is fine — it reappears only if still similar.
+                    HapticFeedback.lightImpact();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Left as separate people.')),
+                    );
+                  },
+                ),
+              ),
+              const Gap(10),
+              Expanded(
+                child: PrimaryButton(
+                  label: 'Merge',
+                  icon: Icons.merge_rounded,
+                  onPressed: () {
+                    HapticFeedback.mediumImpact();
+                    ref
+                        .read(identityGraphProvider.notifier)
+                        .mergePersons(keep.id, drop.id);
+                  },
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }

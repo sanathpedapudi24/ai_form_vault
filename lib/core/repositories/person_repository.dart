@@ -116,6 +116,68 @@ class PersonRepository {
     await db.delete('persons', where: 'id = ?', whereArgs: [id]);
   }
 
+  /// Folds [dropId] into [keepId]: re-points that person's documents, facts,
+  /// and relationships to the kept person, drops now-redundant edges, then
+  /// deletes the merged-away person. Runs in one transaction.
+  Future<void> mergePersons(String keepId, String dropId) async {
+    if (keepId == dropId) return;
+    final db = await AppDatabase.instance;
+    await db.transaction((txn) async {
+      await txn.update(
+        'documents',
+        {'person_id': keepId},
+        where: 'person_id = ?',
+        whereArgs: [dropId],
+      );
+
+      // Move facts, but don't create a duplicate (person, fact_key): keep the
+      // one already on the kept person.
+      final dropFacts = await txn.query(
+        'facts',
+        where: 'person_id = ?',
+        whereArgs: [dropId],
+      );
+      for (final row in dropFacts) {
+        final exists = await txn.query(
+          'facts',
+          where: 'person_id = ? AND fact_key = ?',
+          whereArgs: [keepId, row['fact_key']],
+          limit: 1,
+        );
+        if (exists.isEmpty) {
+          await txn.update(
+            'facts',
+            {'person_id': keepId},
+            where: 'id = ?',
+            whereArgs: [row['id']],
+          );
+        } else {
+          await txn.delete('facts', where: 'id = ?', whereArgs: [row['id']]);
+        }
+      }
+
+      await txn.update(
+        'relationships',
+        {'from_person_id': keepId},
+        where: 'from_person_id = ?',
+        whereArgs: [dropId],
+      );
+      await txn.update(
+        'relationships',
+        {'to_person_id': keepId},
+        where: 'to_person_id = ?',
+        whereArgs: [dropId],
+      );
+      // A merge can create a person-to-themselves edge — drop those.
+      await txn.delete(
+        'relationships',
+        where: 'from_person_id = to_person_id',
+      );
+
+      await txn.delete('persons', where: 'id = ?', whereArgs: [dropId]);
+    });
+  }
+
   // --- Facts -----------------------------------------------------------------
 
   Future<List<PersonFact>> getFacts(String personId) async {

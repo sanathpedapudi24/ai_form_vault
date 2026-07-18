@@ -1,5 +1,7 @@
 import 'dart:typed_data';
 
+import 'package:collection/collection.dart';
+
 import '../models/document_model.dart';
 import 'document_parser.dart';
 
@@ -91,7 +93,7 @@ class DocumentIntelligence {
       category: parsed.category,
       documentType: type,
       ownerName: owner,
-      summary: _localSummary(type, owner, parsed.category),
+      summary: _localSummary(type, owner, parsed.category, fields),
       fields: fields,
       people: [
         if (father.isNotEmpty)
@@ -106,14 +108,51 @@ class DocumentIntelligence {
     );
   }
 
+  /// A richer, human-readable summary that also improves search recall by
+  /// naming the key facts the document carries. Sensitive numbers aren't
+  /// spelled out here (they live in the fields); this lists what's present.
   static String _localSummary(
     String type,
     String owner,
     DocumentCategory category,
+    List<ExtractedField> fields,
   ) {
     final buffer = StringBuffer(type.isEmpty ? 'Document' : type);
-    if (owner.isNotEmpty) buffer.write(' belonging to $owner');
-    buffer.write('. Category: ${category.label}.');
+    if (owner.isNotEmpty) buffer.write(' for $owner');
+    buffer.write('.');
+
+    // Name the notable facts on file (helps both the reader and search).
+    const notable = <String, String>{
+      FactKeys.aadhaarNumber: 'Aadhaar number',
+      FactKeys.panNumber: 'PAN',
+      FactKeys.passportNumber: 'passport number',
+      FactKeys.voterId: 'voter ID',
+      FactKeys.drivingLicense: 'driving licence',
+      FactKeys.dob: 'date of birth',
+      FactKeys.address: 'address',
+      FactKeys.phone: 'phone',
+    };
+    final present = <String>[];
+    for (final entry in notable.entries) {
+      if (fields.any(
+        (f) => f.semanticKey == entry.key && f.value.trim().isNotEmpty,
+      )) {
+        present.add(entry.value);
+      }
+    }
+    if (present.isNotEmpty) {
+      buffer.write(' Includes ${present.join(', ')}.');
+    }
+
+    final expiry = fields
+        .where((f) => f.semanticKey == FactKeys.expiryDate)
+        .map((f) => f.value)
+        .firstOrNull;
+    if (expiry != null && expiry.trim().isNotEmpty) {
+      buffer.write(' Valid until $expiry.');
+    }
+
+    buffer.write(' Category: ${category.label}.');
     return buffer.toString();
   }
 

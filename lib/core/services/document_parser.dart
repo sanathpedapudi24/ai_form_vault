@@ -106,106 +106,110 @@ class DocumentParser {
   // ---------------------------------------------------------------------------
   // Category detection (all Indian document types)
   // ---------------------------------------------------------------------------
-  DocumentCategory detectCategory(String text) {
+  /// Weighted keyword signals per category. A document accumulates the weight
+  /// of every phrase it contains; the highest-scoring category wins. Weighted
+  /// scoring beats the old first-match chain when a document carries words
+  /// from several categories (e.g. a PAN card mentions "income tax" but
+  /// "permanent account number" outweighs it → identity, not finance).
+  static const List<(DocumentCategory, String, double)> _categorySignals = [
+    // Identity
+    (DocumentCategory.identity, 'AADHAAR', 3),
+    (DocumentCategory.identity, 'UIDAI', 3),
+    (DocumentCategory.identity, 'VID', 1.5),
+    (DocumentCategory.identity, 'PERMANENT ACCOUNT NUMBER', 3),
+    (DocumentCategory.identity, 'INCOME TAX', 1.5),
+    (DocumentCategory.identity, 'IT DEPARTMENT', 1.5),
+    (DocumentCategory.identity, 'ELECTION', 2),
+    (DocumentCategory.identity, 'VOTER', 3),
+    (DocumentCategory.identity, 'EPIC', 2),
+    (DocumentCategory.identity, 'ELECTOR', 2),
+    (DocumentCategory.identity, 'DRIVING', 3),
+    (DocumentCategory.identity, 'LICENCE', 1.5),
+    (DocumentCategory.identity, 'LICENSE', 1.5),
+    (DocumentCategory.identity, 'MOTOR', 1),
+    (DocumentCategory.identity, 'BIRTH', 2),
+    (DocumentCategory.identity, 'CASTE', 2.5),
+    // Travel
+    (DocumentCategory.travel, 'PASSPORT', 3),
+    (DocumentCategory.travel, 'VISA', 3),
+    // Education
+    (DocumentCategory.education, 'MARKSHEET', 3),
+    (DocumentCategory.education, 'MARKS MEMO', 3),
+    (DocumentCategory.education, 'GRADE CARD', 2),
+    (DocumentCategory.education, 'GRADE SHEET', 2),
+    (DocumentCategory.education, 'REPORT CARD', 2),
+    (DocumentCategory.education, 'MEMO', 1),
+    (DocumentCategory.education, 'RESULT', 1),
+    (DocumentCategory.education, 'DEGREE', 2),
+    (DocumentCategory.education, 'TRANSCRIPT', 3),
+    (DocumentCategory.education, 'DIPLOMA', 2),
+    (DocumentCategory.education, 'SSLC', 3),
+    (DocumentCategory.education, 'SSC', 1.5),
+    (DocumentCategory.education, 'HSC', 2),
+    (DocumentCategory.education, '10TH', 1.5),
+    (DocumentCategory.education, '12TH', 1.5),
+    (DocumentCategory.education, 'SECONDARY', 1),
+    (DocumentCategory.education, 'CBSE', 3),
+    (DocumentCategory.education, 'ICSE', 3),
+    (DocumentCategory.education, 'UNIVERSITY', 2),
+    (DocumentCategory.education, 'B.TECH', 2),
+    (DocumentCategory.education, 'CERTIFICATE', 0.5),
+    (DocumentCategory.education, 'BOARD', 1),
+    // Finance
+    (DocumentCategory.finance, 'BANK', 3),
+    (DocumentCategory.finance, 'SALARY', 2),
+    (DocumentCategory.finance, 'PAYSLIP', 3),
+    (DocumentCategory.finance, 'TAX', 1.5),
+    (DocumentCategory.finance, 'ITR', 3),
+    (DocumentCategory.finance, 'FORM 16', 3),
+    (DocumentCategory.finance, 'INSURANCE', 3),
+    (DocumentCategory.finance, 'INCOME CERTIFICATE', 2.5),
+    // Medical
+    (DocumentCategory.medical, 'MEDICAL', 3),
+    (DocumentCategory.medical, 'PRESCRIPTION', 3),
+    (DocumentCategory.medical, 'HEALTH', 2),
+    (DocumentCategory.medical, 'HOSPITAL', 2),
+    (DocumentCategory.medical, 'LAB', 2),
+    // Family
+    (DocumentCategory.family, 'RATION', 3),
+    (DocumentCategory.family, 'FAMILY', 1.5),
+    (DocumentCategory.family, 'MARRIAGE', 3),
+    // Property → Other
+    (DocumentCategory.other, 'SALE DEED', 3),
+    (DocumentCategory.other, 'PROPERTY', 2),
+    (DocumentCategory.other, 'RC BOOK', 2),
+  ];
+
+  DocumentCategory detectCategory(String text) =>
+      classify(text).category;
+
+  /// Classification with a confidence in [0, 1] (winning score relative to the
+  /// total signal seen), so callers can tell a confident read from a guess.
+  ({DocumentCategory category, double confidence}) classify(String text) {
     final normalized = _normalize(text.toUpperCase());
-
-    // --- Identity ---
-    if (_textContains(normalized, 'AADHAAR') ||
-        _textContains(normalized, 'UIDAI') ||
-        _textContains(normalized, 'VID'))
-      return DocumentCategory.identity;
-
-    if (_textContains(normalized, 'PERMANENT ACCOUNT NUMBER') ||
-        _textContains(normalized, 'INCOME TAX') ||
-        _textContains(normalized, 'IT DEPARTMENT'))
-      return DocumentCategory.identity;
-
-    if (_textContains(normalized, 'ELECTION') ||
-        _textContains(normalized, 'VOTER') ||
-        _textContains(normalized, 'EPIC') ||
-        _textContains(normalized, 'ELECTOR'))
-      return DocumentCategory.identity;
-
-    if (_textContains(normalized, 'DRIVING') ||
-        _textContains(normalized, 'DRIVING LICENCE') ||
-        _textContains(normalized, 'DRIVING LICENSE') ||
-        _textContains(normalized, 'MOTOR'))
-      return DocumentCategory.identity;
-
-    if (_textContains(normalized, 'BIRTH') &&
-        (_textContains(normalized, 'CERTIFICATE') ||
-            _textContains(normalized, 'REGISTRATION')))
-      return DocumentCategory.identity;
-
-    if (_textContains(normalized, 'CASTE') ||
-        _textContains(normalized, 'CASTE CERTIFICATE'))
-      return DocumentCategory.identity;
-
-    if (_textContains(normalized, 'INCOME CERTIFICATE'))
-      return DocumentCategory.finance;
-
-    // --- Travel ---
-    if (_textContains(normalized, 'PASSPORT') ||
-        _textContains(normalized, 'VISA'))
-      return DocumentCategory.travel;
-
-    // --- Education (marks memos, report cards, degrees) ---
-    if (_textContains(normalized, 'MARKSHEET') ||
-        _textContains(normalized, 'MARKS MEMO') ||
-        _textContains(normalized, 'MEMO') ||
-        _textContains(normalized, 'GRADE CARD') ||
-        _textContains(normalized, 'GRADE SHEET') ||
-        _textContains(normalized, 'REPORT CARD') ||
-        _textContains(normalized, 'RESULT') ||
-        _textContains(normalized, 'DEGREE') ||
-        _textContains(normalized, 'CERTIFICATE') ||
-        _textContains(normalized, 'UNIVERSITY') ||
-        _textContains(normalized, 'B.TECH') ||
-        _textContains(normalized, 'TRANSCRIPT') ||
-        _textContains(normalized, 'DIPLOMA') ||
-        _textContains(normalized, 'SSLC') ||
-        _textContains(normalized, 'SSC') ||
-        _textContains(normalized, 'HSC') ||
-        _textContains(normalized, '10TH') ||
-        _textContains(normalized, '12TH') ||
-        _textContains(normalized, 'SECONDARY') ||
-        _textContains(normalized, 'SENIOR') ||
-        _textContains(normalized, 'CBSE') ||
-        _textContains(normalized, 'ICSE'))
-      return DocumentCategory.education;
-
-    // --- Finance ---
-    if (_textContains(normalized, 'BANK') ||
-        _textContains(normalized, 'SALARY') ||
-        _textContains(normalized, 'PAYSLIP') ||
-        _textContains(normalized, 'TAX') ||
-        _textContains(normalized, 'ITR') ||
-        _textContains(normalized, 'FORM 16') ||
-        _textContains(normalized, 'INSURANCE'))
-      return DocumentCategory.finance;
-
-    // --- Property ---
-    if (_textContains(normalized, 'PROPERTY') ||
-        _textContains(normalized, 'SALE DEED') ||
-        _textContains(normalized, 'REGISTRATION CERTIFICATE') ||
-        _textContains(normalized, 'RC BOOK'))
-      return DocumentCategory.other;
-
-    // --- Medical ---
-    if (_textContains(normalized, 'MEDICAL') ||
-        _textContains(normalized, 'PRESCRIPTION') ||
-        _textContains(normalized, 'HEALTH') ||
-        _textContains(normalized, 'HOSPITAL') ||
-        _textContains(normalized, 'LAB'))
-      return DocumentCategory.medical;
-
-    // --- Family ---
-    if (_textContains(normalized, 'RATION') ||
-        _textContains(normalized, 'FAMILY') ||
-        _textContains(normalized, 'MARRIAGE'))
-      return DocumentCategory.family;
-
-    return DocumentCategory.other;
+    final scores = <DocumentCategory, double>{};
+    var total = 0.0;
+    for (final (category, keyword, weight) in _categorySignals) {
+      if (_textContains(normalized, keyword)) {
+        scores[category] = (scores[category] ?? 0) + weight;
+        total += weight;
+      }
+    }
+    if (scores.isEmpty) {
+      return (category: DocumentCategory.other, confidence: 0);
+    }
+    // Highest score wins; ties break by the category enum's declared order.
+    DocumentCategory best = DocumentCategory.other;
+    var bestScore = -1.0;
+    for (final category in DocumentCategory.values) {
+      final s = scores[category] ?? 0;
+      if (s > bestScore) {
+        bestScore = s;
+        best = category;
+      }
+    }
+    final confidence = total <= 0 ? 0.0 : (bestScore / total).clamp(0.0, 1.0);
+    return (category: best, confidence: confidence);
   }
 
   // ---------------------------------------------------------------------------

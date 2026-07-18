@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../repositories/document_repository.dart';
 import '../repositories/person_repository.dart';
 import '../repositories/settings_repository.dart';
+import '../services/ask_engine.dart';
 import '../services/document_intelligence.dart';
+import '../services/entity_extractor.dart';
 import '../services/identity_engine.dart';
 import '../services/ocr_service.dart';
 import '../services/search_service.dart';
@@ -12,6 +14,12 @@ import '../services/search_service.dart';
 /// injectable and testable.
 final ocrServiceProvider = Provider<OcrService>((ref) {
   final service = OcrService();
+  ref.onDispose(service.dispose);
+  return service;
+});
+
+final entityExtractorProvider = Provider<EntityExtractorService>((ref) {
+  final service = EntityExtractorService();
   ref.onDispose(service.dispose);
   return service;
 });
@@ -34,6 +42,10 @@ final documentIntelligenceProvider = Provider<DocumentIntelligence>(
 
 final searchServiceProvider = Provider<SearchService>(
   (ref) => SearchService(),
+);
+
+final askEngineProvider = Provider<AskEngine>(
+  (ref) => AskEngine(persons: ref.watch(personRepositoryProvider)),
 );
 
 final identityEngineProvider = Provider<IdentityEngine>(
