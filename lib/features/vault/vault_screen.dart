@@ -120,7 +120,7 @@ class _FilterChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final activeColor = color ?? AppColors.textPrimary;
+    final activeColor = color ?? context.scheme.onSurface;
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
@@ -128,7 +128,7 @@ class _FilterChip extends StatelessWidget {
         curve: AppMotion.ease,
         padding: const EdgeInsets.symmetric(horizontal: 14),
         decoration: BoxDecoration(
-          color: selected ? activeColor : AppColors.bgSunken,
+          color: selected ? activeColor : context.scheme.surfaceContainer,
           borderRadius: BorderRadius.circular(22),
         ),
         alignment: Alignment.center,
@@ -138,7 +138,7 @@ class _FilterChip extends StatelessWidget {
             Text(
               label,
               style: AppTextStyles.label.copyWith(
-                color: selected ? Colors.white : AppColors.textSecondary,
+                color: selected ? Colors.white : context.scheme.onSurfaceVariant,
                 fontWeight: FontWeight.w600,
               ),
             ),

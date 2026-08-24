@@ -148,3 +148,13 @@ class AppColors {
     ),
   ];
 }
+
+/// Ergonomic access to the M3 color roles from any widget:
+/// `context.scheme.primary` instead of `Theme.of(context).colorScheme.primary`.
+///
+/// Prefer these roles over the static [AppColors] getters in widgets —
+/// they resolve from the inherited theme, so they stay correct under live
+/// theme switches and inside themed overlays (dialogs, menus, sheets).
+extension SchemeOnContext on BuildContext {
+  ColorScheme get scheme => Theme.of(this).colorScheme;
+}

@@ -75,7 +75,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     final isLast = _page == _pages.length - 1;
 
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: context.scheme.surface,
       body: SafeArea(
         child: Column(
           children: [
@@ -111,13 +111,13 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                           width: 72,
                           height: 72,
                           decoration: BoxDecoration(
-                            color: AppColors.accentWash,
+                            color: context.scheme.primaryContainer,
                             shape: BoxShape.circle,
                           ),
                           child: Icon(
                             page.icon,
                             size: 32,
-                            color: AppColors.accentDeep,
+                            color: context.scheme.onPrimaryContainer,
                           ),
                         ),
                         const SizedBox(height: 28),
@@ -144,8 +144,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                       height: 8,
                       decoration: BoxDecoration(
                         color: i == _page
-                            ? AppColors.accent
-                            : AppColors.bgDeep,
+                            ? context.scheme.primary
+                            : context.scheme.surfaceContainerHigh,
                         borderRadius: BorderRadius.circular(4),
                       ),
                     ),

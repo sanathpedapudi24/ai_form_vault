@@ -148,7 +148,7 @@ class _PhoneAuthScreenState extends ConsumerState<PhoneAuthScreen> {
                   Text(
                     _error!,
                     style: AppTextStyles.caption.copyWith(
-                      color: AppColors.error,
+                      color: context.scheme.error,
                       fontWeight: FontWeight.w600,
                     ),
                   ),

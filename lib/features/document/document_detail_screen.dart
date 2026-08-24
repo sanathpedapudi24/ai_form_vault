@@ -85,7 +85,7 @@ class DocumentDetailScreen extends ConsumerWidget {
             },
             child: Text(
               'Delete',
-              style: TextStyle(color: AppColors.error),
+              style: TextStyle(color: context.scheme.error),
             ),
           ),
         ],
@@ -146,7 +146,7 @@ class DocumentDetailScreen extends ConsumerWidget {
                           )
                         : Container(
                             decoration: BoxDecoration(
-                              color: AppColors.bgSunken,
+                              color: context.scheme.surfaceContainer,
                               borderRadius: BorderRadius.circular(20),
                             ),
                             child: Center(
@@ -179,7 +179,7 @@ class DocumentDetailScreen extends ConsumerWidget {
                     Icon(
                       Icons.person_outline_rounded,
                       size: 16,
-                      color: AppColors.textSecondary,
+                      color: context.scheme.onSurfaceVariant,
                     ),
                     const Gap(6),
                     Text(doc.ownerName, style: AppTextStyles.bodySecondary),

@@ -25,7 +25,7 @@ class VirtualIdScreen extends ConsumerWidget {
 
     if (doc == null) {
       return Scaffold(
-        backgroundColor: AppColors.surfaceInverse,
+        backgroundColor: context.scheme.inverseSurface,
         body: Center(child: Text('Document not found')),
       );
     }
@@ -36,14 +36,14 @@ class VirtualIdScreen extends ConsumerWidget {
         .toList();
 
     return Scaffold(
-      backgroundColor: AppColors.surfaceInverse,
+      backgroundColor: context.scheme.inverseSurface,
       appBar: AppBar(
-        backgroundColor: AppColors.surfaceInverse,
-        foregroundColor: AppColors.textOnInverse,
+        backgroundColor: context.scheme.inverseSurface,
+        foregroundColor: context.scheme.onInverseSurface,
         title: Text(
           'Digital ID',
           style: AppTextStyles.headline.copyWith(
-            color: AppColors.textOnInverse,
+            color: context.scheme.onInverseSurface,
           ),
         ),
       ),
@@ -114,14 +114,14 @@ class _IdCard extends StatelessWidget {
                 child: Text(
                   document.displayTitle,
                   style: AppTextStyles.headline.copyWith(
-                    color: AppColors.textOnInverse,
+                    color: context.scheme.onInverseSurface,
                   ),
                 ),
               ),
               Icon(
                 Icons.verified_rounded,
                 size: 18,
-                color: AppColors.accent.withValues(alpha: 0.9),
+                color: context.scheme.primary.withValues(alpha: 0.9),
               ),
             ],
           ),
@@ -209,7 +209,7 @@ class _RevealableFieldState extends State<_RevealableField> {
             Text(
               _displayValue,
               style: AppTextStyles.mono.copyWith(
-                color: AppColors.textOnInverse,
+                color: context.scheme.onInverseSurface,
                 fontSize: 14,
               ),
             ),

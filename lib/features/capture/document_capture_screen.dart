@@ -255,12 +255,12 @@ class _CaptureOption extends StatelessWidget {
             width: 52,
             height: 52,
             decoration: BoxDecoration(
-              color: accent ? AppColors.accent : AppColors.bgSunken,
+              color: accent ? context.scheme.primary : context.scheme.surfaceContainer,
               borderRadius: BorderRadius.circular(16),
             ),
             child: Icon(
               icon,
-              color: accent ? AppColors.textOnAccent : AppColors.textPrimary,
+              color: accent ? context.scheme.onPrimary : context.scheme.onSurface,
               size: 24,
             ),
           ),

@@ -80,7 +80,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: context.scheme.surface,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(24, 40, 24, 24),
@@ -94,12 +94,12 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                     width: 60,
                     height: 60,
                     decoration: BoxDecoration(
-                      color: AppColors.accent,
+                      color: context.scheme.primary,
                       borderRadius: BorderRadius.circular(18),
                     ),
                     child: Icon(
                       Icons.document_scanner_outlined,
-                      color: AppColors.textOnAccent,
+                      color: context.scheme.onPrimary,
                       size: 28,
                     ),
                   ),
@@ -167,7 +167,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                     Text(
                       _error!,
                       style: AppTextStyles.caption.copyWith(
-                        color: AppColors.error,
+                        color: context.scheme.error,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -228,7 +228,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                             TextSpan(
                               text: _isSignUp ? 'Sign in' : 'Create an account',
                               style: AppTextStyles.buttonSmall
-                                  .copyWith(color: AppColors.accentDeep),
+                                  .copyWith(color: context.scheme.onPrimaryContainer),
                             ),
                           ],
                         ),

@@ -135,7 +135,7 @@ class _LockScreenState extends ConsumerState<LockScreen> {
     );
 
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: context.scheme.surface,
       body: SafeArea(
         child: Column(
           children: [
@@ -147,12 +147,12 @@ class _LockScreenState extends ConsumerState<LockScreen> {
                     width: 56,
                     height: 56,
                     decoration: BoxDecoration(
-                      color: AppColors.accentWash,
+                      color: context.scheme.primaryContainer,
                       shape: BoxShape.circle,
                     ),
                     child: Icon(
                       Icons.lock_outline_rounded,
-                      color: AppColors.accentDeep,
+                      color: context.scheme.onPrimaryContainer,
                       size: 26,
                     ),
                   ),
@@ -163,7 +163,7 @@ class _LockScreenState extends ConsumerState<LockScreen> {
                     Text(
                       'Too many attempts — try again in ${_lockout.inSeconds}s',
                       style: AppTextStyles.caption.copyWith(
-                        color: AppColors.error,
+                        color: context.scheme.error,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -182,7 +182,7 @@ class _LockScreenState extends ConsumerState<LockScreen> {
                       onPressed: _checkingBiometric ? null : _tryBiometric,
                       icon: Icon(
                         Icons.fingerprint_rounded,
-                        color: AppColors.textPrimary,
+                        color: context.scheme.onSurface,
                         size: 26,
                       ),
                     )
@@ -220,7 +220,7 @@ class _ForgotPinConfirm extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: context.scheme.surface,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(28),
@@ -234,12 +234,12 @@ class _ForgotPinConfirm extends StatelessWidget {
                       width: 64,
                       height: 64,
                       decoration: BoxDecoration(
-                        color: AppColors.errorWash,
+                        color: context.scheme.errorContainer,
                         shape: BoxShape.circle,
                       ),
                       child: Icon(
                         Icons.warning_amber_rounded,
-                        color: AppColors.error,
+                        color: context.scheme.error,
                         size: 30,
                       ),
                     ),

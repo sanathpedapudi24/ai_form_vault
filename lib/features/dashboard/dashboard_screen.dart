@@ -153,15 +153,15 @@ class _HeaderIconButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: AppColors.surface,
-      shape: CircleBorder(side: BorderSide(color: AppColors.border)),
+      color: context.scheme.surfaceContainerLow,
+      shape: CircleBorder(side: BorderSide(color: context.scheme.outlineVariant)),
       child: InkWell(
         customBorder: const CircleBorder(),
         onTap: onTap,
         child: SizedBox(
           width: 32,
           height: 32,
-          child: Icon(icon, size: 17, color: AppColors.textSecondary),
+          child: Icon(icon, size: 17, color: context.scheme.onSurfaceVariant),
         ),
       ),
     );
@@ -176,7 +176,7 @@ class _SuggestionsBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AppCard(
-      color: AppColors.accentWash,
+      color: context.scheme.primaryContainer,
       border: BorderSide(color: AppColors.accentWashBorder),
       shadow: false,
       onTap: () => context.go('/people'),
@@ -186,12 +186,12 @@ class _SuggestionsBanner extends StatelessWidget {
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: AppColors.accent,
+              color: context.scheme.primary,
               shape: BoxShape.circle,
             ),
             child: Icon(
               Icons.people_alt_outlined,
-              color: AppColors.textOnAccent,
+              color: context.scheme.onPrimary,
               size: 20,
             ),
           ),
@@ -216,7 +216,7 @@ class _SuggestionsBanner extends StatelessWidget {
           ),
           Icon(
             Icons.chevron_right_rounded,
-            color: AppColors.accentDeep,
+            color: context.scheme.onPrimaryContainer,
           ),
         ],
       ),
@@ -261,9 +261,9 @@ class _ActionCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return AppCard(
       onTap: onTap,
-      color: accent ? AppColors.surfaceInverse : AppColors.surface,
+      color: accent ? context.scheme.inverseSurface : context.scheme.surfaceContainerLow,
       border: accent
-          ? BorderSide(color: AppColors.surfaceInverse)
+          ? BorderSide(color: context.scheme.inverseSurface)
           : null,
       padding: const EdgeInsets.all(18),
       child: Column(
@@ -273,20 +273,20 @@ class _ActionCard extends StatelessWidget {
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: accent ? AppColors.surfaceInverseRaised : AppColors.accentWash,
+              color: accent ? AppColors.surfaceInverseRaised : context.scheme.primaryContainer,
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(
               icon,
               size: 20,
-              color: accent ? AppColors.textOnInverse : AppColors.accentDeep,
+              color: accent ? context.scheme.onInverseSurface : context.scheme.onPrimaryContainer,
             ),
           ),
           const Gap(14),
           Text(
             title,
             style: AppTextStyles.headline.copyWith(
-              color: accent ? AppColors.textOnInverse : AppColors.textPrimary,
+              color: accent ? context.scheme.onInverseSurface : context.scheme.onSurface,
               height: 1.25,
             ),
           ),
@@ -355,7 +355,7 @@ class _StatDivider extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(width: 1, height: 36, color: AppColors.divider);
+    return Container(width: 1, height: 36, color: context.scheme.outlineVariant);
   }
 }
 
@@ -440,7 +440,7 @@ class _FirstScanCard extends StatelessWidget {
                   vertical: 10,
                 ),
                 decoration: BoxDecoration(
-                  color: AppColors.accent,
+                  color: context.scheme.primary,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Row(
@@ -448,13 +448,13 @@ class _FirstScanCard extends StatelessWidget {
                     Icon(
                       Icons.document_scanner_outlined,
                       size: 16,
-                      color: AppColors.textOnAccent,
+                      color: context.scheme.onPrimary,
                     ),
                     const Gap(8),
                     Text(
                       'Scan your first document',
                       style: AppTextStyles.buttonSmall.copyWith(
-                        color: AppColors.textOnAccent,
+                        color: context.scheme.onPrimary,
                       ),
                     ),
                   ],

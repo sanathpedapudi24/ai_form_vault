@@ -63,7 +63,7 @@ class _Placeholder extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: AppColors.bgSunken,
+      color: context.scheme.surfaceContainer,
       child: Center(
         child: Icon(
           Icons.description_outlined,

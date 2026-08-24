@@ -55,7 +55,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
               child: Container(
                 decoration: BoxDecoration(
-                  color: AppColors.bgSunken,
+                  color: context.scheme.surfaceContainer,
                   borderRadius: BorderRadius.circular(14),
                 ),
                 child: TextField(
@@ -147,9 +147,9 @@ class _SuggestionsView extends StatelessWidget {
                         vertical: 10,
                       ),
                       decoration: BoxDecoration(
-                        color: AppColors.surface,
+                        color: context.scheme.surfaceContainerLow,
                         borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: AppColors.border),
+                        border: Border.all(color: context.scheme.outlineVariant),
                       ),
                       child: Text(s, style: AppTextStyles.label),
                     ),
@@ -232,7 +232,7 @@ class _AnswerCardState extends State<_AnswerCard> {
     final display = a.isSensitive && !_revealed ? a.maskedValue : a.value;
 
     return AppCard(
-      color: AppColors.accentWash,
+      color: context.scheme.primaryContainer,
       border: BorderSide(color: AppColors.accentWashBorder),
       onTap: a.sourceDocumentId != null
           ? () => context.push('/document/${a.sourceDocumentId}')
@@ -242,7 +242,7 @@ class _AnswerCardState extends State<_AnswerCard> {
         children: [
           Row(
             children: [
-              Icon(Icons.auto_awesome_rounded, size: 15, color: AppColors.accentDeep),
+              Icon(Icons.auto_awesome_rounded, size: 15, color: context.scheme.onPrimaryContainer),
               const Gap(6),
               Text('ANSWER', style: AppTextStyles.overline),
             ],
@@ -307,9 +307,9 @@ class _ResultTile extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: AppColors.surface,
+          color: context.scheme.surfaceContainerLow,
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: AppColors.border),
+          border: Border.all(color: context.scheme.outlineVariant),
         ),
         child: Row(
           children: [

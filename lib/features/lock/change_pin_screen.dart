@@ -122,7 +122,7 @@ class _ChangePinScreenState extends ConsumerState<ChangePinScreen> {
                     const Gap(8),
                     Text(
                       _errorMessage!,
-                      style: AppTextStyles.caption.copyWith(color: AppColors.error),
+                      style: AppTextStyles.caption.copyWith(color: context.scheme.error),
                     ),
                   ],
                   const Gap(28),

@@ -347,14 +347,14 @@ class _ProfileHeader extends StatelessWidget {
             width: 56,
             height: 56,
             decoration: BoxDecoration(
-              color: AppColors.accentWash,
+              color: context.scheme.primaryContainer,
               shape: BoxShape.circle,
             ),
             child: Center(
               child: Text(
                 user.initial,
                 style: AppTextStyles.titleSmall.copyWith(
-                  color: AppColors.accentDeep,
+                  color: context.scheme.onPrimaryContainer,
                 ),
               ),
             ),
@@ -467,13 +467,13 @@ class _NavCard extends StatelessWidget {
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: highlight ? AppColors.accentWash : AppColors.bgSunken,
+              color: highlight ? context.scheme.primaryContainer : context.scheme.surfaceContainer,
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(
               icon,
               size: 19,
-              color: highlight ? AppColors.accentDeep : AppColors.textPrimary,
+              color: highlight ? context.scheme.onPrimaryContainer : context.scheme.onSurface,
             ),
           ),
           const Gap(12),

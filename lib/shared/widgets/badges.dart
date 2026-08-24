@@ -29,7 +29,7 @@ class ConfidenceBadge extends StatelessWidget {
         AppColors.warning,
         AppColors.warningWash,
       ),
-      _ => ('Low', AppColors.error, AppColors.errorWash),
+      _ => ('Low', context.scheme.error, context.scheme.errorContainer),
     };
 
     if (compact) {
@@ -83,7 +83,7 @@ class TagChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final c = color ?? AppColors.textSecondary;
+    final c = color ?? context.scheme.onSurfaceVariant;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
       decoration: BoxDecoration(

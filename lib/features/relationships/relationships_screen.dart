@@ -211,7 +211,7 @@ class _PendingCard extends ConsumerWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
               decoration: BoxDecoration(
-                color: AppColors.bgSunken,
+                color: context.scheme.surfaceContainer,
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Row(
@@ -320,14 +320,14 @@ class _Avatar extends StatelessWidget {
       width: 40,
       height: 40,
       decoration: BoxDecoration(
-        color: person.isUser ? AppColors.accent : AppColors.bgSunken,
+        color: person.isUser ? context.scheme.primary : context.scheme.surfaceContainer,
         shape: BoxShape.circle,
       ),
       child: Center(
         child: Text(
           person.initial,
           style: AppTextStyles.label.copyWith(
-            color: person.isUser ? AppColors.textOnAccent : AppColors.textPrimary,
+            color: person.isUser ? context.scheme.onPrimary : context.scheme.onSurface,
             fontWeight: FontWeight.w700,
           ),
         ),

@@ -106,7 +106,7 @@ class _PinSetupScreenState extends ConsumerState<PinSetupScreen> {
         : 'Enter it once more to confirm.';
 
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: context.scheme.surface,
       body: SafeArea(
         child: Column(
           children: [
@@ -118,12 +118,12 @@ class _PinSetupScreenState extends ConsumerState<PinSetupScreen> {
                     width: 56,
                     height: 56,
                     decoration: BoxDecoration(
-                      color: AppColors.accentWash,
+                      color: context.scheme.primaryContainer,
                       shape: BoxShape.circle,
                     ),
                     child: Icon(
                       Icons.lock_outline_rounded,
-                      color: AppColors.accentDeep,
+                      color: context.scheme.onPrimaryContainer,
                       size: 26,
                     ),
                   ),
@@ -169,7 +169,7 @@ class _BiometricOfferView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: context.scheme.surface,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 32),
@@ -183,12 +183,12 @@ class _BiometricOfferView extends StatelessWidget {
                       width: 64,
                       height: 64,
                       decoration: BoxDecoration(
-                        color: AppColors.accentWash,
+                        color: context.scheme.primaryContainer,
                         shape: BoxShape.circle,
                       ),
                       child: Icon(
                         Icons.fingerprint_rounded,
-                        color: AppColors.accentDeep,
+                        color: context.scheme.onPrimaryContainer,
                         size: 30,
                       ),
                     ),

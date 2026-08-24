@@ -196,7 +196,7 @@ class _BackupSectionState extends ConsumerState<BackupSection> {
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: AppColors.bgSunken,
+                  color: context.scheme.surfaceContainer,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: _busy
@@ -207,7 +207,7 @@ class _BackupSectionState extends ConsumerState<BackupSection> {
                     : Icon(
                         Icons.upload_file_outlined,
                         size: 19,
-                        color: AppColors.textPrimary,
+                        color: context.scheme.onSurface,
                       ),
               ),
               const Gap(12),
@@ -242,13 +242,13 @@ class _BackupSectionState extends ConsumerState<BackupSection> {
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: AppColors.bgSunken,
+                  color: context.scheme.surfaceContainer,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(
                   Icons.settings_backup_restore_rounded,
                   size: 19,
-                  color: AppColors.textPrimary,
+                  color: context.scheme.onSurface,
                 ),
               ),
               const Gap(12),

@@ -180,7 +180,7 @@ class _ScanPreviewState extends State<_ScanPreview>
       height: 240,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: context.scheme.outlineVariant),
         boxShadow: AppColors.cardShadow,
       ),
       child: ClipRRect(
@@ -202,9 +202,9 @@ class _ScanPreviewState extends State<_ScanPreview>
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
                         colors: [
-                          AppColors.accent.withValues(alpha: 0),
-                          AppColors.accent.withValues(alpha: 0.22),
-                          AppColors.accent.withValues(alpha: 0),
+                          context.scheme.primary.withValues(alpha: 0),
+                          context.scheme.primary.withValues(alpha: 0.22),
+                          context.scheme.primary.withValues(alpha: 0),
                         ],
                       ),
                     ),
@@ -236,12 +236,12 @@ class _StageStep extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
         color: state == _StepState.active
-            ? AppColors.surface
+            ? context.scheme.surfaceContainerLow
             : Colors.transparent,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
           color: state == _StepState.active
-              ? AppColors.border
+              ? context.scheme.outlineVariant
               : Colors.transparent,
         ),
       ),
@@ -268,7 +268,7 @@ class _StageStep extends StatelessWidget {
                 height: 18,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  border: Border.all(color: AppColors.borderStrong, width: 2),
+                  border: Border.all(color: context.scheme.outline, width: 2),
                 ),
               ),
             },
@@ -279,7 +279,7 @@ class _StageStep extends StatelessWidget {
             style: AppTextStyles.body.copyWith(
               color: state == _StepState.pending
                   ? AppColors.textTertiary
-                  : AppColors.textPrimary,
+                  : context.scheme.onSurface,
               fontWeight: state == _StepState.active
                   ? FontWeight.w600
                   : FontWeight.w400,
@@ -311,12 +311,12 @@ class _FailedView extends StatelessWidget {
           width: 72,
           height: 72,
           decoration: BoxDecoration(
-            color: AppColors.errorWash,
+            color: context.scheme.errorContainer,
             shape: BoxShape.circle,
           ),
           child: Icon(
             Icons.error_outline_rounded,
-            color: AppColors.error,
+            color: context.scheme.error,
             size: 32,
           ),
         ),

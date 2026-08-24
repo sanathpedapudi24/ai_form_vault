@@ -39,8 +39,8 @@ class PrimaryButton extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 15),
         decoration: BoxDecoration(
           color: enabled
-              ? (danger ? AppColors.error : AppColors.accent)
-              : AppColors.bgDeep,
+              ? (danger ? context.scheme.error : context.scheme.primary)
+              : context.scheme.surfaceContainerHigh,
           borderRadius: BorderRadius.circular(14),
         ),
         child: Row(
@@ -53,7 +53,7 @@ class PrimaryButton extends StatelessWidget {
                 height: 16,
                 child: CircularProgressIndicator(
                   strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation(AppColors.textOnAccent),
+                  valueColor: AlwaysStoppedAnimation(context.scheme.onPrimary),
                 ),
               ),
               const SizedBox(width: 10),
@@ -62,7 +62,7 @@ class PrimaryButton extends StatelessWidget {
                 icon,
                 size: 18,
                 color: enabled
-                    ? AppColors.textOnAccent
+                    ? context.scheme.onPrimary
                     : AppColors.textTertiary,
               ),
               const SizedBox(width: 8),
@@ -73,7 +73,7 @@ class PrimaryButton extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
                 style: AppTextStyles.button.copyWith(
                   color: enabled
-                      ? AppColors.textOnAccent
+                      ? context.scheme.onPrimary
                       : AppColors.textTertiary,
                 ),
               ),
@@ -109,16 +109,16 @@ class SecondaryButton extends StatelessWidget {
         width: expanded ? double.infinity : null,
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 15),
         decoration: BoxDecoration(
-          color: AppColors.surface,
+          color: context.scheme.surfaceContainerLow,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: AppColors.borderStrong),
+          border: Border.all(color: context.scheme.outline),
         ),
         child: Row(
           mainAxisSize: expanded ? MainAxisSize.max : MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             if (icon != null) ...[
-              Icon(icon, size: 18, color: AppColors.textPrimary),
+              Icon(icon, size: 18, color: context.scheme.onSurface),
               const SizedBox(width: 8),
             ],
             Flexible(
@@ -152,14 +152,14 @@ class PillButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final fg = filled ? AppColors.textOnAccent : AppColors.textPrimary;
+    final fg = filled ? context.scheme.onPrimary : context.scheme.onSurface;
     return Pressable(
       onTap: onPressed,
       pressedScale: 0.95,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
-          color: filled ? AppColors.accent : AppColors.bgSunken,
+          color: filled ? context.scheme.primary : context.scheme.surfaceContainer,
           borderRadius: BorderRadius.circular(20),
         ),
         child: Row(

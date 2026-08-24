@@ -45,9 +45,9 @@ class AppShell extends ConsumerWidget {
             height: 68,
             padding: const EdgeInsets.symmetric(horizontal: 8),
             decoration: BoxDecoration(
-              color: AppColors.surface,
+              color: context.scheme.surfaceContainerLow,
               borderRadius: BorderRadius.circular(34),
-              border: Border.all(color: AppColors.border),
+              border: Border.all(color: context.scheme.outlineVariant),
               boxShadow: AppColors.floatingShadow,
             ),
             child: Row(
@@ -132,7 +132,7 @@ class _NavItem extends StatelessWidget {
                   width: active ? 44 : 36,
                   height: 28,
                   decoration: BoxDecoration(
-                    color: active ? AppColors.accentWash : Colors.transparent,
+                    color: active ? context.scheme.primaryContainer : Colors.transparent,
                     borderRadius: BorderRadius.circular(14),
                   ),
                   child: AnimatedSwitcher(
@@ -144,7 +144,7 @@ class _NavItem extends StatelessWidget {
                       key: ValueKey(active),
                       size: 21,
                       color: active
-                          ? AppColors.accentDeep
+                          ? context.scheme.onPrimaryContainer
                           : AppColors.navInactive,
                     ),
                   ),
@@ -159,10 +159,10 @@ class _NavItem extends StatelessWidget {
                         vertical: 1.5,
                       ),
                       decoration: BoxDecoration(
-                        color: AppColors.accent,
+                        color: context.scheme.primary,
                         borderRadius: BorderRadius.circular(9),
                         border: Border.all(
-                          color: AppColors.surface,
+                          color: context.scheme.surfaceContainerLow,
                           width: 1.5,
                         ),
                       ),
@@ -172,7 +172,7 @@ class _NavItem extends StatelessWidget {
                           fontSize: 9.5,
                           height: 1.2,
                           fontWeight: FontWeight.w700,
-                          color: AppColors.textOnAccent,
+                          color: context.scheme.onPrimary,
                         ),
                       ),
                     ),
@@ -185,7 +185,7 @@ class _NavItem extends StatelessWidget {
               style: AppTextStyles.caption.copyWith(
                 fontSize: 11,
                 fontWeight: active ? FontWeight.w700 : FontWeight.w500,
-                color: active ? AppColors.accentDeep : AppColors.navInactive,
+                color: active ? context.scheme.onPrimaryContainer : AppColors.navInactive,
               ),
               child: Text(label),
             ),
@@ -211,12 +211,12 @@ class _ScanButton extends StatelessWidget {
           width: 52,
           height: 52,
           decoration: BoxDecoration(
-            color: AppColors.accent,
+            color: context.scheme.primary,
             shape: BoxShape.circle,
-            border: Border.all(color: AppColors.surface, width: 3),
+            border: Border.all(color: context.scheme.surfaceContainerLow, width: 3),
             boxShadow: [
               BoxShadow(
-                color: AppColors.accent.withValues(alpha: 0.35),
+                color: context.scheme.primary.withValues(alpha: 0.35),
                 blurRadius: 14,
                 offset: const Offset(0, 4),
               ),
@@ -224,7 +224,7 @@ class _ScanButton extends StatelessWidget {
           ),
           child: Icon(
             Icons.document_scanner_outlined,
-            color: AppColors.textOnAccent,
+            color: context.scheme.onPrimary,
             size: 23,
           ),
         ),

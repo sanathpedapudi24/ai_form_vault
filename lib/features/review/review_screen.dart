@@ -151,7 +151,7 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
                 trailing: draft.category == category
                     ? Icon(
                         Icons.check_rounded,
-                        color: AppColors.accent,
+                        color: context.scheme.primary,
                       )
                     : null,
                 onTap: () {
@@ -326,7 +326,7 @@ class _QualityBanner extends StatelessWidget {
             child: Text(
               'Retake',
               style: AppTextStyles.buttonSmall.copyWith(
-                color: AppColors.accentDeep,
+                color: context.scheme.onPrimaryContainer,
               ),
             ),
           ),
@@ -381,13 +381,13 @@ class _SummaryCard extends StatelessWidget {
                             vertical: 1,
                           ),
                           decoration: BoxDecoration(
-                            color: AppColors.surfaceInverse,
+                            color: context.scheme.inverseSurface,
                             borderRadius: BorderRadius.circular(6),
                           ),
                           child: Text(
                             '$pageCount',
                             style: AppTextStyles.caption.copyWith(
-                              color: AppColors.textOnInverse,
+                              color: context.scheme.onInverseSurface,
                               fontSize: 10,
                               fontWeight: FontWeight.w700,
                             ),

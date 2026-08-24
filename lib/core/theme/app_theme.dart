@@ -13,24 +13,62 @@ class AppTheme {
     // AppColors reads this flag; set it before touching any color.
     AppColors.dark = dark;
 
+    // The complete M3 role set, derived from the brand palette. Stock M3
+    // widgets (dialogs, menus, tooltips, badges, sliders, date pickers...)
+    // read roles this app never styles directly, so every role must be
+    // branded or those widgets silently render Flutter's default purple.
+    final scheme = (dark ? const ColorScheme.dark() : const ColorScheme.light())
+        .copyWith(
+      // Primary — terracotta "book cloth".
+      primary: AppColors.accent,
+      onPrimary: AppColors.textOnAccent,
+      primaryContainer: AppColors.accentWash,
+      onPrimaryContainer: AppColors.accentDeep,
+      // Secondary — desaturated warm neutrals (the paper/graphite family).
+      secondary: AppColors.textSecondary,
+      onSecondary: AppColors.bg,
+      secondaryContainer: AppColors.bgDeep,
+      onSecondaryContainer: AppColors.textPrimary,
+      // Tertiary — slate blue (the info hue), the complement to terracotta.
+      tertiary: AppColors.info,
+      onTertiary: const Color(0xFFFFFFFF),
+      tertiaryContainer: AppColors.infoWash,
+      onTertiaryContainer: dark ? const Color(0xFFD3E2EB) : const Color(0xFF253844),
+      // Error.
+      error: AppColors.error,
+      onError: Colors.white,
+      errorContainer: AppColors.errorWash,
+      onErrorContainer: dark ? const Color(0xFFF4C7C2) : const Color(0xFF7C2F28),
+      // Surfaces — 5-step tonal elevation scale (M3 uses tint, not shadow).
+      surface: AppColors.bg,
+      onSurface: AppColors.textPrimary,
+      surfaceContainerLowest: dark ? const Color(0xFF101015) : const Color(0xFFFFFFFF),
+      surfaceContainerLow: AppColors.surface,
+      surfaceContainer: AppColors.bgSunken,
+      surfaceContainerHigh: AppColors.bgDeep,
+      surfaceContainerHighest:
+          dark ? const Color(0xFF20202A) : const Color(0xFFE2E0D4),
+      onSurfaceVariant: AppColors.textSecondary,
+      // Outlines.
+      outline: AppColors.borderStrong,
+      outlineVariant: AppColors.border,
+      // Inverse — snackbars, tooltips, reverse-video chips.
+      inverseSurface: AppColors.surfaceInverse,
+      onInverseSurface: AppColors.textOnInverse,
+      inversePrimary: dark ? const Color(0xFFE08A6C) : const Color(0xFFA54E2C),
+      // Flat aesthetic everywhere: no tonal overlay on elevated surfaces.
+      surfaceTint: Colors.transparent,
+      shadow: Colors.black,
+      scrim: Colors.black,
+    );
+
     final base = ThemeData(
       useMaterial3: true,
       brightness: dark ? Brightness.dark : Brightness.light,
       scaffoldBackgroundColor: AppColors.bg,
       splashFactory: NoSplash.splashFactory,
       highlightColor: Colors.transparent,
-      colorScheme:
-          (dark ? const ColorScheme.dark() : const ColorScheme.light()).copyWith(
-        primary: AppColors.accent,
-        onPrimary: AppColors.textOnAccent,
-        secondary: AppColors.textPrimary,
-        onSecondary: AppColors.bg,
-        surface: AppColors.surface,
-        onSurface: AppColors.textPrimary,
-        error: AppColors.error,
-        onError: Colors.white,
-        outline: AppColors.border,
-      ),
+      colorScheme: scheme,
     );
 
     return base.copyWith(

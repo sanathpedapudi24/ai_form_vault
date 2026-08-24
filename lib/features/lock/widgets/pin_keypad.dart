@@ -69,12 +69,12 @@ class _PinDotsState extends State<PinDots> with SingleTickerProviderStateMixin {
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: widget.error
-                  ? AppColors.error
-                  : (isFilled ? AppColors.accent : Colors.transparent),
+                  ? context.scheme.error
+                  : (isFilled ? context.scheme.primary : Colors.transparent),
               border: Border.all(
                 color: widget.error
-                    ? AppColors.error
-                    : (isFilled ? AppColors.accent : AppColors.borderStrong),
+                    ? context.scheme.error
+                    : (isFilled ? context.scheme.primary : context.scheme.outline),
                 width: 1.5,
               ),
             ),
@@ -156,11 +156,11 @@ class _Key extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.w500,
-                  color: AppColors.textPrimary,
+                  color: context.scheme.onSurface,
                 ),
               )
             : icon != null
-            ? Icon(icon, color: AppColors.textPrimary, size: 22)
+            ? Icon(icon, color: context.scheme.onSurface, size: 22)
             : const SizedBox.shrink());
 
     return Padding(
