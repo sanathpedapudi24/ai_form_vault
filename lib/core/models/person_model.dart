@@ -168,6 +168,14 @@ class PersonFact {
   final bool verified;
   final DateTime updatedAt;
 
+  /// When a higher-confidence reading disagrees with the current value and
+  /// neither is verified, the displaced value is stored here so the user can
+  /// compare and pick the right one (FR-PROF-04).
+  final String conflictValue;
+
+  /// The document that produced [conflictValue], if known.
+  final String? conflictSourceDocumentId;
+
   const PersonFact({
     required this.id,
     required this.personId,
@@ -177,7 +185,11 @@ class PersonFact {
     this.sourceDocumentId,
     this.verified = false,
     required this.updatedAt,
+    this.conflictValue = '',
+    this.conflictSourceDocumentId,
   });
+
+  bool get hasConflict => conflictValue.isNotEmpty;
 
   PersonFact copyWith({
     String? value,
@@ -185,6 +197,8 @@ class PersonFact {
     String? sourceDocumentId,
     bool? verified,
     DateTime? updatedAt,
+    String? conflictValue,
+    String? conflictSourceDocumentId,
   }) => PersonFact(
     id: id,
     personId: personId,
@@ -194,6 +208,9 @@ class PersonFact {
     sourceDocumentId: sourceDocumentId ?? this.sourceDocumentId,
     verified: verified ?? this.verified,
     updatedAt: updatedAt ?? this.updatedAt,
+    conflictValue: conflictValue ?? this.conflictValue,
+    conflictSourceDocumentId:
+        conflictSourceDocumentId ?? this.conflictSourceDocumentId,
   );
 }
 

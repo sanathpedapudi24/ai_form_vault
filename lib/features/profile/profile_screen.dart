@@ -14,6 +14,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../shared/widgets/app_buttons.dart';
 import '../../shared/widgets/app_card.dart';
+import '../../shared/widgets/badges.dart';
 import '../../shared/widgets/fade_slide_in.dart';
 import '../../shared/widgets/section_header.dart';
 import 'widgets/backup_section.dart';
@@ -56,6 +57,90 @@ class ProfileScreen extends ConsumerWidget {
     );
   }
 
+  void _showConflictResolution(
+    BuildContext context,
+    WidgetRef ref,
+    PersonFact fact,
+  ) {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Conflicting values for ${FactKeys.labelFor(fact.factKey)}',
+                style: AppTextStyles.titleSmall,
+              ),
+              const Gap(6),
+              Text(
+                'Two documents gave different readings. Pick the correct one.',
+                style: AppTextStyles.bodySecondary,
+              ),
+              const Gap(16),
+              AppCard(
+                onTap: () {
+                  ref
+                      .read(identityGraphProvider.notifier)
+                      .resolveConflictKeepCurrent(fact.id);
+                  Navigator.pop(context);
+                },
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Keep current', style: AppTextStyles.label),
+                          const Gap(2),
+                          Text(
+                            fact.value,
+                            style: AppTextStyles.body.copyWith(fontSize: 14.5),
+                          ),
+                        ],
+                      ),
+                    ),
+                    ConfidenceBadge(confidence: fact.confidence, compact: true),
+                  ],
+                ),
+              ),
+              const Gap(10),
+              AppCard(
+                onTap: () {
+                  ref
+                      .read(identityGraphProvider.notifier)
+                      .resolveConflictKeepOriginal(fact.id);
+                  Navigator.pop(context);
+                },
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Use other value', style: AppTextStyles.label),
+                          const Gap(2),
+                          Text(
+                            fact.conflictValue,
+                            style: AppTextStyles.body.copyWith(fontSize: 14.5),
+                          ),
+                        ],
+                      ),
+                    ),
+                    ConfidenceBadge(confidence: 0.6, compact: true),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final graph = ref.watch(identityGraphProvider);
@@ -76,20 +161,17 @@ class ProfileScreen extends ConsumerWidget {
             if (user != null)
               FadeSlideIn(
                 index: 0,
-                child: _ProfileHeader(
+                child: _ProfileHero(
                   user: user,
                   documentCount: docs.length,
+                  factCount: factsAsync.valueOrNull?.length ?? 0,
                   onEditName: () => _editName(context, ref, user),
                 ),
               ),
-            const Gap(24),
+            const Gap(28),
             FadeSlideIn(
               index: 1,
-              child: SectionHeader(
-                title: 'Identity facts',
-                actionLabel: docs.isEmpty ? null : 'View all',
-                onAction: docs.isEmpty ? null : () => context.go('/people'),
-              ),
+              child: const SectionHeader(title: 'Identity facts'),
             ),
             factsAsync.when(
               data: (facts) => facts.isEmpty
@@ -102,20 +184,10 @@ class ProfileScreen extends ConsumerWidget {
                         ),
                       ),
                     )
-                  : AppCard(
-                      padding: EdgeInsets.zero,
-                      child: Column(
-                        children: [
-                          for (var i = 0; i < facts.length; i++) ...[
-                            if (i > 0)
-                              const Divider(height: 1, indent: 16, endIndent: 16),
-                            FadeSlideIn(
-                              index: 2 + i,
-                              child: _FactRow(fact: facts[i]),
-                            ),
-                          ],
-                        ],
-                      ),
+                  : _FactGrid(
+                      facts: facts,
+                      onResolveConflict: (fact) =>
+                          _showConflictResolution(context, ref, fact),
                     ),
               loading: () => const Padding(
                 padding: EdgeInsets.symmetric(vertical: 24),
@@ -123,172 +195,465 @@ class ProfileScreen extends ConsumerWidget {
               ),
               error: (_, _) => const SizedBox.shrink(),
             ),
-            const Gap(24),
+            const Gap(28),
             FadeSlideIn(
               index: 3,
-              child: const SectionHeader(title: 'People & connections'),
+              child: const SectionHeader(title: 'Connections'),
             ),
             FadeSlideIn(
               index: 4,
-              child: _NavCard(
-                icon: Icons.people_alt_outlined,
-                title: 'Relationships',
-                subtitle: graph.pending.isNotEmpty
-                    ? '${graph.pending.length} to review'
-                    : '${graph.confirmed.length} connected',
-                highlight: graph.pending.isNotEmpty,
+              child: _ConnectionCard(
+                pending: graph.pending.length,
+                confirmed: graph.confirmed.length,
                 onTap: () => context.go('/people'),
               ),
             ),
-            const Gap(24),
+            const Gap(28),
             FadeSlideIn(
               index: 5,
               child: const SectionHeader(title: 'Security'),
             ),
             FadeSlideIn(
               index: 6,
-              child: lock.hasPin
-                  ? Column(
-                      children: [
-                        _NavCard(
-                          icon: Icons.password_rounded,
-                          title: 'Change PIN',
-                          subtitle: 'Update your 4-digit unlock code',
-                          onTap: () => context.push('/settings/change-pin'),
-                        ),
-                        if (lock.biometricAvailable) ...[
-                          const Gap(10),
-                          AppCard(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 4,
-                            ),
-                            child: SwitchListTile(
-                              contentPadding: EdgeInsets.zero,
-                              title: Text(
-                                'Biometric unlock',
-                                style: AppTextStyles.itemTitle,
-                              ),
-                              subtitle: Text(
-                                'Use your fingerprint or face instead of the PIN',
-                                style: AppTextStyles.caption,
-                              ),
-                              value: lock.biometricEnabled,
-                              activeThumbColor: Colors.white,
-                              onChanged: (v) => ref
-                                  .read(appLockProvider.notifier)
-                                  .setBiometricEnabled(v),
-                            ),
-                          ),
-                        ],
-                        const Gap(10),
-                        _NavCard(
-                          icon: Icons.lock_open_outlined,
-                          title: 'Turn off app lock',
-                          subtitle: 'Remove the PIN and biometric gate',
-                          onTap: () => context.push('/settings/disable-lock'),
-                        ),
-                      ],
-                    )
-                  : _NavCard(
-                      icon: Icons.lock_outline_rounded,
-                      title: 'Set up app lock',
-                      subtitle: 'Protect your vault with a PIN or biometrics',
-                      highlight: true,
-                      onTap: () => context.push('/settings/setup-pin'),
-                    ),
+              child: _SecuritySection(
+                lock: lock,
+                onBiometricToggle: (v) => ref
+                    .read(appLockProvider.notifier)
+                    .setBiometricEnabled(v),
+              ),
             ),
-            const Gap(24),
+            const Gap(28),
             FadeSlideIn(
               index: 7,
-              child: const SectionHeader(title: 'Local backup'),
+              child: const SectionHeader(title: 'Backup'),
             ),
             const FadeSlideIn(index: 7, child: BackupSection()),
-            const Gap(24),
-            FadeSlideIn(
-              index: 7,
-              child: const SectionHeader(title: 'Settings'),
-            ),
+            const Gap(28),
             FadeSlideIn(
               index: 8,
-              child: Column(
-                children: [
-                  AppCard(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 4,
-                    ),
-                    child: SwitchListTile(
-                      contentPadding: EdgeInsets.zero,
-                      title: Text('System-wide autofill', style: AppTextStyles.itemTitle),
-                      subtitle: Text(
-                        settings.autofillEnabled
-                            ? (settings.autofillServiceActive
-                                ? 'Active — filling forms in other apps'
-                                : 'Enabled — finish setup in Android settings')
-                            : 'Let other apps request your saved details',
-                        style: AppTextStyles.caption,
-                      ),
-                      value: settings.autofillEnabled,
-                      activeThumbColor: Colors.white,
-                      onChanged: (v) =>
-                          ref.read(settingsProvider.notifier).setAutofillEnabled(v),
-                    ),
-                  ),
-                  const Gap(10),
-                  AppCard(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 4,
-                    ),
-                    child: SwitchListTile(
-                      contentPadding: EdgeInsets.zero,
-                      title: Text('Expiry reminders', style: AppTextStyles.itemTitle),
-                      subtitle: Text(
-                        'Notify me 90, 30, and 7 days before a document expires',
-                        style: AppTextStyles.caption,
-                      ),
-                      value: settings.remindersEnabled,
-                      activeThumbColor: Colors.white,
-                      onChanged: (v) => ref
-                          .read(settingsProvider.notifier)
-                          .setRemindersEnabled(v),
-                    ),
-                  ),
-                  const Gap(10),
-                  AppCard(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 4,
-                    ),
-                    child: SwitchListTile(
-                      contentPadding: EdgeInsets.zero,
-                      title: Text('Dark mode', style: AppTextStyles.itemTitle),
-                      subtitle: Text(
-                        'Warm dark theme for low light',
-                        style: AppTextStyles.caption,
-                      ),
-                      value: settings.darkMode,
-                      activeThumbColor: Colors.white,
-                      onChanged: (v) =>
-                          ref.read(settingsProvider.notifier).setDarkMode(v),
-                    ),
-                  ),
-                  const Gap(10),
-                  _NavCard(
-                    icon: Icons.logout_rounded,
-                    title: 'Sign out',
-                    subtitle: ref.watch(authStateProvider).asData?.value?.email ??
-                        ref.watch(authStateProvider).asData?.value?.phoneNumber ??
-                        'Signed in',
-                    onTap: () => _confirmSignOut(context, ref),
-                  ),
-                ],
-              ),
+              child: const SectionHeader(title: 'Preferences'),
+            ),
+            FadeSlideIn(
+              index: 9,
+              child: _PreferencesSection(settings: settings, ref: ref),
             ),
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Full-width profile hero with avatar, name, and quick stats.
+class _ProfileHero extends StatelessWidget {
+  final Person user;
+  final int documentCount;
+  final int factCount;
+  final VoidCallback onEditName;
+
+  const _ProfileHero({
+    required this.user,
+    required this.documentCount,
+    required this.factCount,
+    required this.onEditName,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return AppCard(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        children: [
+          Container(
+            width: 72,
+            height: 72,
+            decoration: BoxDecoration(
+              color: context.scheme.primaryContainer,
+              shape: BoxShape.circle,
+            ),
+            child: Center(
+              child: Text(
+                user.initial,
+                style: AppTextStyles.display.copyWith(
+                  color: context.scheme.onPrimaryContainer,
+                  fontSize: 28,
+                ),
+              ),
+            ),
+          ),
+          const Gap(14),
+          GestureDetector(
+            onTap: onEditName,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Flexible(
+                  child: Text(
+                    user.displayName,
+                    style: AppTextStyles.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                const Gap(6),
+                Icon(
+                  Icons.edit_outlined,
+                  size: 14,
+                  color: AppColors.textTertiary,
+                ),
+              ],
+            ),
+          ),
+          const Gap(16),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              _HeroStat(value: documentCount, label: 'docs'),
+              const _HeroStatDivider(),
+              _HeroStat(value: factCount, label: 'facts'),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HeroStat extends StatelessWidget {
+  final int value;
+  final String label;
+
+  const _HeroStat({required this.value, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Column(
+        children: [
+          Text('$value', style: AppTextStyles.statNumber.copyWith(fontSize: 22)),
+          const Gap(2),
+          Text(label, style: AppTextStyles.caption),
+        ],
+      ),
+    );
+  }
+}
+
+class _HeroStatDivider extends StatelessWidget {
+  const _HeroStatDivider();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(width: 1, height: 28, color: context.scheme.outlineVariant);
+  }
+}
+
+/// Fact grid: 2-column layout for identity facts instead of a monolithic list.
+class _FactGrid extends StatelessWidget {
+  final List<PersonFact> facts;
+  final ValueChanged<PersonFact> onResolveConflict;
+
+  const _FactGrid({required this.facts, required this.onResolveConflict});
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        for (final fact in facts)
+          SizedBox(
+            width: (MediaQuery.of(context).size.width - 48) / 2,
+            child: _FactChip(
+              fact: fact,
+              onTap: fact.hasConflict ? () => onResolveConflict(fact) : null,
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _FactChip extends StatelessWidget {
+  final PersonFact fact;
+  final VoidCallback? onTap;
+
+  const _FactChip({required this.fact, this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AppCard(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    FactKeys.labelFor(fact.factKey),
+                    style: AppTextStyles.caption.copyWith(
+                      color: AppColors.textTertiary,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                if (fact.hasConflict)
+                  Icon(
+                    Icons.warning_amber_rounded,
+                    size: 13,
+                    color: AppColors.warning,
+                  )
+                else if (fact.verified)
+                  Icon(
+                    Icons.check_circle_rounded,
+                    size: 13,
+                    color: AppColors.success,
+                  ),
+              ],
+            ),
+            const Gap(6),
+            Text(
+              fact.value,
+              style: (FactKeys.sensitive.contains(fact.factKey)
+                      ? AppTextStyles.mono
+                      : AppTextStyles.body)
+                  .copyWith(fontSize: 14),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Connection card with visual indicator.
+class _ConnectionCard extends StatelessWidget {
+  final int pending;
+  final int confirmed;
+  final VoidCallback onTap;
+
+  const _ConnectionCard({
+    required this.pending,
+    required this.confirmed,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return AppCard(
+      onTap: onTap,
+      padding: const EdgeInsets.all(16),
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: pending > 0
+                  ? AppColors.accentWash
+                  : context.scheme.surfaceContainer,
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Icon(
+              Icons.people_alt_outlined,
+              size: 22,
+              color: pending > 0 ? AppColors.accent : context.scheme.onSurface,
+            ),
+          ),
+          const Gap(14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('People & relationships', style: AppTextStyles.itemTitle),
+                const Gap(2),
+                Text(
+                  pending > 0
+                      ? '$pending to review · $confirmed connected'
+                      : '$confirmed connected',
+                  style: AppTextStyles.caption.copyWith(
+                    color: pending > 0 ? AppColors.warning : AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Icon(Icons.chevron_right_rounded, color: AppColors.textTertiary),
+        ],
+      ),
+    );
+  }
+}
+
+/// Security section: grouped lock settings.
+class _SecuritySection extends StatelessWidget {
+  final AppLockState lock;
+  final void Function(bool) onBiometricToggle;
+
+  const _SecuritySection({
+    required this.lock,
+    required this.onBiometricToggle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (!lock.hasPin) {
+      return AppCard(
+        onTap: () => context.push('/settings/setup-pin'),
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: AppColors.accentWash,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Icon(
+                Icons.lock_outline_rounded,
+                size: 22,
+                color: AppColors.accent,
+              ),
+            ),
+            const Gap(14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Set up app lock', style: AppTextStyles.itemTitle),
+                  const Gap(2),
+                  Text(
+                    'Protect your vault with a PIN or biometrics',
+                    style: AppTextStyles.caption,
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.chevron_right_rounded, color: AppColors.textTertiary),
+          ],
+        ),
+      );
+    }
+
+    return Column(
+      children: [
+        _SettingsTile(
+          icon: Icons.password_rounded,
+          title: 'Change PIN',
+          subtitle: 'Update your 4-digit unlock code',
+          onTap: () => context.push('/settings/change-pin'),
+        ),
+        if (lock.biometricAvailable) ...[
+          const Gap(8),
+          AppCard(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            child: SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text('Biometric unlock', style: AppTextStyles.itemTitle),
+              subtitle: Text(
+                'Use your fingerprint or face instead of the PIN',
+                style: AppTextStyles.caption,
+              ),
+              value: lock.biometricEnabled,
+              activeThumbColor: Colors.white,
+              onChanged: onBiometricToggle,
+            ),
+          ),
+        ],
+        const Gap(8),
+        _SettingsTile(
+          icon: Icons.lock_open_outlined,
+          title: 'Turn off app lock',
+          subtitle: 'Remove the PIN and biometric gate',
+          onTap: () => context.push('/settings/disable-lock'),
+        ),
+      ],
+    );
+  }
+}
+
+/// Preferences section: toggles grouped together.
+class _PreferencesSection extends StatelessWidget {
+  final SettingsState settings;
+  final WidgetRef ref;
+
+  const _PreferencesSection({required this.settings, required this.ref});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        AppCard(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          child: SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: Text('System-wide autofill', style: AppTextStyles.itemTitle),
+            subtitle: Text(
+              settings.autofillEnabled
+                  ? (settings.autofillServiceActive
+                      ? 'Active — filling forms in other apps'
+                      : 'Enabled — finish setup in Android settings')
+                  : 'Let other apps request your saved details',
+              style: AppTextStyles.caption,
+            ),
+            value: settings.autofillEnabled,
+            activeThumbColor: Colors.white,
+            onChanged: (v) =>
+                ref.read(settingsProvider.notifier).setAutofillEnabled(v),
+          ),
+        ),
+        const Gap(8),
+        AppCard(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          child: SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: Text('Expiry reminders', style: AppTextStyles.itemTitle),
+            subtitle: Text(
+              'Notify me 90, 30, and 7 days before a document expires',
+              style: AppTextStyles.caption,
+            ),
+            value: settings.remindersEnabled,
+            activeThumbColor: Colors.white,
+            onChanged: (v) => ref
+                .read(settingsProvider.notifier)
+                .setRemindersEnabled(v),
+          ),
+        ),
+        const Gap(8),
+        AppCard(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          child: SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: Text('Dark mode', style: AppTextStyles.itemTitle),
+            subtitle: Text(
+              'Warm dark theme for low light',
+              style: AppTextStyles.caption,
+            ),
+            value: settings.darkMode,
+            activeThumbColor: Colors.white,
+            onChanged: (v) =>
+                ref.read(settingsProvider.notifier).setDarkMode(v),
+          ),
+        ),
+        const Gap(8),
+        _SettingsTile(
+          icon: Icons.logout_rounded,
+          title: 'Sign out',
+          subtitle: ref.watch(authStateProvider).asData?.value?.email ??
+              ref.watch(authStateProvider).asData?.value?.phoneNumber ??
+              'Signed in',
+          onTap: () => _confirmSignOut(context, ref),
+          danger: true,
+        ),
+      ],
     );
   }
 
@@ -326,134 +691,20 @@ class ProfileScreen extends ConsumerWidget {
   }
 }
 
-class _ProfileHeader extends StatelessWidget {
-  final Person user;
-  final int documentCount;
-  final VoidCallback onEditName;
-
-  const _ProfileHeader({
-    required this.user,
-    required this.documentCount,
-    required this.onEditName,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return AppCard(
-      padding: const EdgeInsets.all(20),
-      child: Row(
-        children: [
-          Container(
-            width: 56,
-            height: 56,
-            decoration: BoxDecoration(
-              color: context.scheme.primaryContainer,
-              shape: BoxShape.circle,
-            ),
-            child: Center(
-              child: Text(
-                user.initial,
-                style: AppTextStyles.titleSmall.copyWith(
-                  color: context.scheme.onPrimaryContainer,
-                ),
-              ),
-            ),
-          ),
-          const Gap(14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                GestureDetector(
-                  onTap: onEditName,
-                  child: Row(
-                    children: [
-                      Flexible(
-                        child: Text(
-                          user.displayName,
-                          style: AppTextStyles.headline,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      const Gap(4),
-                      Icon(
-                        Icons.edit_outlined,
-                        size: 13,
-                        color: AppColors.textTertiary,
-                      ),
-                    ],
-                  ),
-                ),
-                const Gap(3),
-                Text(
-                  '$documentCount document${documentCount == 1 ? '' : 's'} in vault',
-                  style: AppTextStyles.caption,
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _FactRow extends StatelessWidget {
-  final PersonFact fact;
-
-  const _FactRow({required this.fact});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
-      child: Row(
-        children: [
-          Expanded(
-            flex: 2,
-            child: Text(FactKeys.labelFor(fact.factKey), style: AppTextStyles.label),
-          ),
-          Expanded(
-            flex: 3,
-            child: Text(
-              fact.value,
-              style: (FactKeys.sensitive.contains(fact.factKey)
-                      ? AppTextStyles.mono
-                      : AppTextStyles.body)
-                  .copyWith(fontSize: 14.5),
-              textAlign: TextAlign.right,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-          if (fact.verified) ...[
-            const Gap(6),
-            Icon(
-              Icons.check_circle_rounded,
-              size: 14,
-              color: AppColors.success,
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _NavCard extends StatelessWidget {
+/// Reusable settings tile — replaces the repetitive _NavCard pattern.
+class _SettingsTile extends StatelessWidget {
   final IconData icon;
   final String title;
   final String subtitle;
-  final bool highlight;
   final VoidCallback onTap;
+  final bool danger;
 
-  const _NavCard({
+  const _SettingsTile({
     required this.icon,
     required this.title,
     required this.subtitle,
-    this.highlight = false,
     required this.onTap,
+    this.danger = false,
   });
 
   @override
@@ -467,13 +718,15 @@ class _NavCard extends StatelessWidget {
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: highlight ? context.scheme.primaryContainer : context.scheme.surfaceContainer,
+              color: danger
+                  ? AppColors.error.withValues(alpha: 0.1)
+                  : context.scheme.surfaceContainer,
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(
               icon,
               size: 19,
-              color: highlight ? context.scheme.onPrimaryContainer : context.scheme.onSurface,
+              color: danger ? AppColors.error : context.scheme.onSurface,
             ),
           ),
           const Gap(12),
@@ -481,16 +734,18 @@ class _NavCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: AppTextStyles.itemTitle),
+                Text(
+                  title,
+                  style: AppTextStyles.itemTitle.copyWith(
+                    color: danger ? AppColors.error : null,
+                  ),
+                ),
                 const Gap(2),
                 Text(subtitle, style: AppTextStyles.caption),
               ],
             ),
           ),
-          Icon(
-            Icons.chevron_right_rounded,
-            color: AppColors.textTertiary,
-          ),
+          Icon(Icons.chevron_right_rounded, color: AppColors.textTertiary),
         ],
       ),
     );

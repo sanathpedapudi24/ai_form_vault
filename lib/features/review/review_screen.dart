@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/config/app_config.dart';
 import '../../core/models/document_model.dart';
 import '../../core/providers/capture_provider.dart';
+import '../../core/providers/person_provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/theme/motion.dart';
@@ -171,6 +172,7 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
   Widget build(BuildContext context) {
     final state = ref.watch(captureProvider);
     final draft = state.draft;
+    final userFacts = ref.watch(userFactsProvider).valueOrNull ?? {};
 
     if (draft == null) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
@@ -223,6 +225,14 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
                 padding: const EdgeInsets.fromLTRB(4, 0, 4, 10),
               ),
             ),
+            if (userFacts.isNotEmpty)
+              FadeSlideIn(
+                index: 1,
+                child: _ProfileMappingSummary(
+                  fields: draft.extractedFields,
+                  userFacts: userFacts,
+                ),
+              ),
             if (draft.extractedFields.isEmpty)
               FadeSlideIn(
                 index: 2,
@@ -246,6 +256,9 @@ class _ReviewScreenState extends ConsumerState<ReviewScreen> {
                         index: 2 + i,
                         child: _FieldRow(
                           field: draft.extractedFields[i],
+                          profileValue: draft.extractedFields[i].semanticKey.isEmpty
+                              ? null
+                              : userFacts[draft.extractedFields[i].semanticKey],
                           onTap: () =>
                               _editField(i, draft.extractedFields[i]),
                         ),
@@ -455,14 +468,76 @@ class _SummaryCard extends StatelessWidget {
   }
 }
 
-class _FieldRow extends StatelessWidget {
-  final ExtractedField field;
-  final VoidCallback onTap;
+class _ProfileMappingSummary extends StatelessWidget {
+  final List<ExtractedField> fields;
+  final Map<String, String> userFacts;
 
-  const _FieldRow({required this.field, required this.onTap});
+  const _ProfileMappingSummary({
+    required this.fields,
+    required this.userFacts,
+  });
 
   @override
   Widget build(BuildContext context) {
+    var matched = 0;
+    var conflict = 0;
+    var newFields = 0;
+    for (final f in fields) {
+      if (f.semanticKey.isEmpty) {
+        newFields++;
+        continue;
+      }
+      final existing = userFacts[f.semanticKey];
+      if (existing == null) {
+        newFields++;
+      } else if (existing.trim() == f.value.trim()) {
+        matched++;
+      } else {
+        conflict++;
+      }
+    }
+
+    if (matched == 0 && conflict == 0) return const SizedBox.shrink();
+
+    return AppCard(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: Row(
+        children: [
+          Icon(Icons.account_tree_rounded, size: 18, color: context.scheme.primary),
+          const Gap(10),
+          Expanded(
+            child: Text(
+              '$matched match${matched == 1 ? '' : 'es'} to your profile'
+              '${conflict > 0 ? ', $conflict conflict${conflict == 1 ? '' : 's'}' : ''}',
+              style: AppTextStyles.caption.copyWith(
+                color: conflict > 0 ? AppColors.warning : AppColors.textSecondary,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _FieldRow extends StatelessWidget {
+  final ExtractedField field;
+  final String? profileValue;
+  final VoidCallback onTap;
+
+  const _FieldRow({
+    required this.field,
+    this.profileValue,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isConflict =
+        profileValue != null && field.value.trim() != profileValue!.trim();
+    final isMatch =
+        profileValue != null && field.value.trim() == profileValue!.trim();
+
     return InkWell(
       onTap: onTap,
       child: AnimatedContainer(
@@ -476,15 +551,28 @@ class _FieldRow extends StatelessWidget {
             ),
             Expanded(
               flex: 3,
-              child: Text(
-                field.value,
-                style: (FactKeys.sensitive.contains(field.semanticKey)
-                        ? AppTextStyles.mono
-                        : AppTextStyles.body)
-                    .copyWith(fontSize: 14.5),
-                textAlign: TextAlign.right,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    field.value,
+                    style: (FactKeys.sensitive.contains(field.semanticKey)
+                            ? AppTextStyles.mono
+                            : AppTextStyles.body)
+                        .copyWith(fontSize: 14.5),
+                    textAlign: TextAlign.right,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  if (isConflict)
+                    Text(
+                      'Profile has: $profileValue',
+                      style: AppTextStyles.caption.copyWith(
+                        color: AppColors.warning,
+                        fontSize: 11,
+                      ),
+                    ),
+                ],
               ),
             ),
             const Gap(8),
@@ -493,6 +581,18 @@ class _FieldRow extends StatelessWidget {
                 Icons.check_circle_rounded,
                 size: 16,
                 color: AppColors.success,
+              )
+            else if (isMatch)
+              Icon(
+                Icons.link_rounded,
+                size: 16,
+                color: context.scheme.primary,
+              )
+            else if (isConflict)
+              Icon(
+                Icons.warning_amber_rounded,
+                size: 16,
+                color: AppColors.warning,
               )
             else
               ConfidenceBadge(confidence: field.confidence, compact: true),

@@ -199,6 +199,8 @@ class PersonRepository {
 
   /// Insert-or-improve: a new value replaces the old one only when the old
   /// one isn't user-verified and the new confidence is at least as high.
+  /// When the values differ, the displaced value is stored as a conflict
+  /// so the user can compare and pick the right one (FR-PROF-04).
   Future<void> upsertFact(PersonFact fact) async {
     final db = await AppDatabase.instance;
     final existing = await db.query(
@@ -216,9 +218,36 @@ class PersonRepository {
     if (current.verified && !fact.verified) return;
     if (!fact.verified && fact.confidence < current.confidence) return;
 
+    // Values disagree and neither is verified → keep the displaced value
+    // as a conflict the user can resolve.
+    String conflictValue = current.conflictValue;
+    String? conflictSourceId = current.conflictSourceDocumentId;
+    final valuesDiffer =
+        fact.value.trim().toLowerCase() != current.value.trim().toLowerCase();
+    if (valuesDiffer &&
+        !current.verified &&
+        !fact.verified &&
+        fact.confidence > current.confidence) {
+      // The incoming reading is stronger — it becomes the primary value;
+      // the old value becomes the conflict.
+      conflictValue = current.value;
+      conflictSourceId = current.sourceDocumentId;
+    } else if (valuesDiffer && current.hasConflict) {
+      // Already have a conflict and this new reading also disagrees — clear
+      // the conflict since we can't meaningfully three-way merge.
+      conflictValue = '';
+      conflictSourceId = null;
+    }
+
     await db.update(
       'facts',
-      _factToRow(fact.copyWith(updatedAt: DateTime.now())),
+      _factToRow(
+        fact.copyWith(
+          updatedAt: DateTime.now(),
+          conflictValue: conflictValue,
+          conflictSourceDocumentId: conflictSourceId,
+        ),
+      ),
       where: 'id = ?',
       whereArgs: [current.id],
     );
@@ -227,6 +256,36 @@ class PersonRepository {
   Future<void> deleteFact(String id) async {
     final db = await AppDatabase.instance;
     await db.delete('facts', where: 'id = ?', whereArgs: [id]);
+  }
+
+  /// Accepts the conflicting value as the primary, discarding the current one.
+  Future<void> resolveConflictKeepIncoming(String factId) async {
+    final db = await AppDatabase.instance;
+    await db.update(
+      'facts',
+      {'conflict_value': '', 'conflict_source_id': null},
+      where: 'id = ?',
+      whereArgs: [factId],
+    );
+  }
+
+  /// Swaps the conflict value into the primary slot, discarding the current.
+  Future<void> resolveConflictKeepOriginal(String factId) async {
+    final db = await AppDatabase.instance;
+    final rows = await db.query('facts', where: 'id = ?', whereArgs: [factId]);
+    if (rows.isEmpty) return;
+    final fact = _factFromRow(rows.first);
+    if (!fact.hasConflict) return;
+    await db.update(
+      'facts',
+      {
+        'value': fact.conflictValue,
+        'conflict_value': '',
+        'conflict_source_id': null,
+      },
+      where: 'id = ?',
+      whereArgs: [factId],
+    );
   }
 
   // --- Relationships -----------------------------------------------------------
@@ -340,6 +399,8 @@ class PersonRepository {
     sourceDocumentId: row['source_document_id'] as String?,
     verified: (row['verified'] as int? ?? 0) == 1,
     updatedAt: DateTime.fromMillisecondsSinceEpoch(row['updated_at'] as int),
+    conflictValue: row['conflict_value'] as String? ?? '',
+    conflictSourceDocumentId: row['conflict_source_id'] as String?,
   );
 
   Map<String, Object?> _factToRow(PersonFact fact) => {
@@ -351,6 +412,8 @@ class PersonRepository {
     'source_document_id': fact.sourceDocumentId,
     'verified': fact.verified ? 1 : 0,
     'updated_at': fact.updatedAt.millisecondsSinceEpoch,
+    'conflict_value': fact.conflictValue,
+    'conflict_source_id': fact.conflictSourceDocumentId,
   };
 
   Relationship _relFromRow(Map<String, Object?> row) => Relationship(

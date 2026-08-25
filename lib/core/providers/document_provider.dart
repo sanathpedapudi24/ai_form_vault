@@ -8,11 +8,12 @@ import 'service_providers.dart';
 
 /// All documents in the vault, newest first, backed by the encrypted DB.
 class DocumentsNotifier extends StateNotifier<List<DocumentModel>> {
-  DocumentsNotifier(this._repo) : super(const []) {
+  DocumentsNotifier(this._repo, this._ref) : super(const []) {
     refresh();
   }
 
   final DocumentRepository _repo;
+  final Ref _ref;
 
   Future<void> refresh() async {
     state = await _repo.getAll();
@@ -20,6 +21,12 @@ class DocumentsNotifier extends StateNotifier<List<DocumentModel>> {
 
   Future<void> add(DocumentModel doc) async {
     await _repo.insert(doc);
+    _ref.read(auditRepositoryProvider).log(
+          action: 'document.save',
+          targetType: 'document',
+          targetId: doc.id,
+          detail: doc.name,
+        );
     await refresh();
   }
 
@@ -39,6 +46,11 @@ class DocumentsNotifier extends StateNotifier<List<DocumentModel>> {
     }
     await NotificationService.instance.cancelForDocument(id);
     await _repo.delete(id);
+    _ref.read(auditRepositoryProvider).log(
+          action: 'document.delete',
+          targetType: 'document',
+          targetId: id,
+        );
     await refresh();
   }
 
@@ -52,7 +64,7 @@ class DocumentsNotifier extends StateNotifier<List<DocumentModel>> {
 
 final documentsProvider =
     StateNotifierProvider<DocumentsNotifier, List<DocumentModel>>(
-      (ref) => DocumentsNotifier(ref.watch(documentRepositoryProvider)),
+      (ref) => DocumentsNotifier(ref.watch(documentRepositoryProvider), ref),
     );
 
 /// Documents grouped for the vault tabs.

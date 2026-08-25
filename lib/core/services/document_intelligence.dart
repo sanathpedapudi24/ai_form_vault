@@ -4,6 +4,7 @@ import 'package:collection/collection.dart';
 
 import '../models/document_model.dart';
 import 'document_parser.dart';
+import 'gemini_service.dart';
 
 /// A person mentioned on a document, with their relation to the owner.
 class PersonMention {
@@ -46,20 +47,79 @@ class DocumentAnalysis {
 
 /// On-device document understanding: OCR text + regex parsing.
 class DocumentIntelligence {
-  DocumentIntelligence({DocumentParser? parser})
-    : _parser = parser ?? DocumentParser();
+  DocumentIntelligence({DocumentParser? parser, GeminiService? gemini})
+    : _parser = parser ?? DocumentParser(),
+      _gemini = gemini;
 
   final DocumentParser _parser;
+  final GeminiService? _gemini;
 
   /// Analyzes a document from OCR text. When [pageTexts] holds more than one
   /// page, fields are voted across pages (see [DocumentParser.parseMultiPage]);
   /// otherwise a single-page parse runs on [ocrText].
+  ///
+  /// When [geminiEnabled] is true and a [GeminiService] was injected,
+  /// the Gemini vision API is used first; the on-device path is the fallback.
   Future<DocumentAnalysis> analyze({
     required Uint8List imageBytes,
     required String ocrText,
     List<String> pageTexts = const [],
+    bool geminiEnabled = false,
+    String? geminiApiKey,
   }) async {
+    if (geminiEnabled && _gemini != null && imageBytes.isNotEmpty) {
+      final map = await _gemini.analyze(
+        imageBytes: imageBytes,
+        apiKey: geminiApiKey,
+      );
+      if (map != null) return _parseGeminiResponse(map);
+    }
     return _analyzeOnDevice(ocrText, pageTexts);
+  }
+
+  static DocumentAnalysis _parseGeminiResponse(Map<String, dynamic> json) {
+    final category = DocumentCategory.fromName(
+      json['category'] as String? ?? 'other',
+    );
+    final docType = json['documentType'] as String? ?? '';
+    final ownerName = json['ownerName'] as String? ?? '';
+
+    final rawFields = json['fields'] as List<dynamic>? ?? [];
+    final fields = rawFields.map((f) {
+      final m = f as Map<String, dynamic>;
+      return ExtractedField(
+        label: m['label'] as String? ?? '',
+        value: m['value'] as String? ?? '',
+        semanticKey: m['semanticKey'] as String? ?? '',
+        confidence: 0.9,
+        sourceDocument: 'Gemini Vision',
+      );
+    }).toList();
+
+    final rawPeople = json['people'] as List<dynamic>? ?? [];
+    final people = rawPeople.map((p) {
+      final m = p as Map<String, dynamic>;
+      return PersonMention(
+        name: m['name'] as String? ?? '',
+        relationToOwner: m['relationToOwner'] as String? ?? 'unknown',
+        evidence: 'Extracted by Gemini Vision',
+      );
+    }).toList();
+
+    final summary = docType.isNotEmpty
+        ? '$docType for $ownerName. Extracted via AI vision. Category: ${category.label}.'
+        : 'AI-extracted document. Category: ${category.label}.';
+
+    return DocumentAnalysis(
+      category: category,
+      documentType: docType,
+      ownerName: ownerName,
+      summary: summary,
+      fields: fields,
+      people: people,
+      confidence: 0.92,
+      source: ExtractionSource.ai,
+    );
   }
 
   DocumentAnalysis _analyzeOnDevice(String ocrText, List<String> pageTexts) {

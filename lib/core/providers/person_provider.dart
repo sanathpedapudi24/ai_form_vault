@@ -89,11 +89,12 @@ class IdentityGraphState {
 }
 
 class IdentityGraphNotifier extends StateNotifier<IdentityGraphState> {
-  IdentityGraphNotifier(this._repo) : super(const IdentityGraphState()) {
+  IdentityGraphNotifier(this._repo, this._ref) : super(const IdentityGraphState()) {
     refresh();
   }
 
   final PersonRepository _repo;
+  final Ref _ref;
 
   Future<void> refresh() async {
     final persons = await _repo.getAllPersons();
@@ -144,11 +145,36 @@ class IdentityGraphNotifier extends StateNotifier<IdentityGraphState> {
     await _repo.mergePersons(keepId, dropId);
     await refresh();
   }
+
+  /// Resolves a fact conflict by keeping the current (higher-confidence) value
+  /// and discarding the conflicting one.
+  Future<void> resolveConflictKeepCurrent(String factId) async {
+    await _repo.resolveConflictKeepIncoming(factId);
+    _ref.read(auditRepositoryProvider).log(
+          action: 'conflict.resolve',
+          targetType: 'fact',
+          targetId: factId,
+          detail: 'kept_current',
+        );
+    await refresh();
+  }
+
+  /// Resolves a fact conflict by swapping in the conflicting (original) value.
+  Future<void> resolveConflictKeepOriginal(String factId) async {
+    await _repo.resolveConflictKeepOriginal(factId);
+    _ref.read(auditRepositoryProvider).log(
+          action: 'conflict.resolve',
+          targetType: 'fact',
+          targetId: factId,
+          detail: 'kept_original',
+        );
+    await refresh();
+  }
 }
 
 final identityGraphProvider =
     StateNotifierProvider<IdentityGraphNotifier, IdentityGraphState>(
-      (ref) => IdentityGraphNotifier(ref.watch(personRepositoryProvider)),
+      (ref) => IdentityGraphNotifier(ref.watch(personRepositoryProvider), ref),
     );
 
 /// Facts for one person (used by profile and person detail).

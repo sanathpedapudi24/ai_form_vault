@@ -1,6 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../config/app_config.dart';
 import '../repositories/settings_repository.dart';
 import '../services/autofill_bridge.dart';
 import '../services/notification_service.dart';
@@ -15,6 +14,7 @@ class SettingsState {
   /// Whether the app is actually selected as the system autofill service.
   final bool autofillServiceActive;
   final bool aiEnabled;
+  final String geminiApiKey;
   final bool remindersEnabled;
   final bool darkMode;
 
@@ -22,6 +22,7 @@ class SettingsState {
     this.autofillEnabled = false,
     this.autofillServiceActive = false,
     this.aiEnabled = false,
+    this.geminiApiKey = '',
     this.remindersEnabled = true,
     this.darkMode = false,
   });
@@ -30,12 +31,14 @@ class SettingsState {
     bool? autofillEnabled,
     bool? autofillServiceActive,
     bool? aiEnabled,
+    String? geminiApiKey,
     bool? remindersEnabled,
     bool? darkMode,
   }) => SettingsState(
     autofillEnabled: autofillEnabled ?? this.autofillEnabled,
     autofillServiceActive: autofillServiceActive ?? this.autofillServiceActive,
     aiEnabled: aiEnabled ?? this.aiEnabled,
+    geminiApiKey: geminiApiKey ?? this.geminiApiKey,
     remindersEnabled: remindersEnabled ?? this.remindersEnabled,
     darkMode: darkMode ?? this.darkMode,
   );
@@ -59,11 +62,14 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
       defaultValue: true,
     );
     final dark = await _repo.getBool(SettingsRepository.darkModeEnabled);
+    final ai = await _repo.getBool(SettingsRepository.aiEnabledKey);
+    final apiKey = await _repo.get(SettingsRepository.geminiApiKey) ?? '';
     final active = await AutofillBridge.isServiceEnabled();
     state = SettingsState(
       autofillEnabled: autofill,
       autofillServiceActive: active,
-      aiEnabled: AppConfig.aiEnabled,
+      aiEnabled: ai,
+      geminiApiKey: apiKey,
       remindersEnabled: reminders,
       darkMode: dark,
     );
@@ -111,6 +117,16 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
   Future<void> setDarkMode(bool enabled) async {
     await _repo.setBool(SettingsRepository.darkModeEnabled, enabled);
     state = state.copyWith(darkMode: enabled);
+  }
+
+  Future<void> setAiEnabled(bool enabled) async {
+    await _repo.setBool(SettingsRepository.aiEnabledKey, enabled);
+    state = state.copyWith(aiEnabled: enabled);
+  }
+
+  Future<void> setGeminiApiKey(String key) async {
+    await _repo.set(SettingsRepository.geminiApiKey, key);
+    state = state.copyWith(geminiApiKey: key);
   }
 
   /// Re-checks whether we're the selected service (call on app resume).

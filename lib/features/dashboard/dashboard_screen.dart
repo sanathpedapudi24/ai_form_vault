@@ -10,9 +10,9 @@ import '../../core/providers/document_provider.dart';
 import '../../core/providers/person_provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
+import '../../core/theme/motion.dart';
 import '../../shared/widgets/app_card.dart';
 import '../../shared/widgets/badges.dart';
-import '../../shared/widgets/fade_slide_in.dart';
 import '../../shared/widgets/section_header.dart';
 import '../../shared/widgets/vault_image.dart';
 import 'widgets/category_visual.dart';
@@ -35,54 +35,73 @@ class DashboardScreen extends ConsumerWidget {
     return Scaffold(
       body: SafeArea(
         bottom: false,
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 120),
-          children: [
-            FadeSlideIn(
-              index: 0,
-              child: _Header(userName: userName),
-            ),
-            const Gap(24),
-            if (pending.isNotEmpty) ...[
-              FadeSlideIn(
-                index: 1,
-                child: _SuggestionsBanner(count: pending.length),
-              ),
-              const Gap(16),
-            ],
-            FadeSlideIn(index: 2, child: const _QuickActions()),
-            const Gap(24),
-            FadeSlideIn(
-              index: 3,
-              child: _StatsRow(
-                documents: docs.length,
-                people: graph.persons.length,
-                connections: graph.confirmed.length,
+        child: CustomScrollView(
+          slivers: [
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+              sliver: SliverToBoxAdapter(
+                child: _Header(userName: userName),
               ),
             ),
-            const Gap(28),
-            if (recent.isNotEmpty) ...[
-              FadeSlideIn(
-                index: 4,
-                child: SectionHeader(
-                  title: 'Recent documents',
-                  actionLabel: 'See all',
-                  onAction: () => context.go('/vault'),
+            if (pending.isNotEmpty)
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+                sliver: SliverToBoxAdapter(
+                  child: _SuggestionsBanner(count: pending.length),
                 ),
               ),
-              for (var i = 0; i < recent.length; i++)
-                FadeSlideIn(
-                  index: 5 + i,
-                  child: Padding(
-                    padding: const EdgeInsets.only(bottom: 10),
-                    child: _RecentDocumentTile(document: recent[i]),
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
+              sliver: SliverToBoxAdapter(
+                child: _StatsRow(
+                  documents: docs.length,
+                  people: graph.persons.length,
+                  connections: graph.confirmed.length,
+                ),
+              ),
+            ),
+            SliverPadding(
+              padding: const EdgeInsets.only(top: 28),
+              sliver: SliverToBoxAdapter(
+                child: _QuickActionsRow(),
+              ),
+            ),
+            if (recent.isNotEmpty) ...[
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(20, 28, 20, 0),
+                sliver: SliverToBoxAdapter(
+                  child: SectionHeader(
+                    title: 'Recent',
+                    actionLabel: 'See all',
+                    onAction: () => context.go('/vault'),
                   ),
                 ),
-            ] else
-              FadeSlideIn(
-                index: 4,
-                child: const _FirstScanCard(),
               ),
+              SliverPadding(
+                padding: const EdgeInsets.only(top: 12),
+                sliver: SliverToBoxAdapter(
+                  child: SizedBox(
+                    height: 160,
+                    child: ListView.separated(
+                      scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      itemCount: recent.length,
+                      separatorBuilder: (_, _) => const Gap(12),
+                      itemBuilder: (context, i) => _RecentDocumentCard(
+                        document: recent[i],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ] else
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+                sliver: SliverToBoxAdapter(
+                  child: const _FirstScanCard(),
+                ),
+              ),
+            const SliverPadding(padding: EdgeInsets.only(bottom: 120)),
           ],
         ),
       ),
@@ -224,77 +243,7 @@ class _SuggestionsBanner extends StatelessWidget {
   }
 }
 
-class _QuickActions extends StatelessWidget {
-  const _QuickActions();
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: _ActionCard(
-            icon: Icons.document_scanner_outlined,
-            title: 'Scan\ndocument',
-            accent: true,
-            onTap: () => context.push('/capture'),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _ActionCard extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final bool accent;
-  final VoidCallback onTap;
-
-  const _ActionCard({
-    required this.icon,
-    required this.title,
-    this.accent = false,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return AppCard(
-      onTap: onTap,
-      color: accent ? context.scheme.inverseSurface : context.scheme.surfaceContainerLow,
-      border: accent
-          ? BorderSide(color: context.scheme.inverseSurface)
-          : null,
-      padding: const EdgeInsets.all(18),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: accent ? AppColors.surfaceInverseRaised : context.scheme.primaryContainer,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(
-              icon,
-              size: 20,
-              color: accent ? context.scheme.onInverseSurface : context.scheme.onPrimaryContainer,
-            ),
-          ),
-          const Gap(14),
-          Text(
-            title,
-            style: AppTextStyles.headline.copyWith(
-              color: accent ? context.scheme.onInverseSurface : context.scheme.onSurface,
-              height: 1.25,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
+// --- Stats: three individual cards instead of a monolithic row ---
 
 class _StatsRow extends StatelessWidget {
   final int documents;
@@ -309,38 +258,68 @@ class _StatsRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AppCard(
-      padding: const EdgeInsets.symmetric(vertical: 18),
-      child: Row(
-        children: [
-          _Stat(value: documents, label: 'Documents'),
-          const _StatDivider(),
-          _Stat(value: people, label: 'People'),
-          const _StatDivider(),
-          _Stat(value: connections, label: 'Connections'),
-        ],
-      ),
+    return Row(
+      children: [
+        Expanded(
+          child: _StatCard(
+            value: documents,
+            label: 'Documents',
+            icon: Icons.description_outlined,
+            color: AppColors.accent,
+          ),
+        ),
+        const Gap(10),
+        Expanded(
+          child: _StatCard(
+            value: people,
+            label: 'People',
+            icon: Icons.person_outline_rounded,
+            color: AppColors.info,
+          ),
+        ),
+        const Gap(10),
+        Expanded(
+          child: _StatCard(
+            value: connections,
+            label: 'Links',
+            icon: Icons.link_rounded,
+            color: AppColors.success,
+          ),
+        ),
+      ],
     );
   }
 }
 
-class _Stat extends StatelessWidget {
+class _StatCard extends StatelessWidget {
   final int value;
   final String label;
+  final IconData icon;
+  final Color color;
 
-  const _Stat({required this.value, required this.label});
+  const _StatCard({
+    required this.value,
+    required this.label,
+    required this.icon,
+    required this.color,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Expanded(
+    return AppCard(
+      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
       child: Column(
         children: [
+          Icon(icon, size: 18, color: color),
+          const Gap(8),
           TweenAnimationBuilder<int>(
             duration: const Duration(milliseconds: 700),
             curve: Curves.easeOutCubic,
             tween: IntTween(begin: 0, end: value),
-            builder: (context, animated, _) =>
-                Text('$animated', style: AppTextStyles.statNumber),
+            builder: (context, animated, _) => Text(
+              '$animated',
+              style: AppTextStyles.statNumber.copyWith(fontSize: 24),
+            ),
           ),
           const Gap(2),
           Text(label, style: AppTextStyles.caption),
@@ -350,67 +329,182 @@ class _Stat extends StatelessWidget {
   }
 }
 
-class _StatDivider extends StatelessWidget {
-  const _StatDivider();
+// --- Quick actions: horizontal scrollable row ---
 
+class _QuickActionsRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return Container(width: 1, height: 36, color: context.scheme.outlineVariant);
-  }
-}
-
-class _RecentDocumentTile extends StatelessWidget {
-  final DocumentModel document;
-
-  const _RecentDocumentTile({required this.document});
-
-  @override
-  Widget build(BuildContext context) {
-    return AppCard(
-      onTap: () => context.push('/document/${document.id}'),
-      padding: const EdgeInsets.all(12),
-      child: Row(
+    return SizedBox(
+      height: 100,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 20),
         children: [
-          document.thumbFile.isNotEmpty
-              ? VaultImage(fileName: document.thumbFile, width: 48, height: 48)
-              : CategoryVisual(category: document.category, size: 48),
-          const Gap(12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  document.displayTitle,
-                  style: AppTextStyles.itemTitle,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const Gap(3),
-                Text(
-                  [
-                    if (document.ownerName.isNotEmpty) document.ownerName,
-                    document.dateFormatted,
-                  ].join(' · '),
-                  style: AppTextStyles.caption,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
+          _QuickActionCard(
+            icon: Icons.document_scanner_outlined,
+            title: 'Scan',
+            accent: true,
+            onTap: () => context.push('/capture'),
           ),
-          const Gap(8),
-          ConfidenceBadge(confidence: document.confidence, compact: true),
           const Gap(10),
-          Icon(
-            Icons.chevron_right_rounded,
-            color: AppColors.textTertiary,
-            size: 20,
+          _QuickActionCard(
+            icon: Icons.people_alt_outlined,
+            title: 'People',
+            onTap: () => context.go('/people'),
+          ),
+          const Gap(10),
+          _QuickActionCard(
+            icon: Icons.search_rounded,
+            title: 'Search',
+            onTap: () => context.push('/search'),
           ),
         ],
       ),
     );
   }
 }
+
+class _QuickActionCard extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final bool accent;
+  final VoidCallback onTap;
+
+  const _QuickActionCard({
+    required this.icon,
+    required this.title,
+    this.accent = false,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: AppMotion.fast,
+        width: 100,
+        decoration: BoxDecoration(
+          color: accent
+              ? context.scheme.inverseSurface
+              : context.scheme.surfaceContainerLow,
+          borderRadius: BorderRadius.circular(20),
+          border: accent
+              ? null
+              : Border.all(color: context.scheme.outlineVariant),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: accent
+                    ? AppColors.surfaceInverseRaised
+                    : context.scheme.primaryContainer,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(
+                icon,
+                size: 20,
+                color: accent
+                    ? context.scheme.onInverseSurface
+                    : context.scheme.onPrimaryContainer,
+              ),
+            ),
+            const Gap(10),
+            Text(
+              title,
+              style: AppTextStyles.label.copyWith(
+                color: accent
+                    ? context.scheme.onInverseSurface
+                    : context.scheme.onSurface,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// --- Recent documents: horizontal scrollable cards ---
+
+class _RecentDocumentCard extends StatelessWidget {
+  final DocumentModel document;
+
+  const _RecentDocumentCard({required this.document});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () => context.push('/document/${document.id}'),
+      child: SizedBox(
+        width: 140,
+        child: AppCard(
+          padding: EdgeInsets.zero,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: document.thumbFile.isNotEmpty
+                    ? ClipRRect(
+                        borderRadius: const BorderRadius.vertical(
+                          top: Radius.circular(20),
+                        ),
+                        child: VaultImage(
+                          fileName: document.thumbFile,
+                          width: double.infinity,
+                          height: double.infinity,
+                        ),
+                      )
+                    : Container(
+                        decoration: BoxDecoration(
+                          color: CategoryVisual.colorOf(document.category)
+                              .withValues(alpha: 0.12),
+                          borderRadius: const BorderRadius.vertical(
+                            top: Radius.circular(20),
+                          ),
+                        ),
+                        child: Center(
+                          child: CategoryVisual(
+                            category: document.category,
+                            size: 40,
+                          ),
+                        ),
+                      ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      document.displayTitle,
+                      style: AppTextStyles.label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const Gap(2),
+                    Text(
+                      document.dateFormatted,
+                      style: AppTextStyles.caption.copyWith(
+                        color: AppColors.textTertiary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// --- Empty state ---
 
 class _FirstScanCard extends StatelessWidget {
   const _FirstScanCard();

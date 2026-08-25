@@ -50,7 +50,7 @@ class AppDatabase {
       openDatabase(
         path,
         password: password,
-        version: 2,
+        version: 4,
         onConfigure: (db) async {
           await db.execute('PRAGMA foreign_keys = ON');
         },
@@ -71,6 +71,32 @@ class AppDatabase {
       );
       await db.execute(
         "ALTER TABLE documents ADD COLUMN extra_pages TEXT NOT NULL DEFAULT '[]'",
+      );
+    }
+    if (oldVersion < 3) {
+      // v3: conflict resolution — store displaced values when a higher-
+      // confidence reading disagrees with the current one.
+      await db.execute(
+        "ALTER TABLE facts ADD COLUMN conflict_value TEXT NOT NULL DEFAULT ''",
+      );
+      await db.execute(
+        "ALTER TABLE facts ADD COLUMN conflict_source_id TEXT",
+      );
+    }
+    if (oldVersion < 4) {
+      // v4: audit trail — lightweight event log for security-sensitive actions.
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS audit_events (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          ts INTEGER NOT NULL,
+          action TEXT NOT NULL,
+          target_type TEXT NOT NULL DEFAULT '',
+          target_id TEXT NOT NULL DEFAULT '',
+          detail TEXT NOT NULL DEFAULT ''
+        )
+      ''');
+      await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_audit_ts ON audit_events(ts)',
       );
     }
   }
@@ -182,6 +208,20 @@ class AppDatabase {
         value TEXT NOT NULL
       )
     ''');
+
+    await db.execute('''
+      CREATE TABLE audit_events (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        ts INTEGER NOT NULL,
+        action TEXT NOT NULL,
+        target_type TEXT NOT NULL DEFAULT '',
+        target_id TEXT NOT NULL DEFAULT '',
+        detail TEXT NOT NULL DEFAULT ''
+      )
+    ''');
+    await db.execute(
+      'CREATE INDEX idx_audit_ts ON audit_events(ts)',
+    );
   }
 
   /// Closes the database (tests / teardown).

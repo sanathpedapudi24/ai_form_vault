@@ -350,6 +350,12 @@ class DocumentDetailScreen extends ConsumerWidget {
         }
       }
       await ref.read(identityGraphProvider.notifier).refresh();
+      ref.read(auditRepositoryProvider).log(
+            action: 'profile.facts_updated',
+            targetType: 'person',
+            targetId: personId,
+            detail: '${fields.where((f) => f.verified).length} facts',
+          );
     }
   }
 

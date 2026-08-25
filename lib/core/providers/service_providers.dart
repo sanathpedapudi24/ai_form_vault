@@ -1,11 +1,13 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../repositories/audit_repository.dart';
 import '../repositories/document_repository.dart';
 import '../repositories/person_repository.dart';
 import '../repositories/settings_repository.dart';
 import '../services/ask_engine.dart';
 import '../services/document_intelligence.dart';
 import '../services/entity_extractor.dart';
+import '../services/gemini_service.dart';
 import '../services/identity_engine.dart';
 import '../services/ocr_service.dart';
 import '../services/search_service.dart';
@@ -37,8 +39,14 @@ final settingsRepositoryProvider = Provider<SettingsRepository>(
 );
 
 final documentIntelligenceProvider = Provider<DocumentIntelligence>(
-  (ref) => DocumentIntelligence(),
+  (ref) => DocumentIntelligence(gemini: ref.watch(geminiServiceProvider)),
 );
+
+final geminiServiceProvider = Provider<GeminiService>((ref) {
+  final service = GeminiService();
+  ref.onDispose(service.dispose);
+  return service;
+});
 
 final searchServiceProvider = Provider<SearchService>(
   (ref) => SearchService(),
@@ -46,6 +54,10 @@ final searchServiceProvider = Provider<SearchService>(
 
 final askEngineProvider = Provider<AskEngine>(
   (ref) => AskEngine(persons: ref.watch(personRepositoryProvider)),
+);
+
+final auditRepositoryProvider = Provider<AuditRepository>(
+  (ref) => const AuditRepository(),
 );
 
 final identityEngineProvider = Provider<IdentityEngine>(

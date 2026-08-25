@@ -1,5 +1,5 @@
-import 'dart:typed_data';
-
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
@@ -13,6 +13,7 @@ import '../services/image_prep.dart';
 import '../services/image_vault.dart';
 import '../services/notification_service.dart';
 import 'document_provider.dart';
+import 'settings_provider.dart';
 import 'person_provider.dart';
 import 'service_providers.dart';
 
@@ -127,12 +128,15 @@ class CaptureNotifier extends StateNotifier<CaptureState> {
       );
 
       // 3. AI (or fallback) analysis, voting fields across pages.
+      final settings = _ref.read(settingsProvider);
       final analysis = await _ref
           .read(documentIntelligenceProvider)
           .analyze(
             imageBytes: imageBytes,
             ocrText: combinedText,
             pageTexts: ocrTexts,
+            geminiEnabled: settings.aiEnabled,
+            geminiApiKey: settings.geminiApiKey,
           );
 
       // 3b. On-device entity extraction + value normalization: cleans up the
@@ -172,7 +176,18 @@ class CaptureNotifier extends StateNotifier<CaptureState> {
         analysis: analysis,
         suggestedOwner: owner,
       );
-    } catch (e) {
+    } catch (e, st) {
+      // Never swallow the root cause — "all scans fail" is undiagnosable
+      // without knowing whether this is OCR, image decode, or storage.
+      FirebaseCrashlytics.instance.recordError(
+        e,
+        st,
+        reason: 'capture pipeline',
+      );
+      assert(() {
+        debugPrint('capture pipeline failed: $e');
+        return true;
+      }());
       state = state.copyWith(
         stage: CaptureStage.failed,
         error: 'Could not read this document. Try a clearer photo.',
@@ -260,7 +275,12 @@ class CaptureNotifier extends StateNotifier<CaptureState> {
         outcome: outcome,
       );
       return toSave;
-    } catch (e) {
+    } catch (e, st) {
+      FirebaseCrashlytics.instance.recordError(
+        e,
+        st,
+        reason: 'capture save',
+      );
       state = state.copyWith(
         stage: CaptureStage.failed,
         error: 'Could not save the document. Please try again.',

@@ -83,20 +83,107 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
                       actionLabel: 'Scan document',
                       onAction: () => context.push('/capture'),
                     )
-                  : ListView.builder(
-                      padding: const EdgeInsets.fromLTRB(20, 4, 20, 120),
-                      itemCount: docs.length,
-                      itemBuilder: (context, index) => FadeSlideIn(
-                        index: index,
-                        offset: 10,
-                        child: Padding(
-                          padding: const EdgeInsets.only(bottom: 10),
-                          child: _DocumentTile(document: docs[index]),
-                        ),
-                      ),
-                    ),
+                  : _selected == null
+                      ? _GroupedList(documents: docs)
+                      : _FlatList(documents: docs),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// When "All" is selected, group documents by category with section headers.
+class _GroupedList extends StatelessWidget {
+  final List<DocumentModel> documents;
+
+  const _GroupedList({required this.documents});
+
+  @override
+  Widget build(BuildContext context) {
+    final grouped = <DocumentCategory, List<DocumentModel>>{};
+    for (final doc in documents) {
+      grouped.putIfAbsent(doc.category, () => []).add(doc);
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.fromLTRB(20, 4, 20, 120),
+      itemCount: grouped.length,
+      itemBuilder: (context, sectionIndex) {
+        final category = grouped.keys.elementAt(sectionIndex);
+        final docs = grouped[category]!;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (sectionIndex > 0) const Gap(20),
+            FadeSlideIn(
+              index: sectionIndex,
+              offset: 6,
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Row(
+                  children: [
+                    CategoryVisual(category: category, size: 18),
+                    const Gap(8),
+                    Text(
+                      category.label.toUpperCase(),
+                      style: AppTextStyles.overline.copyWith(
+                        color: CategoryVisual.colorOf(category),
+                      ),
+                    ),
+                    const Gap(8),
+                    Expanded(
+                      child: Container(
+                        height: 1,
+                        color: CategoryVisual.colorOf(category)
+                            .withValues(alpha: 0.2),
+                      ),
+                    ),
+                    const Gap(8),
+                    Text(
+                      '${docs.length}',
+                      style: AppTextStyles.caption.copyWith(
+                        color: AppColors.textTertiary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            for (var i = 0; i < docs.length; i++)
+              FadeSlideIn(
+                index: sectionIndex * 10 + i,
+                offset: 8,
+                child: Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: _DocumentTile(document: docs[i]),
+                ),
+              ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+/// When a specific category is filtered, show a flat list.
+class _FlatList extends StatelessWidget {
+  final List<DocumentModel> documents;
+
+  const _FlatList({required this.documents});
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView.builder(
+      padding: const EdgeInsets.fromLTRB(20, 4, 20, 120),
+      itemCount: documents.length,
+      itemBuilder: (context, index) => FadeSlideIn(
+        index: index,
+        offset: 8,
+        child: Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: _DocumentTile(document: documents[index]),
         ),
       ),
     );

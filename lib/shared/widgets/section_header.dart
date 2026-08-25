@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import 'pressable.dart';
 
@@ -32,7 +33,7 @@ class SectionHeader extends StatelessWidget {
               child: Text(
                 actionLabel!,
                 style: AppTextStyles.buttonSmall.copyWith(
-                  color: const Color(0xFFA54E2C),
+                  color: AppColors.accentDeep,
                 ),
               ),
             ),
