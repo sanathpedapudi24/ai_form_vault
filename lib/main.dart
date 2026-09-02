@@ -9,9 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/db/legacy_migration.dart';
 import 'core/providers/settings_provider.dart';
 import 'core/router/app_router.dart';
-import 'core/theme/app_colors.dart';
 import 'core/theme/app_theme.dart';
-import 'features/lock/app_lock_gate.dart';
 import 'firebase_options.dart';
 
 Future<void> main() async {
@@ -54,16 +52,16 @@ class AIFormVaultApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final dark = ref.watch(settingsProvider.select((s) => s.darkMode));
 
-    // Build the theme first — this sets AppColors.dark — then style the
-    // system bars to match. Watching darkMode rebuilds the whole tree, so
-    // every AppColors getter re-resolves to the new palette.
+    // Light is the current design focus. Dark uses the same M3 seed so the
+    // palettes stay coherent while light-mode is polished first.
     final theme = dark ? AppTheme.dark() : AppTheme.light();
 
+    final scheme = theme.colorScheme;
     SystemChrome.setSystemUIOverlayStyle(
       SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
         statusBarIconBrightness: dark ? Brightness.light : Brightness.dark,
-        systemNavigationBarColor: AppColors.bg,
+        systemNavigationBarColor: scheme.surface,
         systemNavigationBarIconBrightness:
             dark ? Brightness.light : Brightness.dark,
       ),
@@ -72,9 +70,10 @@ class AIFormVaultApp extends ConsumerWidget {
     return MaterialApp.router(
       title: 'AI Form & Vault',
       debugShowCheckedModeBanner: false,
-      theme: theme,
+      themeMode: dark ? ThemeMode.dark : ThemeMode.light,
+      theme: AppTheme.light(),
+      darkTheme: AppTheme.dark(),
       routerConfig: appRouter,
-      builder: (context, child) => AppLockGate(child: child),
     );
   }
 }

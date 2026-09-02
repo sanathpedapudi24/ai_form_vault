@@ -4,9 +4,6 @@ import 'package:go_router/go_router.dart';
 import '../../features/capture/document_capture_screen.dart';
 import '../../features/dashboard/dashboard_screen.dart';
 import '../../features/document/document_detail_screen.dart';
-import '../../features/lock/change_pin_screen.dart';
-import '../../features/lock/disable_lock_screen.dart';
-import '../../features/lock/pin_setup_screen.dart';
 import '../../features/profile/profile_screen.dart';
 import '../../features/relationships/relationships_screen.dart';
 import '../../features/review/review_screen.dart';
@@ -108,25 +105,6 @@ final appRouter = GoRouter(
         final docId = state.pathParameters['id']!;
         return VirtualIdScreen(documentId: docId);
       },
-    ),
-    // App-lock settings, pushed from Profile.
-    GoRoute(
-      path: '/settings/setup-pin',
-      parentNavigatorKey: _rootNavigatorKey,
-      builder: (context, state) => PinSetupScreen(
-        allowSkip: false,
-        onComplete: () => _rootNavigatorKey.currentState?.pop(),
-      ),
-    ),
-    GoRoute(
-      path: '/settings/change-pin',
-      parentNavigatorKey: _rootNavigatorKey,
-      builder: (context, state) => const ChangePinScreen(),
-    ),
-    GoRoute(
-      path: '/settings/disable-lock',
-      parentNavigatorKey: _rootNavigatorKey,
-      builder: (context, state) => const DisableLockScreen(),
     ),
   ],
 );

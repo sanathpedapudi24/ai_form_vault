@@ -481,15 +481,11 @@ class _ProfileMappingSummary extends StatelessWidget {
   Widget build(BuildContext context) {
     var matched = 0;
     var conflict = 0;
-    var newFields = 0;
     for (final f in fields) {
-      if (f.semanticKey.isEmpty) {
-        newFields++;
-        continue;
-      }
+      if (f.semanticKey.isEmpty) continue;
       final existing = userFacts[f.semanticKey];
       if (existing == null) {
-        newFields++;
+        // New fact — recorded into the profile, not shown here.
       } else if (existing.trim() == f.value.trim()) {
         matched++;
       } else {

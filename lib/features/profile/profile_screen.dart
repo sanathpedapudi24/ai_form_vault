@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/models/document_model.dart';
 import '../../core/models/person_model.dart';
-import '../../core/providers/app_lock_provider.dart';
 import '../../core/providers/auth_provider.dart';
 import '../../core/providers/document_provider.dart';
 import '../../core/providers/person_provider.dart';
@@ -146,7 +145,6 @@ class ProfileScreen extends ConsumerWidget {
     final graph = ref.watch(identityGraphProvider);
     final docs = ref.watch(documentsProvider);
     final settings = ref.watch(settingsProvider);
-    final lock = ref.watch(appLockProvider);
     final user = graph.user;
     final factsAsync = user != null
         ? ref.watch(personFactsProvider(user.id))
@@ -211,30 +209,16 @@ class ProfileScreen extends ConsumerWidget {
             const Gap(28),
             FadeSlideIn(
               index: 5,
-              child: const SectionHeader(title: 'Security'),
-            ),
-            FadeSlideIn(
-              index: 6,
-              child: _SecuritySection(
-                lock: lock,
-                onBiometricToggle: (v) => ref
-                    .read(appLockProvider.notifier)
-                    .setBiometricEnabled(v),
-              ),
-            ),
-            const Gap(28),
-            FadeSlideIn(
-              index: 7,
               child: const SectionHeader(title: 'Backup'),
             ),
-            const FadeSlideIn(index: 7, child: BackupSection()),
+            const FadeSlideIn(index: 5, child: BackupSection()),
             const Gap(28),
             FadeSlideIn(
-              index: 8,
+              index: 6,
               child: const SectionHeader(title: 'Preferences'),
             ),
             FadeSlideIn(
-              index: 9,
+              index: 7,
               child: _PreferencesSection(settings: settings, ref: ref),
             ),
           ],
@@ -488,94 +472,6 @@ class _ConnectionCard extends StatelessWidget {
           Icon(Icons.chevron_right_rounded, color: AppColors.textTertiary),
         ],
       ),
-    );
-  }
-}
-
-/// Security section: grouped lock settings.
-class _SecuritySection extends StatelessWidget {
-  final AppLockState lock;
-  final void Function(bool) onBiometricToggle;
-
-  const _SecuritySection({
-    required this.lock,
-    required this.onBiometricToggle,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    if (!lock.hasPin) {
-      return AppCard(
-        onTap: () => context.push('/settings/setup-pin'),
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          children: [
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: AppColors.accentWash,
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Icon(
-                Icons.lock_outline_rounded,
-                size: 22,
-                color: AppColors.accent,
-              ),
-            ),
-            const Gap(14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Set up app lock', style: AppTextStyles.itemTitle),
-                  const Gap(2),
-                  Text(
-                    'Protect your vault with a PIN or biometrics',
-                    style: AppTextStyles.caption,
-                  ),
-                ],
-              ),
-            ),
-            Icon(Icons.chevron_right_rounded, color: AppColors.textTertiary),
-          ],
-        ),
-      );
-    }
-
-    return Column(
-      children: [
-        _SettingsTile(
-          icon: Icons.password_rounded,
-          title: 'Change PIN',
-          subtitle: 'Update your 4-digit unlock code',
-          onTap: () => context.push('/settings/change-pin'),
-        ),
-        if (lock.biometricAvailable) ...[
-          const Gap(8),
-          AppCard(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-            child: SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              title: Text('Biometric unlock', style: AppTextStyles.itemTitle),
-              subtitle: Text(
-                'Use your fingerprint or face instead of the PIN',
-                style: AppTextStyles.caption,
-              ),
-              value: lock.biometricEnabled,
-              activeThumbColor: Colors.white,
-              onChanged: onBiometricToggle,
-            ),
-          ),
-        ],
-        const Gap(8),
-        _SettingsTile(
-          icon: Icons.lock_open_outlined,
-          title: 'Turn off app lock',
-          subtitle: 'Remove the PIN and biometric gate',
-          onTap: () => context.push('/settings/disable-lock'),
-        ),
-      ],
     );
   }
 }

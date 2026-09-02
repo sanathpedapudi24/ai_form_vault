@@ -3,13 +3,13 @@ import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
 import 'pressable.dart';
 
-/// The standard surface, styled after CRED's cards: a softly lit obsidian
-/// slab — a top-to-bottom gradient over a light-catching hairline edge and a
-/// deep, diffuse shadow — with generous rounding. Tappable when [onTap] is
-/// given (with spring press feedback).
+/// The standard surface: an M3 tonal card using the theme's
+/// `surfaceContainerLow` (a flat, elevated-in-tint surface) with a hairline
+/// outline and a soft ambient shadow. Tappable when [onTap] is given (with
+/// spring press feedback).
 ///
-/// Passing an explicit [color] opts out of the gradient (used by tinted
-/// banners like warnings), keeping those solid.
+/// Passing an explicit [color] opts out of the default surface (used by
+/// tinted banners like warnings), keeping those solid.
 class AppCard extends StatelessWidget {
   final Widget child;
   final EdgeInsetsGeometry padding;
@@ -34,27 +34,17 @@ class AppCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Resolve dark/light from the inherited Theme (not the AppColors global
-    // flag): reading it here subscribes this card to theme changes, so the
-    // CRED gradient re-resolves the instant dark mode is toggled — without a
-    // full-tree rebuild. AppColors' own getters still read the global flag,
-    // which the theme keeps in sync, so both agree.
-    final dark = Theme.of(context).brightness == Brightness.dark;
-
-    // Only the default (untinted) card gets the CRED gradient; an explicit
-    // color means the caller wants a specific solid fill.
-    final useGradient = color == null;
+    final scheme = Theme.of(context).colorScheme;
 
     final card = Container(
       padding: padding,
       decoration: BoxDecoration(
-        color: useGradient ? null : color,
-        gradient: useGradient ? AppColors.cardGradientFor(dark) : null,
+        color: color ?? scheme.surfaceContainerLow,
         borderRadius: BorderRadius.circular(radius),
         border: Border.fromBorderSide(
-          border ?? BorderSide(color: AppColors.cardBorderFor(dark)),
+          border ?? BorderSide(color: scheme.outlineVariant, width: 1),
         ),
-        boxShadow: shadow ? AppColors.cardShadowFor(dark) : null,
+        boxShadow: shadow ? AppColors.cardShadow : null,
       ),
       child: child,
     );
