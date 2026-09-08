@@ -1,5 +1,3 @@
-import 'dart:typed_data';
-
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,7 +5,6 @@ import 'package:gap/gap.dart';
 import 'package:intl/intl.dart';
 import 'package:share_plus/share_plus.dart';
 
-import '../../../core/providers/app_lock_provider.dart';
 import '../../../core/providers/document_provider.dart';
 import '../../../core/providers/person_provider.dart';
 import '../../../core/services/backup_service.dart';
@@ -123,23 +120,18 @@ class _BackupSectionState extends ConsumerState<BackupSection> {
     try {
       final bytes = await BackupService().export(passphrase);
       final stamp = DateFormat('yyyy-MM-dd').format(DateTime.now());
-      ref.read(appLockProvider.notifier).suppressAutoLock();
-      try {
-        await SharePlus.instance.share(
-          ShareParams(
-            files: [
-              XFile.fromData(
-                bytes,
-                mimeType: 'application/octet-stream',
-                name: 'vault-backup-$stamp.aivault',
-              ),
-            ],
-            text: 'AI Form & Vault encrypted backup',
-          ),
-        );
-      } finally {
-        ref.read(appLockProvider.notifier).resumeAutoLock();
-      }
+      await SharePlus.instance.share(
+        ShareParams(
+          files: [
+            XFile.fromData(
+              bytes,
+              mimeType: 'application/octet-stream',
+              name: 'vault-backup-$stamp.aivault',
+            ),
+          ],
+          text: 'AI Form & Vault encrypted backup',
+        ),
+      );
     } catch (_) {
       _toast('Backup failed. Please try again.');
     } finally {
@@ -149,14 +141,8 @@ class _BackupSectionState extends ConsumerState<BackupSection> {
 
   Future<void> _restore() async {
     if (_busy) return;
-    ref.read(appLockProvider.notifier).suppressAutoLock();
-    Uint8List? data;
-    try {
-      final file = await openFile();
-      if (file != null) data = await file.readAsBytes();
-    } finally {
-      ref.read(appLockProvider.notifier).resumeAutoLock();
-    }
+    final file = await openFile();
+    final data = file != null ? await file.readAsBytes() : null;
     if (data == null) return;
 
     final passphrase = await _askPassphrase(

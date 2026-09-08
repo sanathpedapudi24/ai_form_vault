@@ -1,4 +1,3 @@
-import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
@@ -179,15 +178,7 @@ class CaptureNotifier extends StateNotifier<CaptureState> {
     } catch (e, st) {
       // Never swallow the root cause — "all scans fail" is undiagnosable
       // without knowing whether this is OCR, image decode, or storage.
-      FirebaseCrashlytics.instance.recordError(
-        e,
-        st,
-        reason: 'capture pipeline',
-      );
-      assert(() {
-        debugPrint('capture pipeline failed: $e');
-        return true;
-      }());
+      debugPrint('capture pipeline failed: $e\n$st');
       state = state.copyWith(
         stage: CaptureStage.failed,
         error: 'Could not read this document. Try a clearer photo.',
@@ -276,11 +267,7 @@ class CaptureNotifier extends StateNotifier<CaptureState> {
       );
       return toSave;
     } catch (e, st) {
-      FirebaseCrashlytics.instance.recordError(
-        e,
-        st,
-        reason: 'capture save',
-      );
+      debugPrint('capture save failed: $e\n$st');
       state = state.copyWith(
         stage: CaptureStage.failed,
         error: 'Could not save the document. Please try again.',

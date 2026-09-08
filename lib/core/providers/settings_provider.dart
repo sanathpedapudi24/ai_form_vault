@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../repositories/settings_repository.dart';
 import '../services/autofill_bridge.dart';
 import '../services/notification_service.dart';
-import 'app_lock_provider.dart';
 import 'document_provider.dart';
 import 'person_provider.dart';
 import 'service_providers.dart';
@@ -85,14 +84,7 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
       final active = await AutofillBridge.isServiceEnabled();
       state = state.copyWith(autofillServiceActive: active);
       if (!active) {
-        // Opens Android's own settings screen — same re-lock hazard as any
-        // other Activity switch (camera, gallery, share sheet).
-        _ref.read(appLockProvider.notifier).suppressAutoLock();
-        try {
-          await AutofillBridge.openSettings();
-        } finally {
-          _ref.read(appLockProvider.notifier).resumeAutoLock();
-        }
+        await AutofillBridge.openSettings();
       }
     } else {
       await AutofillBridge.clearAutofillData();

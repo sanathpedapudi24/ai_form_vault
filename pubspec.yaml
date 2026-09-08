@@ -19,7 +19,6 @@ dependencies:
   uuid: ^4.5.1
   google_mlkit_text_recognition: ^0.15.1
   google_mlkit_document_scanner: ^0.4.1
-  camera: ^0.11.1
   path_provider: ^2.1.5
   share_plus: ^13.1.0
   # Networking (Gemini REST API)
@@ -33,22 +32,12 @@ dependencies:
   intl: ^0.20.2
   collection: ^1.19.0
   image: ^4.8.0
-  local_auth: ^3.0.1
   flutter_local_notifications: ^22.0.1
   flutter_timezone: ^5.1.0
   timezone: ^0.11.1
   file_selector: ^1.0.3
   pdfx: ^2.9.2
   archive: ^4.0.9
-  # Pinned to a consistent FlutterFire wave. The latest wave (core 4.x /
-  # auth 6.x) failed to AOT-compile in this environment — firebase_auth
-  # referenced a FirebasePlugin base class the resolved core platform
-  # interface no longer provided. This mid-2025 wave compiles cleanly.
-  firebase_core: 3.13.1
-  firebase_auth: 5.5.4
-  cloud_firestore: 5.6.7
-  firebase_crashlytics: 4.3.6
-  google_sign_in: ^7.2.0
   google_mlkit_entity_extraction: ^0.15.3
   # UI — shadcn_flutter for clean modern components (hosted inside the M3 MaterialApp)
   shadcn_flutter: ^0.0.53

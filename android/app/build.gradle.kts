@@ -3,9 +3,6 @@ plugins {
     id("kotlin-android")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
-    // Firebase.
-    id("com.google.gms.google-services")
-    id("com.google.firebase.crashlytics")
 }
 
 android {
@@ -60,9 +57,4 @@ dependencies {
 
 flutter {
     source = "../.."
-}
-
-// Disable Crashlytics mapping upload for local builds (DNS / network issues).
-tasks.matching { it.name.startsWith("uploadCrashlyticsMappingFile") }.configureEach {
-    enabled = false
 }

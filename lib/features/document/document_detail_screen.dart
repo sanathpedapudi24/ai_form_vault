@@ -7,7 +7,6 @@ import 'package:uuid/uuid.dart';
 
 import '../../core/models/document_model.dart';
 import '../../core/models/person_model.dart';
-import '../../core/providers/app_lock_provider.dart';
 import '../../core/providers/document_provider.dart';
 import '../../core/providers/person_provider.dart';
 import '../../core/providers/service_providers.dart';
@@ -45,22 +44,15 @@ class DocumentDetailScreen extends ConsumerWidget {
     );
   }
 
-  Future<void> _share(WidgetRef ref, DocumentModel doc) async {
+  Future<void> _share(DocumentModel doc) async {
     final bytes = await ImageVault.instance.read(doc.imageFile);
     if (bytes == null) return;
-    // The share sheet is a separate Activity — same re-lock hazard as the
-    // camera/gallery picker.
-    ref.read(appLockProvider.notifier).suppressAutoLock();
-    try {
-      await SharePlus.instance.share(
-        ShareParams(
-          files: [XFile.fromData(bytes, mimeType: 'image/jpeg', name: '${doc.name}.jpg')],
-          text: doc.displayTitle,
-        ),
-      );
-    } finally {
-      ref.read(appLockProvider.notifier).resumeAutoLock();
-    }
+    await SharePlus.instance.share(
+      ShareParams(
+        files: [XFile.fromData(bytes, mimeType: 'image/jpeg', name: '${doc.name}.jpg')],
+        text: doc.displayTitle,
+      ),
+    );
   }
 
   void _confirmDelete(BuildContext context, WidgetRef ref, DocumentModel doc) {
@@ -117,7 +109,7 @@ class DocumentDetailScreen extends ConsumerWidget {
             ),
           IconButton(
             icon: const Icon(Icons.ios_share_rounded),
-            onPressed: () => _share(ref, doc),
+            onPressed: () => _share(doc),
           ),
           IconButton(
             icon: const Icon(Icons.delete_outline_rounded),

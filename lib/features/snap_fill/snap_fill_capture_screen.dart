@@ -11,7 +11,6 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:pdfx/pdfx.dart';
 
-import '../../core/providers/app_lock_provider.dart';
 import '../../core/providers/snap_fill_provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
@@ -42,14 +41,12 @@ class _SnapFillCaptureScreenState
   Future<void> _run(Future<List<String>> Function() pick) async {
     if (_busy) return;
     setState(() => _busy = true);
-    ref.read(appLockProvider.notifier).suppressAutoLock();
     try {
       final paths = await pick();
       await _process(paths);
     } catch (_) {
       _showError('Could not read that form. Try again.');
     } finally {
-      ref.read(appLockProvider.notifier).resumeAutoLock();
       if (mounted) setState(() => _busy = false);
     }
   }

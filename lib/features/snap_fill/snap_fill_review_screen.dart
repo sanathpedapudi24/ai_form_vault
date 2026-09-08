@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
 import 'package:share_plus/share_plus.dart';
 
-import '../../core/providers/app_lock_provider.dart';
 import '../../core/providers/snap_fill_provider.dart';
 import '../../core/services/snap_fill_export.dart';
 import '../../core/services/snap_fill_service.dart';
@@ -62,7 +61,6 @@ class _SnapFillReviewScreenState extends ConsumerState<SnapFillReviewScreen> {
   Future<void> _exportFilled(SnapFillState state) async {
     if (_exporting) return;
     setState(() => _exporting = true);
-    ref.read(appLockProvider.notifier).suppressAutoLock();
     try {
       final files = await SnapFillExportService.exportFilledPages(
         state.imagePaths,
@@ -90,7 +88,6 @@ class _SnapFillReviewScreenState extends ConsumerState<SnapFillReviewScreen> {
         );
       }
     } finally {
-      ref.read(appLockProvider.notifier).resumeAutoLock();
       if (mounted) setState(() => _exporting = false);
     }
   }
