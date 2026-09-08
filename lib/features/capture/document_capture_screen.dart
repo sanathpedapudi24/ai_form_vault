@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
@@ -12,7 +13,6 @@ import 'package:path_provider/path_provider.dart';
 import 'package:pdfx/pdfx.dart';
 
 import '../../core/config/app_config.dart';
-import '../../core/providers/app_lock_provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../shared/widgets/app_card.dart';
@@ -35,10 +35,6 @@ class _DocumentCaptureScreenState extends ConsumerState<DocumentCaptureScreen> {
   Future<void> _scanWithCamera() async {
     if (_busy) return;
     setState(() => _busy = true);
-    // The document scanner is a separate Activity — launching it briefly
-    // backgrounds this app the same way switching apps does, which would
-    // otherwise re-lock the vault and lose the scan before it starts.
-    ref.read(appLockProvider.notifier).suppressAutoLock();
     try {
       final scanner = DocumentScanner(
         options: DocumentScannerOptions(
@@ -56,7 +52,6 @@ class _DocumentCaptureScreenState extends ConsumerState<DocumentCaptureScreen> {
     } catch (_) {
       _showError('Could not open the scanner. Try the gallery instead.');
     } finally {
-      ref.read(appLockProvider.notifier).resumeAutoLock();
       if (mounted) setState(() => _busy = false);
     }
   }
@@ -64,11 +59,16 @@ class _DocumentCaptureScreenState extends ConsumerState<DocumentCaptureScreen> {
   Future<void> _pickFromGallery() async {
     if (_busy) return;
     setState(() => _busy = true);
-    ref.read(appLockProvider.notifier).suppressAutoLock();
     try {
+      // Cap the decoded resolution here (native, memory-efficient downsample)
+      // so a 48-200MP gallery photo never reaches the app at full size — an
+      // undownscaled original blows the pure-Dart OCR/upload decode buffers
+      // and gets the whole process OOM-killed by Android.
       final picked = await ImagePicker().pickImage(
         source: ImageSource.gallery,
         imageQuality: 95,
+        maxWidth: 3000,
+        maxHeight: 3000,
       );
       if (picked != null && mounted) {
         context.pushReplacement('/scanning', extra: <String>[picked.path]);
@@ -76,17 +76,16 @@ class _DocumentCaptureScreenState extends ConsumerState<DocumentCaptureScreen> {
     } catch (_) {
       _showError('Could not open the gallery.');
     } finally {
-      ref.read(appLockProvider.notifier).resumeAutoLock();
       if (mounted) setState(() => _busy = false);
     }
   }
 
   static const _maxPdfPages = 5;
+  static const _maxPdfRenderDimension = 2400.0;
 
   Future<void> _importPdf() async {
     if (_busy) return;
     setState(() => _busy = true);
-    ref.read(appLockProvider.notifier).suppressAutoLock();
     try {
       const pdfType = XTypeGroup(
         label: 'PDF',
@@ -105,9 +104,15 @@ class _DocumentCaptureScreenState extends ConsumerState<DocumentCaptureScreen> {
       final pageCount = pdf.pagesCount.clamp(0, _maxPdfPages);
       for (var i = 1; i <= pageCount; i++) {
         final page = await pdf.getPage(i);
+        // Cap render size — an oversized page (large-format PDF) shouldn't
+        // decode into an unbounded pixel buffer any more than a photo should.
+        final scale = math.min(
+          2.0,
+          _maxPdfRenderDimension / math.max(page.width, page.height),
+        );
         final rendered = await page.render(
-          width: page.width * 2,
-          height: page.height * 2,
+          width: page.width * scale,
+          height: page.height * scale,
           format: PdfPageImageFormat.jpeg,
         );
         await page.close();
@@ -131,7 +136,6 @@ class _DocumentCaptureScreenState extends ConsumerState<DocumentCaptureScreen> {
     } catch (_) {
       _showError('Could not import that PDF.');
     } finally {
-      ref.read(appLockProvider.notifier).resumeAutoLock();
       if (mounted) setState(() => _busy = false);
     }
   }

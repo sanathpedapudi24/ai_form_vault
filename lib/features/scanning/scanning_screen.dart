@@ -188,7 +188,13 @@ class _ScanPreviewState extends State<_ScanPreview>
         child: Stack(
           fit: StackFit.expand,
           children: [
-            Image.file(File(widget.imagePath), fit: BoxFit.cover),
+            // cacheWidth keeps this preview from decoding the original at
+            // full resolution — it only needs to fill a 240px-tall box.
+            Image.file(
+              File(widget.imagePath),
+              fit: BoxFit.cover,
+              cacheWidth: 800,
+            ),
             // Sweeping scan line.
             AnimatedBuilder(
               animation: _controller,
