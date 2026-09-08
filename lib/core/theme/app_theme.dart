@@ -1,4 +1,3 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'app_colors.dart';
@@ -31,19 +30,19 @@ class AppTheme {
 
     return base.copyWith(
       textTheme: GoogleFonts.interTextTheme(base.textTheme).copyWith(
-        displayLarge: GoogleFonts.sourceSerif4(
+        displayLarge: GoogleFonts.inter(
           fontSize: 32,
           fontWeight: FontWeight.w600,
           color: scheme.onSurface,
           letterSpacing: -0.5,
         ),
-        displayMedium: GoogleFonts.sourceSerif4(
+        displayMedium: GoogleFonts.inter(
           fontSize: 26,
           fontWeight: FontWeight.w600,
           color: scheme.onSurface,
           letterSpacing: -0.3,
         ),
-        displaySmall: GoogleFonts.sourceSerif4(
+        displaySmall: GoogleFonts.inter(
           fontSize: 20,
           fontWeight: FontWeight.w600,
           color: scheme.onSurface,
@@ -91,7 +90,7 @@ class AppTheme {
         elevation: 0,
         centerTitle: false,
         scrolledUnderElevation: 1,
-        titleTextStyle: GoogleFonts.sourceSerif4(
+        titleTextStyle: GoogleFonts.inter(
           fontSize: 22,
           fontWeight: FontWeight.w600,
           color: scheme.onSurface,
@@ -143,6 +142,23 @@ class AppTheme {
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 16,
           vertical: 14,
+        ),
+      ),
+      filledButtonTheme: FilledButtonThemeData(
+        style: FilledButton.styleFrom(
+          backgroundColor: scheme.primary,
+          foregroundColor: scheme.onPrimary,
+          disabledBackgroundColor: scheme.surfaceContainerHighest,
+          disabledForegroundColor: scheme.onSurface.withValues(alpha: 0.38),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 15),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
+          textStyle: GoogleFonts.inter(
+            fontSize: 15,
+            fontWeight: FontWeight.w600,
+            letterSpacing: -0.1,
+          ),
         ),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
@@ -229,12 +245,6 @@ class AppTheme {
         color: scheme.primary,
         linearTrackColor: scheme.surfaceContainerHighest,
         circularTrackColor: scheme.surfaceContainerHighest,
-      ),
-      pageTransitionsTheme: const PageTransitionsTheme(
-        builders: {
-          TargetPlatform.android: CupertinoPageTransitionsBuilder(),
-          TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
-        },
       ),
       navigationBarTheme: NavigationBarThemeData(
         backgroundColor: scheme.surfaceContainer,

@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
 
-import '../../core/theme/app_colors.dart';
 import 'pressable.dart';
 
-/// The standard surface: an M3 tonal card using the theme's
-/// `surfaceContainerLow` (a flat, elevated-in-tint surface) with a hairline
-/// outline and a soft ambient shadow. Tappable when [onTap] is given (with
-/// spring press feedback).
+/// The standard surface: a real M3 [Card] using the theme's `cardTheme`
+/// (`surfaceContainerLow`, flat elevation, hairline outline). Tappable when
+/// [onTap] is given (with spring press feedback via [Pressable]).
 ///
 /// Passing an explicit [color] opts out of the default surface (used by
 /// tinted banners like warnings), keeping those solid.
@@ -36,17 +34,15 @@ class AppCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
 
-    final card = Container(
-      padding: padding,
-      decoration: BoxDecoration(
-        color: color ?? scheme.surfaceContainerLow,
+    final card = Card(
+      margin: EdgeInsets.zero,
+      color: color ?? scheme.surfaceContainerLow,
+      elevation: shadow ? 1 : 0,
+      shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(radius),
-        border: Border.fromBorderSide(
-          border ?? BorderSide(color: scheme.outlineVariant, width: 1),
-        ),
-        boxShadow: shadow ? AppColors.cardShadow : null,
+        side: border ?? BorderSide(color: scheme.outlineVariant, width: 1),
       ),
-      child: child,
+      child: Padding(padding: padding, child: child),
     );
 
     if (onTap == null && onLongPress == null) return card;

@@ -528,31 +528,10 @@ class _FirstScanCard extends StatelessWidget {
           const Gap(18),
           Row(
             children: [
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 10,
-                ),
-                decoration: BoxDecoration(
-                  color: context.scheme.primary,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.document_scanner_outlined,
-                      size: 16,
-                      color: context.scheme.onPrimary,
-                    ),
-                    const Gap(8),
-                    Text(
-                      'Scan your first document',
-                      style: AppTextStyles.buttonSmall.copyWith(
-                        color: context.scheme.onPrimary,
-                      ),
-                    ),
-                  ],
-                ),
+              FilledButton.icon(
+                onPressed: () => context.push('/capture'),
+                icon: const Icon(Icons.document_scanner_outlined, size: 16),
+                label: const Text('Scan your first document'),
               ),
             ],
           ),
