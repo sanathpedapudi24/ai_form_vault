@@ -10,6 +10,8 @@ import '../../features/review/review_screen.dart';
 import '../../features/scanning/scanning_screen.dart';
 import '../../features/search/search_screen.dart';
 import '../../features/shell/app_shell.dart';
+import '../../features/snap_fill/snap_fill_capture_screen.dart';
+import '../../features/snap_fill/snap_fill_review_screen.dart';
 import '../../features/vault/vault_screen.dart';
 import '../../features/virtual_id/virtual_id_screen.dart';
 
@@ -89,6 +91,16 @@ final appRouter = GoRouter(
       path: '/review',
       parentNavigatorKey: _rootNavigatorKey,
       builder: (context, state) => const ReviewScreen(),
+    ),
+    GoRoute(
+      path: '/snap-fill',
+      parentNavigatorKey: _rootNavigatorKey,
+      builder: (context, state) => const SnapFillCaptureScreen(),
+    ),
+    GoRoute(
+      path: '/snap-fill/review',
+      parentNavigatorKey: _rootNavigatorKey,
+      builder: (context, state) => const SnapFillReviewScreen(),
     ),
     GoRoute(
       path: '/document/:id',

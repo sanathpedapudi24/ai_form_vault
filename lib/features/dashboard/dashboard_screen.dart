@@ -358,6 +358,12 @@ class _QuickActionsRow extends StatelessWidget {
             title: 'Search',
             onTap: () => context.push('/search'),
           ),
+          const Gap(10),
+          _QuickActionCard(
+            icon: Icons.edit_note_outlined,
+            title: 'Snap to fill',
+            onTap: () => context.push('/snap-fill'),
+          ),
         ],
       ),
     );
