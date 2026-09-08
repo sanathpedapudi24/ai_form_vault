@@ -12,8 +12,6 @@ class AppTheme {
   static ThemeData dark() => _build(Brightness.dark);
 
   static ThemeData _build(Brightness brightness) {
-    // Light is the current design focus; the same terracotta seed drives both
-    // so the M3 palettes stay coherent.
     final scheme = ColorScheme.fromSeed(
       seedColor: AppColors.accent,
       brightness: brightness,

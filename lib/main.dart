@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/db/legacy_migration.dart';
 import 'core/providers/settings_provider.dart';
 import 'core/router/app_router.dart';
+import 'core/theme/app_colors.dart';
 import 'core/theme/app_theme.dart';
 
 Future<void> main() async {
@@ -30,6 +31,12 @@ class AIFormVaultApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final dark = ref.watch(settingsProvider.select((s) => s.darkMode));
+
+    // MaterialApp.router below always builds BOTH ThemeDatas (for
+    // themeMode switching), so AppColors.dark can't be a side effect of
+    // AppTheme.light()/dark() — it has to be set once, here, to the actual
+    // active mode, before any descendant widget reads AppColors.* directly.
+    AppColors.dark = dark;
 
     final theme = dark ? AppTheme.dark() : AppTheme.light();
 
