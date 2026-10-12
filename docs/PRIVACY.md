@@ -1,83 +1,73 @@
 # Privacy & data handling
 
 This app stores some of the most sensitive personal data that exists
-(Aadhaar, PAN, passport numbers) with no login, so what's encrypted and
-what ever leaves the device matters more than usual. This document is the
-honest, specific answer.
+(Aadhaar, PAN, passport numbers) with no account, so what's encrypted and
+what ever leaves the device matters more than usual. This is the honest,
+specific answer, with the code that backs each claim.
 
 ## At rest, on the device
 
-- **Database** (documents, fields, people, facts, relationships, settings):
-  a SQLCipher-encrypted SQLite file. The passphrase is a random 256-bit
-  value generated on first launch and stored in the platform Keystore
-  (Android) / Keychain (iOS) via `flutter_secure_storage` — it is never
-  written to app-readable storage or backed up in plaintext.
-- **Document images**: encrypted independently with AES-256-GCM
-  (authenticated encryption — tampering is detected, not just prevented)
-  using a separate key, also Keystore/Keychain-held. Files on disk are
-  ciphertext; nothing decrypts them without the running app.
-- **Facts shared with system autofill**: stored in
-  `EncryptedSharedPreferences` (AndroidX Security, AES-256), a distinct
-  encrypted store from the main vault, containing only the fields you've
-  opted to share (see below).
+- **Vault data** (documents, details, people, edits, settings) is one
+  AES-256-GCM encrypted file, `vault.bin`. The key is generated in the
+  Android Keystore (hardware-backed where the phone supports it) and never
+  leaves it. See `Store.kt`.
+- **Document page images** are re-encoded as JPEG and encrypted one by one
+  with the same Keystore key (`img/<doc>_<page>.bin`). Nothing on disk is
+  readable without the running app on this phone.
+- **PIN**: only a salted PBKDF2 hash is stored. After 5 wrong tries an
+  escalating cooldown (30s, doubling, capped at 5 min) stops brute force.
+  See `Lock.kt`.
+- **Android backup is off** (`allowBackup=false`, `no_backup.xml`): the
+  Keystore key can't move to another phone, so a system backup copy would be
+  unreadable anyway. Users back up with the app's own encrypted file instead.
+- **Screenshots and screen recording are blocked** inside the app
+  (`FLAG_SECURE`), which also hides it in the recent-apps preview.
 
-## What leaves the device: nothing
+## What leaves the device: nothing, unless you send it
 
-Document images and OCR text never leave the device. This isn't a default
-that happens to be true because no API key is configured — `AppConfig.aiEnabled`
-is a hardcoded `false` (see [app_config.dart](../lib/core/config/app_config.dart)),
-and every network-touching code path (document scanning, search embeddings,
-Snap-to-Fill field detection) is gated on that one constant. Pasting a
-Gemini key into `api_keys.dart` does **not** turn any of this back on — the
-Gemini client code stays in the repo (it's a real, working integration),
-but it's wired to a switch that's deliberately nailed shut.
+There is no server, no account, no analytics and no cloud AI. Scanning (ML
+Kit document scanner + text recognition), extraction, search, family
+suggestions and Snap-to-Fill all run on the phone. The ML Kit models are
+downloaded once by Google Play services; your images and text are not sent.
 
-Document scanning, search, and Snap-to-Fill field detection all run
-entirely on-device: a regex-based parser tuned for Indian ID documents,
-keyword + light natural-language query matching, and OCR-heuristic field
-detection. The tradeoff is a lower extraction-accuracy ceiling than a cloud
-vision model would give — that tradeoff was made deliberately in exchange
-for the guarantee above, not as a placeholder.
-
-If that decision is ever revisited, it should be a deliberate code change
-(flipping `AppConfig.aiEnabled` back to reading `ApiKeys.gemini`), not
-something that happens by accident.
+Things only leave when **you** do it: sharing a document page or a filled
+form through the Android share sheet, or saving a backup file somewhere.
+Shared copies are written to the app's cache and deleted the next time the
+app starts.
 
 ## System-wide autofill: what other apps can see
 
-When you enable system autofill, a fixed allowlist of fact keys is copied
-into the native `EncryptedSharedPreferences` store — see
-`AutofillBridge._sharedKeys` in
-[autofill_bridge.dart](../lib/core/services/autofill_bridge.dart):
+Only when you pick AI Form & Vault as Android's autofill service **and** the
+"Offer my details" switch is on. Then a field in another app gets a
+suggestion only if it can be confidently matched (Android autofill hints, or
+the field's id/hint/label), and nothing is filled until you tap the
+suggestion. See `VaultAutofillService` in `Services.kt`.
 
-**Shared:** full name, date of birth, gender, father's/mother's name,
-phone, email, address, PIN code, PAN, blood group, nationality.
+**Offered:** name, date of birth, gender, father's, mother's and spouse's
+names, mobile, email, address, PIN code, nationality, blood group, PAN.
 
-**Never shared:** Aadhaar number, passport number, voter ID, driving
-license, vehicle registration — anything in `FactKeys.sensitive`.
+**Never offered:** Aadhaar, passport, voter ID, driving licence and vehicle
+numbers, roll numbers and expiry dates (`FactKey.shareable = false` in
+`Model.kt`). Password fields are skipped.
 
-The native `VaultAutofillService` only fills a field in another app if it
-can confidently match that field to one of the shared keys (via Android's
-own `autofillHints` when the target app sets them, or heuristics over the
-field's visible label otherwise). It never sends your data anywhere except
-directly into the focused field on your own device — autofill is a local
-OS mechanism, not a network call.
+Details from family members' documents are never offered: autofill only uses
+your own profile.
 
-Turning the toggle off immediately clears the shared-facts store
-(`AutofillBridge.clearAutofillData()`); the OS-level "default autofill
-service" selection is a separate setting you control from Android's own
-Settings app.
+## Backups
+
+Backup files (`.aivault`) are a zip of the vault and images, encrypted with
+AES-256-GCM using a key derived from your passphrase (PBKDF2-SHA256, 210,000
+iterations, random salt). Without the passphrase nobody can open it,
+including the developer. A forgotten passphrase can't be recovered.
 
 ## Deleting data
 
-Deleting a document removes its database row and both its encrypted image
-files immediately (`DocumentsNotifier.remove` → `ImageVault.delete`).
-There is currently no cloud backup or sync (Phase 5 in the roadmap) — this
-is the one copy, and deleting it is final.
+Deleting a document removes its record and its encrypted images
+immediately. "Erase everything" (Profile) and "Forgot PIN" delete all app
+files and the Keystore key, so nothing left behind can be decrypted.
 
 ## Regulatory note
 
-This app is designed for a no-auth, on-device-first MVP. It has not been
-audited against India's Digital Personal Data Protection Act or any other
-regulatory framework — do that work, and get a professional security
-review, before handling real user data beyond your own testing.
+This app has not been audited against India's Digital Personal Data
+Protection Act or any other framework. Do that, plus a professional security
+review, before handling real users' data at scale (PRD SEC-13).

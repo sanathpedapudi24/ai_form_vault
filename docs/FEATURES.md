@@ -1,125 +1,104 @@
-# Features
+# Features (v4.1, native Android)
 
-Everything below runs entirely on-device. No document image or extracted
-text is ever sent to a network API — see [PRIVACY.md](PRIVACY.md) for the
-code-level guarantee behind that claim.
+Everything runs on the phone. No account, no server, no cloud AI. See
+[PRIVACY.md](PRIVACY.md).
 
-## Onboarding
-
-A 3-page intro shown once on first launch (before PIN setup): what the app
-does, the on-device privacy guarantee, and the fill-forms features. Skippable.
+## First launch
+A 3-page intro (what it does, privacy, filling forms), then creating a
+4-digit PIN with optional fingerprint. Skippable, with a reminder on Home.
 
 ## App lock
+PIN (salted hash) plus optional fingerprint. Re-locks whenever you leave the
+app, except while you're in the scanner, share sheet or file picker. After 5
+wrong PINs a cooldown starts (30s, doubling, max 5 min). "Forgot PIN" erases
+the vault: there's no account to recover through.
 
-4-digit PIN (salted, hashed, Keystore-held) with optional biometric unlock
-on top. Required on first run (skippable, with a nag to set it up later
-from Profile), re-locks whenever the app is backgrounded. After 5 wrong
-attempts an escalating cooldown kicks in (30s, doubling, capped at 5 min)
-with a live countdown, so the 4-digit space can't be brute-forced. "Forgot
-PIN" wipes the local vault as a last resort — there's no cloud account to
-recover through otherwise.
-
-## Backup & restore
-
-Export an encrypted `.aivault` file (passphrase-protected: PBKDF2 +
-AES-256-GCM, containing all documents, facts, relationships and images) and
-store it anywhere — Drive, email, a USB drive. Restore merges it back into
-the vault. Because the file is encrypted with your passphrase, this gives
-you "don't lose everything if the phone dies" without putting plaintext in
-any cloud. From Profile → Backup.
-
-## Dark mode
-
-A full warm-dark Claude palette, toggled from Profile → Settings. Both
-themes are designed, not inverted.
-
-## Home (Dashboard)
-
-Greets you by name once it's known, surfaces pending relationship
-confirmations, quick actions (Scan / Snap-to-Fill), live stats (documents,
-people, connections), and the five most recent documents.
+## Home
+Greeting, Scan / Fill a form / Import PDF, an app-lock nudge, a red alert
+when details don't match across documents, the next family suggestion to
+confirm, stats (documents, family, fields filled), documents expiring within
+90 days, and recent documents.
 
 ## Scan a document
+Camera with edge detection and cropping (up to 5 pages, gallery import
+allowed) or a PDF (first 5 pages). Progress: reading → understanding →
+organizing → **review**.
 
-`Add document` → camera (edge-detecting document scanner, up to 5 pages),
-gallery, or **Import a PDF** (first 5 pages rendered and read like a scan)
-→ `Scanning` (staged progress: reading → understanding → organizing) →
-`Review`. Multi-page documents keep their extra pages, swipeable and
-zoomable on the detail screen.
+Recognised: Aadhaar (front and back, with checksum-validated numbers), PAN
+(old and new layouts, fixing common misreads like O/0 and I/1), Voter ID,
+driving licence, passport (front from the machine-readable lines; back page
+for parents, spouse and address), vehicle RC, marksheets and bank passbooks
+(account number, IFSC, bank, branch). Every page is also read a second time
+with boosted contrast, for faint or grey print. Extracted: name, DOB,
+gender, father's / mother's / spouse's names, address and PIN code, mobile,
+email, blood group, nationality, ID numbers, roll number, expiry.
 
-Documents with an expiry date get **local reminders** 90, 30, and 7 days
-before they lapse (toggle in Profile → Settings). Each document also has a
-free-text **note** field on its detail screen — searchable, good for "used
-for visa application".
+Review lists what this type of document usually has but wasn't found, and
+"Send the scanned text" shares the raw text (after a privacy warning) so
+misreads can be reported and fixed.
 
-- **Reading**: ML Kit OCR on-device (Latin + Devanagari).
-- **Understanding**: a regex parser tuned for Aadhaar, PAN, Voter ID,
-  Driving License, Vehicle RC, Passport, and education marksheets extracts
-  fields, classifies the document type, and infers the owner.
-- **Review**: every field is editable before saving; editing marks a field
-  "verified" (confidence 1.0, immune to being overwritten by future lower-
-  confidence extractions of the same fact).
-
-On save: the image is encrypted into the vault and the identity engine
-writes facts + relationship suggestions.
+On review you can change the type, category and vault name, choose whose
+document it is (you, a family member, or someone new), and fix, clear or
+add any detail. Nothing is saved until you tap Save.
 
 ## Vault
-
-Browse all documents, filter by category (ID Proof, Education, Finance,
-Medical, Travel, Family, Other) with live counts. Tap a document for full
-detail: image (tap to zoom full-screen), summary, all extracted fields,
-share, delete, or open as a **Digital ID** card.
+All documents, filtered by category with counts. Document detail shows
+swipeable pages (tap to zoom), details with numbers masked until you tap
+"Show", an expiry badge, a note field, and Digital ID, Share and Delete.
 
 ## Digital ID
-
-A dark, wallet-style presentation of an identity document for showing
-on-screen without handing over your phone or the physical card. Sensitive
-numbers (Aadhaar, PAN, passport, voter ID, license) are masked to their
-last 4 characters by default — tap to reveal.
+A wallet-style card with the name, the main ID number (masked, tap to
+reveal), DOB, gender and expiry. Labelled as a reference, not an official ID.
 
 ## Search
-
-Hybrid on-device search: keyword matching (document type, owner, category,
-field labels/values) plus lightweight natural-language handling — question
-phrasing ("find my", "when does X expire") is stripped, category synonyms
-("ID" → identity documents) are recognized, and expiry-related queries
-reason about actual expiry dates on your documents.
+Keywords across titles, types, owners, details and notes, plus plain
+language: "sister's Aadhaar", "father's documents", "ID documents",
+"what expires next year".
 
 ## Profile
+Your details, built only from **your own** documents plus your edits, each
+showing where it came from. When documents disagree (for example a DOB on
+Aadhaar vs a marksheet) the card turns red, lists every value with its
+source, and lets you mark the right one. Edits always win.
 
-Your identity facts (aggregated from every document you've scanned — the
-highest-confidence, or user-verified, value wins per fact), a link into
-Relationships, and settings (system autofill toggle, app lock).
+Settings: app lock, autofill, expiry reminders, encrypted backup and
+restore, and erase everything.
 
-## Relationships (confirm-first)
-
-When a document names someone else (father, mother, spouse, guardian,
-sibling, child), a relationship *suggestion* appears here with the
-evidence ("Printed as father's name on PAN Card") — confirm or dismiss.
-Nothing is treated as real identity data, and no family graph is drawn,
-until you say yes. Name matching is fuzzy (handles OCR misspellings,
-reordered names, missing middle names) so the same person scanned on
-different documents doesn't get duplicated.
+## Family (confirm first)
+When your own document names a father, mother or spouse who isn't known
+yet, it's suggested with the evidence ("Printed as father's name on your PAN
+card"). Nothing is linked until you confirm. Names are matched fuzzily
+(reordered names, missing middle names, one-letter OCR slips). Family
+members' documents stay with them and never feed your profile or autofill.
 
 ## Snap-to-Fill
+Photograph a blank paper form. The app finds the labels, fills what it can
+from your confirmed details, and shows every field for you to check.
+Tick-box questions on one line (Male / Female / Other, Indian / NRI) get a
+tick and a circle on the right option. Empty fields say which document to
+scan for that detail. Lines about other people (nominee, witness, school)
+are never filled. Values
+are written onto the image, which you can zoom and share or print.
+Corrections are saved back to your profile.
 
-Photograph any blank form (not one of your own documents — someone else's
-form you need to fill in). On-device OCR label heuristics detect what each
-field is asking for and map it to a canonical fact key when possible. Each
-field is matched against your verified facts, shown for review (tap to
-correct or fill a gap manually — corrections are saved back to your
-profile for next time), then the values are rendered onto the form image
-before you share it.
+## System-wide autofill
+A native Android autofill service. Once you pick it in Android settings,
+other apps and websites get a "Fill N fields from AI Form & Vault"
+suggestion for fields it can confidently match, including dropdowns. ID numbers other than PAN
+are never offered.
 
-## System-wide autofill (Android only)
+## Expiry reminders
+A local notification 90, 30 and 7 days before a document expires, and on
+the day.
 
-A native `AutofillService` (Kotlin) that other apps can query directly —
-no need to open AI Form & Vault at all. See [PRIVACY.md](PRIVACY.md) for
-exactly which facts are shared and how field-matching works.
+## Backup & restore
+Export one `.aivault` file encrypted with your passphrase, saved wherever
+you like. Restore merges it into the current vault.
 
-## What works with zero configuration
-
-Everything. No account, no login, no API key, no setup. Scanning, storage,
-search, relationships, Snap-to-Fill, and system autofill all function
-entirely on-device, permanently — this isn't a fallback mode, it's the
-only mode.
+## Not built yet
+- Play Billing / paywall (needs a Play Console listing and products).
+- DigiLocker import (needs government partner access).
+- Cloud sync and accounts (PRD Phase 2).
+- Hindi/Devanagari text reading (only English text is read for now).
+- Semantic (embedding-based) search (Phase 2); search is keyword and
+  rule-based today.

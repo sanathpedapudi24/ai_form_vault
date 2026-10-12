@@ -1,6 +1,0 @@
-{
-  "buildCommand": false,
-  "outputDirectory": "web",
-  "cleanUrls": true,
-  "trailingSlash": false
-}
