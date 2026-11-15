@@ -56,18 +56,22 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.aiformvault.Candidate
 import com.aiformvault.Category
 import com.aiformvault.DocType
 import com.aiformvault.Document
 import com.aiformvault.Fact
 import com.aiformvault.FactKey
+import com.aiformvault.ManualFact
 import com.aiformvault.Ocr
 import com.aiformvault.Person
 import com.aiformvault.Relation
 import com.aiformvault.Store
 import com.aiformvault.duplicatesOf
 import com.aiformvault.expectedFacts
+import com.aiformvault.fieldCandidates
 import com.aiformvault.mask
+import com.aiformvault.normalize
 import com.aiformvault.sameName
 import com.aiformvault.suggestRelations
 import com.aiformvault.suggestTitle
@@ -284,7 +288,41 @@ fun DocScreen(state: AppState, id: String) {
     var zoom by remember { mutableStateOf<Int?>(null) }
     var confirmDelete by remember { mutableStateOf(false) }
     var note by remember(doc.id) { mutableStateOf(doc.note) }
+    var reading by remember { mutableStateOf<FactKey?>(null) }
+    var rereadKey by remember { mutableStateOf<FactKey?>(null) }
+    var candidates by remember { mutableStateOf<List<Candidate>>(emptyList()) }
     val pager = rememberPagerState { doc.pages }
+
+    /** Re-OCR the stored pages and collect every candidate for one key. Nothing is saved until the user picks. */
+    fun reread(key: FactKey) {
+        if (doc.pages == 0) { state.message = "This document has no stored pages to re-read"; return }
+        reading = key
+        scope.launch {
+            val texts = withContext(Dispatchers.IO) { runCatching { Ocr.textPerPage(ctx, id, doc.pages) }.getOrElse { emptyList() } }
+            reading = null
+            val current = doc.facts.firstOrNull { it.key == key }?.value.orEmpty()
+            // A re-read that returns the value we already hold is not a choice; say plainly that nothing new was found.
+            val fresh = fieldCandidates(key, texts).filter { normalize(key, it.value) != normalize(key, current) }
+            if (fresh.isEmpty()) state.message = "No other value found on pages 1–${doc.pages}"
+            else { candidates = fresh; rereadKey = key }
+        }
+    }
+
+    /** Picking a candidate replaces only that fact, and records it as the user's own value so it wins in profile(). */
+    fun pick(key: FactKey, value: String) {
+        val mine = doc.ownerId == state.data.self?.id
+        state.update { d ->
+            d.copy(
+                documents = d.documents.map { doc0 ->
+                    if (doc0.id != id) doc0
+                    else doc0.copy(facts = doc0.facts.map { if (it.key == key) it.copy(value = value) else it })
+                },
+                manual = if (mine) d.manual.filter { it.key != key } + ManualFact(key, value, System.currentTimeMillis()) else d.manual,
+            )
+        }
+        rereadKey = null; candidates = emptyList()
+        state.message = "${key.label} updated"
+    }
 
     fun share() = scope.launch {
         val uris = withContext(Dispatchers.IO) {
@@ -322,8 +360,16 @@ fun DocScreen(state: AppState, id: String) {
             if (doc.facts.isEmpty()) Muted("No details saved for this document.")
             doc.facts.forEachIndexed { i, f ->
                 if (i > 0) Spacer(Modifier.height(12.dp))
-                Text(f.key.label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text(if (reveal) f.value else mask(f.key, f.value), style = MaterialTheme.typography.bodyLarge)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text(f.key.label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(if (reveal) f.value else mask(f.key, f.value), style = MaterialTheme.typography.bodyLarge)
+                    }
+                    TextButton(onClick = { reread(f.key) }, enabled = reading == null) {
+                        if (reading == f.key) CircularProgressIndicator(Modifier.height(16.dp).width(16.dp), strokeWidth = 2.dp)
+                        else Text("Re-read")
+                    }
+                }
             }
         }
 
@@ -346,6 +392,27 @@ fun DocScreen(state: AppState, id: String) {
                 TextButton(onClick = { zoom = null }, Modifier.align(Alignment.TopEnd).padding(16.dp)) { Text("Close", color = Color.White) }
             }
         }
+    }
+    rereadKey?.let { key ->
+        AlertDialog(
+            onDismissRequest = { rereadKey = null; candidates = emptyList() },
+            title = { Text("Other values for ${key.label.lowercase()}") },
+            text = {
+                Column {
+                    Muted("Read from this document. Pick the one the card actually shows.")
+                    Spacer(Modifier.height(8.dp))
+                    candidates.forEach { c ->
+                        TextButton(onClick = { pick(key, c.value) }, Modifier.fillMaxWidth()) {
+                            Column(Modifier.fillMaxWidth()) {
+                                Text(if (reveal) c.value else mask(key, c.value), style = MaterialTheme.typography.bodyLarge)
+                                Text("Page ${c.page}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = { TextButton(onClick = { rereadKey = null; candidates = emptyList() }) { Text("Cancel") } },
+        )
     }
     if (confirmDelete) AlertDialog(
         onDismissRequest = { confirmDelete = false },

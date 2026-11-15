@@ -186,20 +186,8 @@ private fun address(lines: List<String>): Pair<String, String>? {
 }
 
 /** Value after a label on the same line ("Name: X"), or on the next line if the label stands alone. */
-private fun labelled(lines: List<String>, vararg labels: String, exclude: List<String> = emptyList()): String? {
-    for ((i, line) in lines.withIndex()) {
-        val lower = line.lowercase()
-        if (exclude.any { it in lower }) continue
-        val m = labels.firstNotNullOfOrNull { Regex("""(?<![a-z])${Regex.escape(it)}(?![a-z])""").find(lower) } ?: continue
-        // Drop bilingual label text ("नाम") and the label's tail ("'s Name :") to get the value.
-        val after = line.substring(m.range.last + 1).replace(Regex("""[^\x00-\x7F]"""), "")
-            .replace(Regex("""^['’]?s?\s*(name)?[\s:/\-.]*""", RegexOption.IGNORE_CASE), "")
-            .replace(Regex("""^(legal\s+)?guardian('s)?(\s+name)?[\s:/\-.]*""", RegexOption.IGNORE_CASE), "").trim()
-        val value = after.takeIf { it.any(Char::isLetterOrDigit) } ?: valueBelow(lines, i)
-        if (value != null && labels.none { value.lowercase().startsWith(it) } && !isLabelish(value)) return value
-    }
-    return null
-}
+private fun labelled(lines: List<String>, vararg labels: String, exclude: List<String> = emptyList()): String? =
+    labelledAll(lines, *labels, exclude = exclude).firstOrNull()
 
 /**
  * The value for a label that stands alone on its line. Usually the next line, but OCR often groups labels
@@ -214,7 +202,94 @@ private fun valueBelow(lines: List<String>, i: Int): String? {
     return lines.getOrNull(end + 1 + (i - start))
 }
 
+/** Every value following [labels], in reading order. `labelled` is the first of these. */
+private fun labelledAll(lines: List<String>, vararg labels: String, exclude: List<String> = emptyList()): List<String> {
+    val out = mutableListOf<String>()
+    for ((i, line) in lines.withIndex()) {
+        val lower = line.lowercase()
+        if (exclude.any { it in lower }) continue
+        val m = labels.firstNotNullOfOrNull { Regex("""(?<![a-z])${Regex.escape(it)}(?![a-z])""").find(lower) } ?: continue
+        // Drop bilingual label text ("नाम") and the label's tail ("'s Name :") to get the value.
+        val after = line.substring(m.range.last + 1).replace(Regex("""[^\x00-\x7F]"""), "")
+            .replace(Regex("""^['’]?s?\s*(name)?[\s:/\-.]*""", RegexOption.IGNORE_CASE), "")
+            .replace(Regex("""^(legal\s+)?guardian('s)?(\s+name)?[\s:/\-.]*""", RegexOption.IGNORE_CASE), "").trim()
+        val value = after.takeIf { it.any(Char::isLetterOrDigit) } ?: valueBelow(lines, i)
+        if (value != null && labels.none { value.lowercase().startsWith(it) } && !isLabelish(value)) out += value
+    }
+    return out
+}
+
 private fun isNameLine(s: String) = nameLineRx.matches(s) && headerWords.none { it in s.lowercase() } && !genderRx.matches(s)
+
+// ---------- Re-read one field: every plausible candidate, not just the first ----------
+
+/** One possible value for a fact, and the 1-based page it was read from. */
+data class Candidate(val value: String, val page: Int)
+
+/**
+ * All plausible values for [key] across [pageTexts], de-duplicated by [normalize] and tagged with a
+ * page number. Separate from [extract], which deliberately keeps only the first match per key.
+ * Advisory: the user picks. Nothing here is saved.
+ */
+fun fieldCandidates(key: FactKey, pageTexts: List<String>, today: LocalDate = LocalDate.now()): List<Candidate> {
+    val seen = LinkedHashMap<String, Candidate>()
+    pageTexts.forEachIndexed { i, text ->
+        val page = i + 1
+        val lines = text.lines().map { it.trim() }.filter { it.isNotEmpty() }
+        if (text.isBlank()) return@forEachIndexed
+        // The document extractor's own first pick for this page, plus every additional raw match.
+        (listOfNotNull(extract(text, today).second.firstOrNull { it.key == key }?.value) + rawCandidates(key, text, lines))
+            .forEach { v ->
+                val value = v.trim()
+                if (value.length < 2 || isLabelish(value)) return@forEach
+                val id = normalize(key, value)
+                if (id.length < 2) return@forEach
+                seen.putIfAbsent(id, Candidate(value, page))
+            }
+    }
+    return seen.values.toList()
+}
+
+private fun namesFrom(lines: List<String>): List<String> =
+    lines.filter(::isNameLine).map { it.replace(honorificRx, "").trim() }
+
+private fun bloodGroup(line: String): String? = bloodRx.find(line.substringAfter(":", line))?.let { m ->
+    m.groupValues[1].uppercase() + if (m.groupValues[2].startsWith("+") || m.groupValues[2].uppercase().startsWith("POS")) "+" else "-"
+}
+
+/** Raw matches for one key over one page of text. Kept narrow on purpose: a wrong candidate is one tap away from being saved. */
+private fun rawCandidates(key: FactKey, text: String, lines: List<String>): List<String> {
+    val upper = text.uppercase()
+    fun all(rx: Regex) = rx.findAll(if (key == FactKey.PAN) upper else text).map { it.value }.toList()
+    return when (key) {
+        FactKey.NAME -> namesFrom(lines)
+        FactKey.FATHER -> labelledAll(lines, "father", "s/d/w of", "s/o", "d/o", "son of", "daughter of", "c/o", "care of").mapNotNull(::cleanName)
+        FactKey.MOTHER -> labelledAll(lines, "mother").mapNotNull(::cleanName)
+        FactKey.SPOUSE -> labelledAll(lines, "husband", "wife", "spouse", "w/o").mapNotNull(::cleanName)
+        FactKey.DOB -> lines.filterNot(notDobRx::containsMatchIn).flatMap { l -> dateRx.findAll(l).map(::fmt) }
+        FactKey.EXPIRY -> expiryLabels.flatMap { label -> lines.filter { label in it.lowercase() }.flatMap { l -> dateRx.findAll(l).map(::fmt) } }
+        FactKey.AADHAAR -> aadhaarRx.findAll(text).map { it.groupValues.drop(1).joinToString("") }.filter(::verhoeffValid).map { it.chunked(4).joinToString(" ") }.toList()
+        FactKey.PAN -> listOfNotNull(findPan(upper))
+        FactKey.VOTER_ID -> all(epicRx)
+        FactKey.DL_NUMBER -> all(dlRx)
+        FactKey.VEHICLE_REG -> all(vehicleRx)
+        FactKey.PASSPORT -> all(passportNoRx)
+        FactKey.PHONE -> phoneRx.findAll(text).map { it.groupValues[1] }.toList()
+        FactKey.EMAIL -> all(emailRx)
+        FactKey.PIN_CODE -> all(pinRx)
+        FactKey.GENDER -> all(genderRx).map { it.lowercase().replaceFirstChar(Char::uppercase) }
+        FactKey.BLOOD_GROUP -> lines.filter { "blood" in it.lowercase() }.mapNotNull(::bloodGroup)
+        FactKey.IFSC -> ifscRx.findAll(upper).map { "${it.groupValues[1]}0${it.groupValues[2]}" }.toList()
+        FactKey.ACCOUNT_NO -> accountRx.findAll(text).map { it.value.filter(Char::isDigit) }.filter { it.length in 9..18 }.toList()
+        FactKey.ADDRESS -> listOfNotNull(address(lines)?.first)
+        FactKey.ROLL -> labelledAll(lines, "roll no", "roll number").mapNotNull { Regex("""\d+""").find(it)?.value }
+        FactKey.BANK_NAME -> lines.filter { l ->
+            Regex("""\bbank\b""", RegexOption.IGNORE_CASE).containsMatchIn(l) && l.none(Char::isDigit) && ':' !in l && l.length < 50 && "passbook" !in l.lowercase()
+        }.map(::titleCase)
+        FactKey.BRANCH -> labelledAll(lines, "branch").filter { v -> v.none(Char::isDigit) }.map(::titleCase)
+        FactKey.NATIONALITY -> if ("INDIAN" in upper) listOf("Indian") else emptyList()
+    }
+}
 
 /**
  * Passport machine-readable zone: line 1 "P<INDSURNAME<<GIVEN<NAMES", line 2 number, nationality, DOB, sex, expiry.

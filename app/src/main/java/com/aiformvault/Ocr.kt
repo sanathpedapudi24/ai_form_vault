@@ -58,6 +58,13 @@ object Ocr {
             Store.decodeScaled(ctx, uri, OCR_MAX_PX)?.let { adaptiveBest(it) }.orEmpty()
         }
 
+    /**
+     * Re-OCR the stored pages of a saved document, one at a time, and return one string per page.
+     * Read-only: page images are decoded, never re-encoded or replaced (issue #10).
+     */
+    fun textPerPage(ctx: Context, docId: String, pages: Int): List<String> =
+        (0 until pages).map { p -> Store.image(ctx, docId, p, OCR_MAX_PX)?.let { adaptiveBest(it) }.orEmpty() }
+
     /** Progressive OCR with early exit. Returns the first pass that clears the quality gate. */
     private fun adaptiveBest(bmp: Bitmap): String {
         // Pass 1: plain, high resolution — always runs.
