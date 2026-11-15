@@ -1,6 +1,7 @@
 package com.aiformvault.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -135,21 +136,6 @@ fun DocRow(doc: Document, owner: String?, onClick: () -> Unit) {
                 Muted(listOfNotNull(owner, doc.category.label).joinToString("  ·  "))
             }
             daysLeft(doc)?.takeIf { it <= 90 }?.let { Spacer(Modifier.width(8.dp)); ExpiryBadge(it) }
-        }
-    }
-}
-
-@Composable
-fun Stat(value: String, label: String, modifier: Modifier = Modifier) {
-    Box(
-        modifier.clip(RoundedCornerShape(20.dp))
-            .background(Brush.linearGradient(listOf(Brand.EmeraldDeep, Brand.Emerald, Brand.TealDeep)))
-            .padding(14.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(value, fontWeight = FontWeight.Bold, fontSize = 19.sp, color = Color.White)
-            Text(label, fontSize = 10.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 0.6.sp, color = Color.White.copy(alpha = 0.85f))
         }
     }
 }

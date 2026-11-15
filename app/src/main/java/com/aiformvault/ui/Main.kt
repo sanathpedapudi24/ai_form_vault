@@ -8,6 +8,7 @@ import androidx.activity.compose.LocalActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -73,6 +74,8 @@ import com.google.mlkit.vision.documentscanner.GmsDocumentScannerOptions
 import com.google.mlkit.vision.documentscanner.GmsDocumentScanning
 import com.google.mlkit.vision.documentscanner.GmsDocumentScanningResult
 import kotlinx.coroutines.Dispatchers
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -258,10 +261,10 @@ private fun Shell(state: AppState) {
         bottomBar = {
             if (route in tabs) NavigationBar(containerColor = Brand.Surface) {
                 listOf(
-                    Triple("Home", "⌂", "home"),
-                    Triple("Vault", "▦", "vault"),
-                    Triple("ID", "🪪", "id"),
-                    Triple("Profile", "◉", "profile"),
+                    Triple("Home", "⌂", Route.Home),
+                    Triple("Vault", "▦", Route.Vault),
+                    Triple("Search", "⌕", Route.Search),
+                    Triple("Profile", "◉", Route.Profile),
                 ).forEach { (label, glyph, key) ->
                     val active = route == key
                     NavigationBarItem(
@@ -318,21 +321,19 @@ private fun HomeScreen(state: AppState) {
                 eyebrow = "",
                 title = "Hi, ${self?.name?.substringBefore(' ') ?: "there"}",
                 subtitle = "Your vault, understood.",
-                cta = "",
-                onCta = {},
             )
         }
         Spacer(Modifier.height(20.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             DesignButton(
                 text = "Scan a document",
-                tone = Design.ButtonTone.Primary,
+                tone = ButtonTone.Primary,
                 onClick = state.scan,
                 leading = "📷",
             )
             DesignButton(
                 text = "Fill a form",
-                tone = Design.ButtonTone.Ghost,
+                tone = ButtonTone.Ghost,
                 onClick = { state.go(Route.SnapFill) },
                 leading = "📝",
             )
@@ -340,13 +341,13 @@ private fun HomeScreen(state: AppState) {
         Row {
             DesignButton(
                 text = "Import a PDF",
-                tone = Design.ButtonTone.Ghost,
+                tone = ButtonTone.Ghost,
                 onClick = state.importPdf,
                 leading = "📄",
             )
             DesignButton(
                 text = "Import photos",
-                tone = Design.ButtonTone.Ghost,
+                tone = ButtonTone.Ghost,
                 onClick = state.importImages,
                 leading = "🖼",
             )
@@ -354,7 +355,7 @@ private fun HomeScreen(state: AppState) {
 
         if (!state.lock.hasPin) {
             Spacer(Modifier.height(8.dp))
-            DesignFlatCard(onClick = { state.tab(Route.Profile) }) {
+            SoftCard(onClick = { state.tab(Route.Profile) }) {
                 Column {
                     Text("Set up an app lock", style = MaterialTheme.typography.titleSmall, color = Brand.Warn)
                     Muted("Anyone holding your phone can open your vault right now.")
@@ -363,7 +364,7 @@ private fun HomeScreen(state: AppState) {
         }
         if (conflicts.isNotEmpty()) {
             Spacer(Modifier.height(8.dp))
-            DesignFlatCard(color = Brand.DangerSoft, onClick = { state.tab(Route.Profile) }) {
+            SoftCard(color = Brand.DangerSoft, onClick = { state.tab(Route.Profile) }) {
                 Column {
                     Text("${conflicts.size} detail${if (conflicts.size > 1) "s don't" else " doesn't"} match across documents", style = MaterialTheme.typography.titleSmall, color = Brand.Danger)
                     Muted(conflicts.joinToString { it.key.label } + ". Forms can be rejected over this. Tap to review.")
@@ -372,7 +373,7 @@ private fun HomeScreen(state: AppState) {
         }
         pending.firstOrNull()?.let { p ->
             Spacer(Modifier.height(8.dp))
-            DesignFlatCard(onClick = { state.go(Route.Relationships) }) {
+            SoftCard(onClick = { state.go(Route.Relationships) }) {
                 Column {
                     Text("Is ${p.name} your ${p.relation.label.lowercase()}?", style = MaterialTheme.typography.titleSmall)
                     Muted(p.evidence)
@@ -388,20 +389,9 @@ private fun HomeScreen(state: AppState) {
         if (data.documents.isNotEmpty()) {
             Spacer(Modifier.height(16.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Box(Modifier.width(56.dp).height(56.dp).clip(RoundedCornerShape(20.dp)).background(Brush.linearGradient(listOf(Brand.EmeraldDeep, Brand.Emerald, Brand.Teal))).align(Alignment.CenterVertically) {
-                    Text(data.documents.size.toString(), color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
-                )
-                }
-                Spacer(Modifier.width(8.dp))
-                Box(Modifier.width(56.dp).height(56.dp).clip(RoundedCornerShape(20.dp)).background(Brush.linearGradient(listOf(Brand.TealDeep, Brand.Emerald))) {
-                    Text(data.people.count { it.confirmed && it.relation != Relation.SELF }.toString(), color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
-                )
-                }
-                Spacer(modifier = Modifier.width(8.dp))
-                Box(Modifier.width(56.dp).height(56.dp).clip(RoundedCornerShape(20.dp)).background(Brush.linearGradient(listOf(Brand.MintSoft, Brand.EmeraldDeep))) {
-                    Text(data.fieldsFilled.toString(), color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
-                )
-                }
+                StatTile(data.documents.size.toString(), "Documents", Modifier.weight(1f))
+                StatTile(data.people.count { it.confirmed && it.relation != Relation.SELF }.toString(), "Family", Modifier.weight(1f))
+                StatTile(data.fieldsFilled.toString(), "Fields ready", Modifier.weight(1f))
             }
             val expiring = data.documents.mapNotNull { d -> daysLeft(d)?.takeIf { it <= 90 }?.let { d to it } }.sortedBy { it.second }
             if (expiring.isNotEmpty()) {
@@ -425,22 +415,22 @@ private fun VaultScreen(state: AppState) {
         Page(title = "Vault", actions = {
             DesignButton(
                 text = "Photos",
-                tone = Design.ButtonTone.Ghost,
+                tone = ButtonTone.Ghost,
                 onClick = state.importImages,
                 leading = "📷",
             )
             DesignButton(
                 text = "PDF",
-                tone = Design.ButtonTone.Ghost,
+                tone = ButtonTone.Ghost,
                 onClick = state.importPdf,
                 leading = "📄",
             )
         }) {
             Column(Modifier.fillMaxWidth()) {
-                DesignSegmented(
-                    items = Category.entries.map { it.label },
-                    selected = filter != null ? Category.values().indexOf(filter!!) : 0,
-                    onSelect = { filter = Category.values()[it] },
+                Segmented(
+                    items = listOf("All") + Category.entries.map { it.label },
+                    selected = filter?.let { it.ordinal + 1 } ?: 0,
+                    onSelect = { filter = if (it == 0) null else Category.entries[it - 1] },
                 )
                 Spacer(Modifier.height(12.dp))
                 val docs = data.documents.filter { filter == null || it.category == filter }.sortedByDescending { it.createdAt }
@@ -466,9 +456,9 @@ private fun VaultScreen(state: AppState) {
                             else -> null
                         },
                         pillTone = when (d.category) {
-                            Category.IDENTITY -> Design.PillTone.Ok
-                            Category.EDUCATION -> Design.PillTone.Warn
-                            else -> Design.PillTone.Ok
+                            Category.IDENTITY -> PillTone.Ok
+                            Category.EDUCATION -> PillTone.Warn
+                            else -> PillTone.Ok
                         },
                         onClick = {},
                     ) }

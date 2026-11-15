@@ -102,29 +102,24 @@ fun ProfileScreen(state: AppState) {
         FieldRow(key = "Name", value = data.self?.name ?: "Your profile")
         FieldRow(key = "Documents", value = "${data.self?.let { data.docsOf(it.id).size } ?: 0} of your documents")
         Spacer(Modifier.height(16.dp))
-        DesignSegmented(
-            items = listOf("Family", "App lock", "Autofill", "Reminders", "Backup", "Privacy"),
-            selected = 0, // simplified: always show first section; actual nav uses tabs
-            onSelect = { },
-        )
         // Family section
         val pending = data.people.count { !it.confirmed }
         val fam = data.people.count { it.confirmed && it.relation != Relation.SELF }
-        DesignFlatCard(onClick = { state.go(Route.Relationships) }) {
+        SoftCard(onClick = { state.go(Route.Relationships) }) {
             Column {
                 Text(if (fam == 0) "No family members yet" else "$fam family member${if (fam > 1) "s" else ""}", style = MaterialTheme.typography.titleSmall)
                 Muted(if (pending > 0) "$pending suggestion${if (pending > 1) "s" else ""} waiting for you" else "Their documents stay separate from your profile.")
             }
         }
         // App lock section
-        DesignFlatCard(onClick = { state.tab(Route.Home) }) {
+        SoftCard(onClick = { state.tab(Route.Home) }) {
             Column {
                 if (hasPin) {
                     Text("PIN lock is on", style = MaterialTheme.typography.titleSmall, color = Brand.Warn)
                     Muted("The vault locks whenever you leave the app.")
                     Row {
-                        DesignTextButton(text = "Change PIN", tone = Design.ButtonTone.Soft, onClick = { changingPin = true })
-                        DesignTextButton(text = "Turn off", tone = Design.ButtonTone.Danger, onClick = { state.lock.removePin(); hasPin = false; bio = false })
+                        DesignTextButton(text = "Change PIN", tone = ButtonTone.Soft, onClick = { changingPin = true })
+                        DesignTextButton(text = "Turn off", tone = ButtonTone.Danger, onClick = { state.lock.removePin(); hasPin = false; bio = false })
                     }
                     if (biometricAvailable(ctx)) {
                         SwitchRow("Unlock with fingerprint", bio) { bio = it; state.lock.biometric = it }
@@ -133,7 +128,7 @@ fun ProfileScreen(state: AppState) {
                     Text("No app lock", style = MaterialTheme.typography.titleSmall, color = Brand.Warn)
                     Muted("Anyone holding your phone can open your vault.")
                     Spacer(Modifier.height(8.dp))
-                    DesignButton(text = "Set up a PIN", tone = Design.ButtonTone.Primary, onClick = { changingPin = true })
+                    DesignButton(text = "Set up a PIN", tone = ButtonTone.Primary, onClick = { changingPin = true })
                 }
             }
         }
@@ -146,7 +141,7 @@ fun ProfileScreen(state: AppState) {
                     Text("Fill forms in other apps and websites", style = MaterialTheme.typography.titleSmall, color = Brand.Ink)
                     Muted("Pick AI Form & Vault as the autofill service in Android settings. You can switch back any time.")
                     Spacer(Modifier.height(8.dp))
-                    DesignTextButton(text = "Turn on in Android settings", tone = Design.ButtonTone.Soft, onClick = {
+                    DesignTextButton(text = "Turn on in Android settings", tone = ButtonTone.Soft, onClick = {
                         Session.external = true
                         ctx.startActivity(Intent(Settings.ACTION_REQUEST_SET_AUTOFILL_SERVICE).setData(Uri.parse("package:${ctx.packageName}")))
                     })
@@ -173,8 +168,8 @@ fun ProfileScreen(state: AppState) {
                 Muted("A backup is one file encrypted with a passphrase you choose. Keep it on Drive, email or a USB stick: without the passphrase nobody can open it, including us.")
                 Spacer(Modifier.height(8.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    DesignButton(text = "Back up", tone = Design.ButtonTone.Soft, onClick = { passFor = "export" }, Modifier.weight(1f))
-                    DesignButton(text = "Restore", tone = Design.ButtonTone.Ghost, onClick = { Session.external = true; importFrom.launch(arrayOf("*/*")) }, Modifier.weight(1f))
+                    DesignButton(text = "Back up", modifier = Modifier.weight(1f), tone = ButtonTone.Soft, onClick = { passFor = "export" })
+                    DesignButton(text = "Restore", modifier = Modifier.weight(1f), tone = ButtonTone.Ghost, onClick = { Session.external = true; importFrom.launch(arrayOf("*/*")) })
                 }
             }
         }
@@ -182,7 +177,7 @@ fun ProfileScreen(state: AppState) {
         Column(Modifier.fillMaxWidth()) {
             Muted("Documents are read on this phone and stored encrypted with a key held in Android's secure hardware. Nothing is uploaded: there's no account and no server. Screenshots are blocked inside the app.")
             Spacer(Modifier.height(16.dp))
-            DesignButton(text = "Erase everything", tone = Design.ButtonTone.Danger, onClick = { confirmWipe = true })
+            DesignButton(text = "Erase everything", tone = ButtonTone.Danger, onClick = { confirmWipe = true })
         }
     }
 

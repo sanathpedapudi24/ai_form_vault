@@ -191,11 +191,6 @@ fun ReviewScreen(state: AppState, r: Route.Review) {
     Page(title = "Review & Confirm", onBack = state::back) {
         DesignFlatCard {
             Column {
-                Muted("Expected facts from document type")
-                DesignPill("OK", Design.PillTone.Ok)
-                DesignPill("DOB", Design.PillTone.Warn)
-                DesignPill("ADDRESS", Design.PillTone.Warn)
-                Spacer(Modifier.height(8.dp))
                 Muted("Facts found in scan")
                 facts.forEachIndexed { i, f ->
                     if (i > 0) Spacer(Modifier.height(4.dp))
@@ -206,8 +201,8 @@ fun ReviewScreen(state: AppState, r: Route.Review) {
                 OutlinedTextField(title, { title = it }, label = { Text("Name in your vault") }, singleLine = true, modifier = Modifier.fillMaxWidth())
                 Spacer(Modifier.height(8.dp))
                 Row(horizontalArrangement = Arrangement.End) {
-                    DesignButton(text = "Skip this one", tone = Design.ButtonTone.Danger, onClick = { if (state.batchTotal > 1) finishItem() else state.back() }, Modifier.weight(1f).height(48.dp))
-                    DesignButton(text = "Save", tone = Design.ButtonTone.Primary, onClick = ::save, Modifier.weight(1f).height(48.dp))
+                    DesignButton(text = "Skip this one", tone = ButtonTone.Danger, modifier = Modifier.weight(1f).height(48.dp), onClick = { if (state.batchTotal > 1) finishItem() else state.back() })
+                    DesignButton(text = "Save", tone = ButtonTone.Primary, modifier = Modifier.weight(1f).height(48.dp), onClick = ::save)
                 }
             }
         }
@@ -281,7 +276,7 @@ fun ReviewScreen(state: AppState, r: Route.Review) {
         if (missing.isNotEmpty()) Muted("Not found on this scan: ${missing.joinToString { it.label.lowercase() }}. " +
             "Add them if they're printed, or rescan flatter and better lit.", Modifier.padding(vertical = 8.dp))
         AddFieldMenu(FactKey.entries.filter { k -> facts.none { it.key == k } }) { facts += Fact(it, "") }
-        if (r.text.isNotBlank()) DesignButton(text = "Send scanned text", tone = Design.ButtonTone.Soft, onClick = { sendText = true })
+        if (r.text.isNotBlank()) DesignButton(text = "Send scanned text", tone = ButtonTone.Soft, onClick = { sendText = true })
     }
 
     if (sendText) AlertDialog(
@@ -390,25 +385,14 @@ fun DocScreen(state: AppState, id: String) {
         HeroCard(
             eyebrow = doc.type.label,
             title = doc.title ?: "Document",
-            subtitle = "${data.person(doc.ownerId)?.name ?: "Unknown"} • ${doc.pages} pages",
-            cta = "",
-            onCta = {},
+            subtitle = "${state.data.person(doc.ownerId)?.name ?: "Unknown"} • ${doc.pages} pages",
         )
         Spacer(Modifier.height(16.dp))
-        if (doc.pages > 0) {
-            HeroCard(
-                eyebrow = "Document viewer",
-                title = "Swipe through pages",
-                subtitle = "Tap to zoom, pinch to adjust",
-                cta = "",
-                onCta = {},
-            )
-        }
         Spacer(Modifier.height(12.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
             DesignChip(text = doc.type.label, fg = Brand.EmeraldDeep, bg = Brand.MintSoft)
-            DesignAvatar(initials = (data.person(doc.ownerId)?.name?.substringBefore(' ')?.take(2) ?: "U").uppercase(), size = 32)
-            daysLeft(doc)?.takeIf { it <= 90 }?.let { d to it -> DesignPill(d.toString(), Design.PillTone.Ok) }
+            DesignAvatar(initials = (state.data.person(doc.ownerId)?.name?.substringBefore(' ')?.take(2) ?: "U").uppercase(), size = 32)
+            daysLeft(doc)?.takeIf { it <= 90 }?.let { DesignPill("$it days left", if (it <= 30) PillTone.Danger else PillTone.Warn) }
         }
 
         Section("Details", if (doc.facts.any { it.key.sensitive }) "Show numbers" else null) { reveal = !reveal }
@@ -428,10 +412,10 @@ fun DocScreen(state: AppState, id: String) {
 
         Spacer(Modifier.height(20.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            DesignButton(text = "Digital ID", tone = Design.ButtonTone.Ghost, onClick = { state.go(Route.DigitalId(id)) }, leading = "🪪")
-            DesignButton(text = "Share", tone = Design.ButtonTone.Ghost, onClick = { share() }, leading = "📤")
+            DesignButton(text = "Digital ID", tone = ButtonTone.Ghost, onClick = { state.go(Route.DigitalId(id)) }, leading = "🪪")
+            DesignButton(text = "Share", tone = ButtonTone.Ghost, onClick = { share() }, leading = "📤")
         }
-        DesignButton(text = "Delete document", tone = Design.ButtonTone.Danger, Modifier.fillMaxWidth()) { onClick = { confirmDelete = true } }
+        DesignButton(text = "Delete document", modifier = Modifier.fillMaxWidth(), tone = ButtonTone.Danger, onClick = { confirmDelete = true })
     }
 
     zoom?.let { p ->
