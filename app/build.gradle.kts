@@ -2,6 +2,7 @@ plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
+    id("com.google.devtools.ksp")
 }
 
 // Release signing is opt-in: only applied when all four RELEASE_* environment
@@ -26,8 +27,8 @@ android {
         applicationId = "com.aiformvault.ai_form_vault"
         minSdk = 26
         targetSdk = 36
-        versionCode = 16
-        versionName = "4.1.1"
+        versionCode = 17
+        versionName = "4.2.0"
     }
 
     signingConfigs {
@@ -93,5 +94,11 @@ dependencies {
     // Devanagari fallback (issue #8). Only invoked when the Latin pass finds no name, so it does not
     // double normal OCR cost; unbundled like the Latin model, so the download happens on first use.
     implementation("com.google.android.gms:play-services-mlkit-text-recognition-devanagari:16.0.2")
+    // Vault metadata: SQLite rows behind SQLCipher (issue #12). `sqlcipher-android` is the maintained
+    // successor to android-database-sqlcipher; it still needs the native library loaded once per process.
+    implementation("androidx.room:room-runtime:2.7.2")
+    implementation("androidx.room:room-ktx:2.7.2")
+    implementation("net.zetetic:sqlcipher-android:4.6.1")
+    ksp("androidx.room:room-compiler:2.7.2")
     testImplementation("junit:junit:4.13.2")
 }

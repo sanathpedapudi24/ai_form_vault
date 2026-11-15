@@ -24,10 +24,11 @@ import javax.crypto.spec.PBEKeySpec
 import javax.crypto.spec.SecretKeySpec
 
 /**
- * Everything at rest is AES-256-GCM with a hardware-backed Android Keystore key:
- * vault.bin (all metadata as JSON) and img/<docId>_<page>.bin (page images).
- * ponytail: whole vault is one encrypted JSON file held in memory, fine for hundreds of documents;
- * move to Room + SQLCipher if vaults grow into the thousands.
+ * Everything at rest is AES-256-GCM with a hardware-backed Android Keystore key: page images use it
+ * directly, the vault metadata lives in a Room database whose SQLite engine is wrapped in SQLCipher
+ * with a randomly generated key that is in turn sealed by the same Keystore key (issue #12). Before the
+ * migration shipped the metadata was one encrypted JSON file (`vault.bin`); that path is retired now.
+ * ponytail: one encrypted row set per vault, encrypted on the wire by SQLCipher; fine for thousands of documents.
  */
 object Store {
     private const val ALIAS = "vault"
@@ -68,9 +69,78 @@ object Store {
     private fun imgDir(ctx: Context) = File(ctx.filesDir, "img")
     private fun imgFile(ctx: Context, docId: String, page: Int) = File(imgDir(ctx), "${docId}_$page.bin")
 
-    fun load(ctx: Context): VaultData = vaultFile(ctx).takeIf { it.exists() }?.let { fromJson(JSONObject(String(open(it.readBytes())))) } ?: VaultData()
+    // ---------- SQLCipher database (issue #12) ----------
 
-    fun save(ctx: Context, data: VaultData) = atomicWrite(vaultFile(ctx), seal(toJson(data).toString().toByteArray()))
+    private fun db(ctx: Context): VaultDb {
+        // The SQLCipher core native library is bundled in the AAR; it must be loaded per process.
+        System.loadLibrary("sqlcipher")
+        return VaultDb.open(ctx, dbPassphrase(ctx))
+    }
+
+    /** The database passphrase is a random 256-bit key sealed by the hardware-backed Android Keystore key. */
+    private fun dbPassphrase(ctx: Context): ByteArray {
+        val f = File(ctx.filesDir, "db.key")
+        val raw = if (f.exists()) f.readBytes() else null
+        val plain = raw?.let { open(it) }
+        if (plain != null) return plain
+        val key = key()
+        val bytes = ByteArray(32)
+        SecureRandom().nextBytes(bytes)
+        val sealed = seal(bytes, key)
+        f.parentFile?.mkdirs()
+        val tmp = File(f.path + ".tmp")
+        tmp.writeBytes(sealed)
+        tmp.renameTo(f)
+        return open(sealed, key)
+    }
+
+    /** Read: the SQLCipher database is the source of truth; legacy `vault.bin` is migrated on first run. */
+    fun load(ctx: Context): VaultData = runCatching { readFromDb(ctx) }.getOrNull() ?: readLegacy(ctx)
+
+    private fun readFromDb(ctx: Context): VaultData {
+        val db = db(ctx)
+        val dao = db.dao()
+        val rows = VaultRows(
+            documents = dao.documents(),
+            facts = dao.facts(),
+            people = dao.people(),
+            manual = dao.manualFacts(),
+            fieldsFilled = dao.fieldsFilled().firstOrNull()?.v?.toIntOrNull() ?: 0,
+        )
+        // First launch after the upgrade: an empty database plus a leftover legacy file means "migrate me".
+        if (dao.documents().isEmpty()) migrateLegacy(ctx, db)
+        return rows.toVault()
+    }
+
+    /**
+     * One-time migration from the old JSON file: import into the encrypted database, verify the
+     * counts, and only then retire the fallback copy. A corrupt file simply never migrates, so the
+     * only good copy is never at risk.
+     */
+    private fun migrateLegacy(ctx: Context, db: VaultDb) {
+        val legacy = vaultFile(ctx)
+        if (!legacy.exists()) return
+        val data = try { fromJson(JSONObject(String(open(legacy.readBytes())))) } catch (e: Exception) { return }
+        db.dao().replaceAll(data.toRows())
+        val back = VaultRows(
+            documents = db.dao().documents(),
+            facts = db.dao().facts(),
+            people = db.dao().people(),
+            manual = db.dao().manualFacts(),
+            fieldsFilled = db.dao().fieldsFilled().firstOrNull()?.v?.toIntOrNull() ?: 0,
+        )
+        val ok = back.documents.size == data.documents.size && back.facts.size == data.documents.sumOf { it.facts.size }
+        if (!ok) return
+        legacy.renameTo(File(ctx.filesDir, "vault.bin.migrated"))
+    }
+
+    private fun readLegacy(ctx: Context): VaultData =
+        vaultFile(ctx).takeIf { it.exists() }?.let { fromJson(JSONObject(String(open(it.readBytes())))) } ?: VaultData()
+
+    fun save(ctx: Context, data: VaultData) {
+        // Replaces the whole row set inside one SQLCipher transaction (see VaultDao.replaceAll).
+        db(ctx).dao().replaceAll(data.toRows())
+    }
 
     /** Re-encodes each page as a ≤2000px JPEG before encrypting: keeps the vault small without losing readability. */
     fun saveImages(ctx: Context, docId: String, pages: List<Uri>) {
