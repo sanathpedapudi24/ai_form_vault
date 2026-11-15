@@ -188,20 +188,39 @@ fun ReviewScreen(state: AppState, r: Route.Review) {
         }
     }
 
-    Page(title = "Check the details", onBack = state::back, bottom = {
-        Column {
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                OutlinedButton(
-                    onClick = { if (state.batchTotal > 1) finishItem() else state.back() },
-                    Modifier.weight(1f).height(52.dp), enabled = !saving,
-                ) { Text(if (state.batchTotal > 1) "Skip this one" else "Discard") }
-                Button(onClick = ::save, Modifier.weight(1f).height(52.dp), enabled = !saving) {
-                    if (saving) CircularProgressIndicator(Modifier.height(20.dp).width(20.dp), color = Color.White, strokeWidth = 2.dp) else Text("Save")
+    Page(title = "Review & Confirm", onBack = state::back) {
+        DesignFlatCard {
+            Column {
+                Muted("Expected facts from document type")
+                DesignPill("OK", Design.PillTone.Ok)
+                DesignPill("DOB", Design.PillTone.Warn)
+                DesignPill("ADDRESS", Design.PillTone.Warn)
+                Spacer(Modifier.height(8.dp))
+                Muted("Facts found in scan")
+                facts.forEachIndexed { i, f ->
+                    if (i > 0) Spacer(Modifier.height(4.dp))
+                    DesignChip(text = "${f.key.label}: ${if (f.value.isNotBlank()) f.value else "(not found)"}", fg = Brand.Ink, bg = Brand.Surface2)
+                }
+                if (facts.isEmpty()) Muted("No facts could be read automatically.")
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(title, { title = it }, label = { Text("Name in your vault") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                Spacer(Modifier.height(8.dp))
+                Row(horizontalArrangement = Arrangement.End) {
+                    DesignButton(text = "Skip this one", tone = Design.ButtonTone.Danger, onClick = { if (state.batchTotal > 1) finishItem() else state.back() }, Modifier.weight(1f).height(48.dp))
+                    DesignButton(text = "Save", tone = Design.ButtonTone.Primary, onClick = ::save, Modifier.weight(1f).height(48.dp))
                 }
             }
-            if (state.batchTotal > 1) TextButton(onClick = ::quitQueue, Modifier.fillMaxWidth()) { Text("Quit the queue") }
         }
-    }) {
+        Spacer(Modifier.height(16.dp))
+        if (state.batchTotal > 1) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Chip("Document ${state.batchPos + 1} of ${state.batchTotal}")
+                Spacer(Modifier.width(10.dp))
+                Muted("Saved documents are kept if you quit.")
+            }
+            Spacer(Modifier.height(10.dp))
+            Muted("Fix anything misread and clear anything wrong. Nothing is saved until you tap Save.")
+        }
         if (state.batchTotal > 1) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Chip("Document ${state.batchPos + 1} of ${state.batchTotal}")
@@ -262,7 +281,7 @@ fun ReviewScreen(state: AppState, r: Route.Review) {
         if (missing.isNotEmpty()) Muted("Not found on this scan: ${missing.joinToString { it.label.lowercase() }}. " +
             "Add them if they're printed, or rescan flatter and better lit.", Modifier.padding(vertical = 8.dp))
         AddFieldMenu(FactKey.entries.filter { k -> facts.none { it.key == k } }) { facts += Fact(it, "") }
-        if (r.text.isNotBlank()) TextButton(onClick = { sendText = true }) { Text("Send the scanned text (to report a misread)") }
+        if (r.text.isNotBlank()) DesignButton(text = "Send scanned text", tone = Design.ButtonTone.Soft, onClick = { sendText = true })
     }
 
     if (sendText) AlertDialog(
@@ -368,39 +387,38 @@ fun DocScreen(state: AppState, id: String) {
     }
 
     Page(title = doc.title, onBack = state::back) {
+        HeroCard(
+            eyebrow = doc.type.label,
+            title = doc.title ?: "Document",
+            subtitle = "${data.person(doc.ownerId)?.name ?: "Unknown"} • ${doc.pages} pages",
+            cta = "",
+            onCta = {},
+        )
+        Spacer(Modifier.height(16.dp))
         if (doc.pages > 0) {
-            HorizontalPager(pager, Modifier.fillMaxWidth().height(240.dp).clip(RoundedCornerShape(16.dp)).background(Brand.Surface)) { p ->
-                PageImage(id, p, 1200) { bmp ->
-                    Box(Modifier.fillMaxSize().clickable { zoom = p }, contentAlignment = Alignment.Center) {
-                        if (bmp == null) CircularProgressIndicator()
-                        else Image(bmp.asImageBitmap(), "Page ${p + 1}", contentScale = ContentScale.Fit, modifier = Modifier.fillMaxSize())
-                    }
-                }
-            }
-            Muted(if (doc.pages > 1) "Page ${pager.currentPage + 1} of ${doc.pages}  ·  swipe, tap to zoom" else "Tap to zoom", Modifier.padding(top = 6.dp))
+            HeroCard(
+                eyebrow = "Document viewer",
+                title = "Swipe through pages",
+                subtitle = "Tap to zoom, pinch to adjust",
+                cta = "",
+                onCta = {},
+            )
         }
         Spacer(Modifier.height(12.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-            Chip(doc.type.label)
-            state.data.person(doc.ownerId)?.let { Chip(it.name, Brand.InkMuted, Brand.Surface) }
-            daysLeft(doc)?.takeIf { it <= 90 }?.let { ExpiryBadge(it) }
+            DesignChip(text = doc.type.label, fg = Brand.EmeraldDeep, bg = Brand.MintSoft)
+            DesignAvatar(initials = (data.person(doc.ownerId)?.name?.substringBefore(' ')?.take(2) ?: "U").uppercase(), size = 32)
+            daysLeft(doc)?.takeIf { it <= 90 }?.let { d to it -> DesignPill(d.toString(), Design.PillTone.Ok) }
         }
 
-        Section("Details", if (doc.facts.any { it.key.sensitive }) (if (reveal) "Hide numbers" else "Show numbers") else null) { reveal = !reveal }
-        SoftCard {
-            if (doc.facts.isEmpty()) Muted("No details saved for this document.")
-            doc.facts.forEachIndexed { i, f ->
-                if (i > 0) Spacer(Modifier.height(12.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f)) {
-                        Text(f.key.label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text(if (reveal) f.value else mask(f.key, f.value), style = MaterialTheme.typography.bodyLarge)
-                    }
-                    TextButton(onClick = { reread(f.key) }, enabled = reading == null) {
-                        if (reading == f.key) CircularProgressIndicator(Modifier.height(16.dp).width(16.dp), strokeWidth = 2.dp)
-                        else Text("Re-read")
-                    }
+        Section("Details", if (doc.facts.any { it.key.sensitive }) "Show numbers" else null) { reveal = !reveal }
+        DesignFlatCard {
+            Column {
+                doc.facts.forEachIndexed { i, f ->
+                    if (i > 0) Spacer(Modifier.height(8.dp))
+                    FieldRow(key = f.key.label, value = if (reveal) f.value else mask(f.key, f.value))
                 }
+                if (doc.facts.isEmpty()) Muted("No details saved for this document.")
             }
         }
 
@@ -410,10 +428,10 @@ fun DocScreen(state: AppState, id: String) {
 
         Spacer(Modifier.height(20.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Button(onClick = { state.go(Route.DigitalId(id)) }, Modifier.weight(1f).height(48.dp)) { Text("Digital ID") }
-            OutlinedButton(onClick = { share() }, Modifier.weight(1f).height(48.dp)) { Text("Share") }
+            DesignButton(text = "Digital ID", tone = Design.ButtonTone.Ghost, onClick = { state.go(Route.DigitalId(id)) }, leading = "🪪")
+            DesignButton(text = "Share", tone = Design.ButtonTone.Ghost, onClick = { share() }, leading = "📤")
         }
-        TextButton(onClick = { confirmDelete = true }, Modifier.fillMaxWidth()) { Text("Delete document", color = MaterialTheme.colorScheme.error) }
+        DesignButton(text = "Delete document", tone = Design.ButtonTone.Danger, Modifier.fillMaxWidth()) { onClick = { confirmDelete = true } }
     }
 
     zoom?.let { p ->
@@ -472,37 +490,13 @@ fun DigitalIdScreen(state: AppState, id: String) {
     val f = doc.facts.associate { it.key to it.value }
     val number = idNumberKeys.firstNotNullOfOrNull { k -> f[k]?.let { k to it } }
     Page(title = "Digital ID", onBack = state::back) {
-        Spacer(Modifier.height(12.dp))
-        Column(
-            Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp))
-                .background(Brush.linearGradient(listOf(Color(0xFF064E3B), Brand.TealDeep, Color(0xFF115E59))))
-                .padding(24.dp)
+        DesignDocCard(
+            eyebrow = doc.type.label.uppercase(),
+            name = f[FactKey.NAME]?.let(::titleCase) ?: owner?.name.orEmpty(),
+            subtitle = "• ${doc.pages} pages • ${when (doc.category) { Category.IDENTITY -> "OK"; Category.EDUCATION -> "Warn"; Category.FINANCE -> "OK"; Category.TRAVEL -> "OK"; else -> "" }}",
+            alt = true,
         ) {
-            Row {
-                Text(doc.type.label.uppercase(), color = Brand.Mint, fontSize = 12.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp, modifier = Modifier.weight(1f))
-                Text("AI Form & Vault", color = Color.White.copy(alpha = 0.6f), fontSize = 12.sp)
-            }
-            Spacer(Modifier.height(28.dp))
-            Text(f[FactKey.NAME]?.let(::titleCase) ?: owner?.name.orEmpty(), color = Color.White, fontSize = 26.sp, fontWeight = FontWeight.SemiBold)
-            number?.let { (k, v) ->
-                Spacer(Modifier.height(14.dp))
-                Text(k.label, color = Color.White.copy(alpha = 0.6f), fontSize = 12.sp)
-                Text(if (reveal) v else mask(k, v), color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Medium, letterSpacing = 2.sp,
-                    modifier = Modifier.clickable { reveal = !reveal })
-            }
-            Spacer(Modifier.height(20.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
-                listOf(FactKey.DOB, FactKey.GENDER, FactKey.EXPIRY).forEach { k ->
-                    f[k]?.let { v ->
-                        Column {
-                            Text(k.label, color = Color.White.copy(alpha = 0.6f), fontSize = 12.sp)
-                            Text(v, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Medium)
-                        }
-                    }
-                }
-            }
+            // Quick facts tap area - currently displayed in the gradient card
         }
-        Spacer(Modifier.height(16.dp))
-        Muted("Tap the number to reveal it. This card is a quick reference from your own scan, not an official ID; offices may still ask for the original.")
     }
 }

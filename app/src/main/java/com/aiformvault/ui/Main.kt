@@ -253,14 +253,23 @@ private fun Shell(state: AppState) {
 
     val route = state.route
     Scaffold(
-        containerColor = Color.Transparent,
+        containerColor = Brand.Surface,
         snackbarHost = { SnackbarHost(snack) },
         bottomBar = {
-            if (route in tabs) NavigationBar(containerColor = Color.White.copy(alpha = 0.92f)) {
-                listOf(Triple(Route.Home, Icons.Filled.Home, "Home"), Triple(Route.Vault, Icons.Filled.List, "Vault"),
-                    Triple(Route.Search, Icons.Filled.Search, "Search"), Triple(Route.Profile, Icons.Filled.Person, "Profile"),
-                ).forEach { (r, icon, label) ->
-                    NavigationBarItem(selected = route == r, onClick = { state.tab(r) }, icon = { Icon(icon, null) }, label = { Text(label) })
+            if (route in tabs) NavigationBar(containerColor = Brand.Surface) {
+                listOf(
+                    Triple("Home", "⌂", "home"),
+                    Triple("Vault", "▦", "vault"),
+                    Triple("ID", "🪪", "id"),
+                    Triple("Profile", "◉", "profile"),
+                ).forEach { (label, glyph, key) ->
+                    val active = route == key
+                    NavigationBarItem(
+                        selected = active,
+                        onClick = { state.tab(key) },
+                        icon = { Text(glyph, fontSize = 17.sp, color = if (active) Brand.Emerald else Brand.InkMuted) },
+                        label = { Text(label, fontSize = 10.sp, fontWeight = if (active) FontWeight.Bold else FontWeight.Normal, color = if (active) Brand.Emerald else Brand.InkMuted) }
+                    )
                 }
             }
         },
@@ -297,48 +306,81 @@ private fun HomeScreen(state: AppState) {
     Page {
         Spacer(Modifier.height(24.dp))
         if (data.documents.isEmpty()) {
-            Text("Store once.\nUnderstand forever.\nReuse everywhere.", style = MaterialTheme.typography.headlineLarge)
-            Spacer(Modifier.height(12.dp))
-            Muted("Scan your Aadhaar, PAN or marksheet. Details are read privately, on this phone, and reused to fill forms.")
-            Spacer(Modifier.height(16.dp))
-            Chip("On-device  ·  Encrypted  ·  No account")
+            HeroCard(
+                eyebrow = "AI Form & Vault",
+                title = "Your encrypted identity-document vault",
+                subtitle = "Scan your Aadhaar, PAN or marksheet. Details are read privately, on this phone, and reused to fill forms.",
+                cta = "＋ Scan a document",
+                onCta = { state.scan },
+            )
         } else {
-            Text("Hi, ${self?.name?.substringBefore(' ') ?: "there"}", style = MaterialTheme.typography.headlineLarge)
-            Muted("Your vault, understood.")
+            HeroCard(
+                eyebrow = "",
+                title = "Hi, ${self?.name?.substringBefore(' ') ?: "there"}",
+                subtitle = "Your vault, understood.",
+                cta = "",
+                onCta = {},
+            )
         }
         Spacer(Modifier.height(20.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Button(onClick = state.scan, Modifier.weight(1f).height(52.dp)) { Text("Scan a document") }
-            OutlinedButton(onClick = { state.go(Route.SnapFill) }, Modifier.weight(1f).height(52.dp)) { Text("Fill a form") }
+            DesignButton(
+                text = "Scan a document",
+                tone = Design.ButtonTone.Primary,
+                onClick = state.scan,
+                leading = "📷",
+            )
+            DesignButton(
+                text = "Fill a form",
+                tone = Design.ButtonTone.Ghost,
+                onClick = { state.go(Route.SnapFill) },
+                leading = "📝",
+            )
         }
         Row {
-            TextButton(onClick = state.importPdf) { Text("Import a PDF") }
-            TextButton(onClick = state.importImages) { Text("Import photos") }
+            DesignButton(
+                text = "Import a PDF",
+                tone = Design.ButtonTone.Ghost,
+                onClick = state.importPdf,
+                leading = "📄",
+            )
+            DesignButton(
+                text = "Import photos",
+                tone = Design.ButtonTone.Ghost,
+                onClick = state.importImages,
+                leading = "🖼",
+            )
         }
 
         if (!state.lock.hasPin) {
             Spacer(Modifier.height(8.dp))
-            SoftCard(color = Brand.WarnSoft, onClick = { state.tab(Route.Profile) }) {
-                Text("Set up an app lock", style = MaterialTheme.typography.titleSmall)
-                Muted("Anyone holding your phone can open your vault right now.")
+            DesignFlatCard(onClick = { state.tab(Route.Profile) }) {
+                Column {
+                    Text("Set up an app lock", style = MaterialTheme.typography.titleSmall, color = Brand.Warn)
+                    Muted("Anyone holding your phone can open your vault right now.")
+                }
             }
         }
         if (conflicts.isNotEmpty()) {
             Spacer(Modifier.height(8.dp))
-            SoftCard(color = Brand.DangerSoft, onClick = { state.tab(Route.Profile) }) {
-                Text("${conflicts.size} detail${if (conflicts.size > 1) "s don't" else " doesn't"} match across documents", style = MaterialTheme.typography.titleSmall, color = Brand.Danger)
-                Muted(conflicts.joinToString { it.key.label } + ". Forms can be rejected over this. Tap to review.")
+            DesignFlatCard(color = Brand.DangerSoft, onClick = { state.tab(Route.Profile) }) {
+                Column {
+                    Text("${conflicts.size} detail${if (conflicts.size > 1) "s don't" else " doesn't"} match across documents", style = MaterialTheme.typography.titleSmall, color = Brand.Danger)
+                    Muted(conflicts.joinToString { it.key.label } + ". Forms can be rejected over this. Tap to review.")
+                }
             }
         }
         pending.firstOrNull()?.let { p ->
             Spacer(Modifier.height(8.dp))
-            SoftCard {
-                Text("Is ${p.name} your ${p.relation.label.lowercase()}?", style = MaterialTheme.typography.titleSmall)
-                Muted(p.evidence)
-                Row {
-                    TextButton(onClick = { state.update { d -> d.copy(people = d.people.map { if (it.id == p.id) it.copy(confirmed = true) else it }) } }) { Text("Yes, confirm") }
-                    TextButton(onClick = { state.update { d -> d.copy(people = d.people.filter { it.id != p.id }) } }) { Text("No") }
-                    if (pending.size > 1) TextButton(onClick = { state.go(Route.Relationships) }) { Text("+${pending.size - 1} more") }
+            DesignFlatCard(onClick = { state.go(Route.Relationships) }) {
+                Column {
+                    Text("Is ${p.name} your ${p.relation.label.lowercase()}?", style = MaterialTheme.typography.titleSmall)
+                    Muted(p.evidence)
+                    Row {
+                        TextButton(onClick = { state.update { d -> d.copy(people = d.people.map { if (it.id == p.id) it.copy(confirmed = true) else it }) } }) { Text("Yes, confirm") }
+                        TextButton(onClick = { state.update { d -> d.copy(people = d.people.filter { it.id != p.id }) } }) { Text("No") }
+                        if (pending.size > 1) TextButton(onClick = { state.go(Route.Relationships) }) { Text("+${pending.size - 1} more") }
+                    }
                 }
             }
         }
@@ -346,9 +388,20 @@ private fun HomeScreen(state: AppState) {
         if (data.documents.isNotEmpty()) {
             Spacer(Modifier.height(16.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Stat("${data.documents.size}", "Documents", Modifier.weight(1f))
-                Stat("${data.people.count { it.confirmed && it.relation != Relation.SELF }}", "Family", Modifier.weight(1f))
-                Stat("${data.fieldsFilled}", "Fields filled", Modifier.weight(1f))
+                Box(Modifier.width(56.dp).height(56.dp).clip(RoundedCornerShape(20.dp)).background(Brush.linearGradient(listOf(Brand.EmeraldDeep, Brand.Emerald, Brand.Teal))).align(Alignment.CenterVertically) {
+                    Text(data.documents.size.toString(), color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+                )
+                }
+                Spacer(Modifier.width(8.dp))
+                Box(Modifier.width(56.dp).height(56.dp).clip(RoundedCornerShape(20.dp)).background(Brush.linearGradient(listOf(Brand.TealDeep, Brand.Emerald))) {
+                    Text(data.people.count { it.confirmed && it.relation != Relation.SELF }.toString(), color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+                )
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+                Box(Modifier.width(56.dp).height(56.dp).clip(RoundedCornerShape(20.dp)).background(Brush.linearGradient(listOf(Brand.MintSoft, Brand.EmeraldDeep))) {
+                    Text(data.fieldsFilled.toString(), color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+                )
+                }
             }
             val expiring = data.documents.mapNotNull { d -> daysLeft(d)?.takeIf { it <= 90 }?.let { d to it } }.sortedBy { it.second }
             if (expiring.isNotEmpty()) {
@@ -370,20 +423,58 @@ private fun VaultScreen(state: AppState) {
     val counts = data.documents.groupingBy { it.category }.eachCount()
     Box(Modifier.fillMaxSize()) {
         Page(title = "Vault", actions = {
-            TextButton(onClick = state.importImages) { Text("Photos") }
-            TextButton(onClick = state.importPdf) { Text("PDF") }
+            DesignButton(
+                text = "Photos",
+                tone = Design.ButtonTone.Ghost,
+                onClick = state.importImages,
+                leading = "📷",
+            )
+            DesignButton(
+                text = "PDF",
+                tone = Design.ButtonTone.Ghost,
+                onClick = state.importPdf,
+                leading = "📄",
+            )
         }) {
-            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                item { FilterChip(selected = filter == null, onClick = { filter = null }, label = { Text("All (${data.documents.size})") }) }
-                items(Category.entries.filter { (counts[it] ?: 0) > 0 }) { c ->
-                    FilterChip(selected = filter == c, onClick = { filter = if (filter == c) null else c }, label = { Text("${c.label} (${counts[c]})") })
+            Column(Modifier.fillMaxWidth()) {
+                DesignSegmented(
+                    items = Category.entries.map { it.label },
+                    selected = filter != null ? Category.values().indexOf(filter!!) : 0,
+                    onSelect = { filter = Category.values()[it] },
+                )
+                Spacer(Modifier.height(12.dp))
+                val docs = data.documents.filter { filter == null || it.category == filter }.sortedByDescending { it.createdAt }
+                if (docs.isEmpty()) {
+                    Muted("Nothing here yet. Scan a document to start your vault.", Modifier.padding(vertical = 24.dp))
+                } else {
+                    docs.forEach { d -> DesignDocRow(
+                        glyph = when (d.category) {
+                            Category.IDENTITY -> "🪪"
+                            Category.EDUCATION -> "🎓"
+                            Category.FINANCE -> "🏦"
+                            Category.TRAVEL -> "✈️"
+                            else -> "📄"
+                        },
+                        title = d.title,
+                        subtitle = "${data.person(d.ownerId)?.name ?: "Unknown"} • ${d.pages} pages",
+                        modifier = Modifier.clickable { state.go(Route.Doc(d.id)) },
+                        pill = when (d.category) {
+                            Category.IDENTITY -> "OK"
+                            Category.EDUCATION -> "Warn"
+                            Category.FINANCE -> "OK"
+                            Category.TRAVEL -> "OK"
+                            else -> null
+                        },
+                        pillTone = when (d.category) {
+                            Category.IDENTITY -> Design.PillTone.Ok
+                            Category.EDUCATION -> Design.PillTone.Warn
+                            else -> Design.PillTone.Ok
+                        },
+                        onClick = {},
+                    ) }
                 }
+                Spacer(Modifier.height(72.dp))
             }
-            Spacer(Modifier.height(12.dp))
-            val docs = data.documents.filter { filter == null || it.category == filter }.sortedByDescending { it.createdAt }
-            if (docs.isEmpty()) Muted("Nothing here yet. Scan a document to start your vault.", Modifier.padding(vertical = 24.dp))
-            docs.forEach { d -> DocRow(d, data.person(d.ownerId)?.name) { state.go(Route.Doc(d.id)) } }
-            Spacer(Modifier.height(72.dp))
         }
         ExtendedFloatingActionButton(
             onClick = state.scan, icon = { Icon(Icons.Filled.Add, null) }, text = { Text("Scan") },
@@ -398,10 +489,7 @@ private fun SearchScreen(state: AppState) {
     var q by remember { mutableStateOf("") }
     val results = remember(q, state.data) { search(q, state.data) }
     Page(title = "Search") {
-        OutlinedTextField(
-            value = q, onValueChange = { q = it }, singleLine = true, modifier = Modifier.fillMaxWidth(),
-            leadingIcon = { Icon(Icons.Filled.Search, null) }, placeholder = { Text("Try “sister's Aadhaar”") },
-        )
+        DesignSearchField(value = q, onValueChange = { q = it }, placeholder = "Search documents…", modifier = Modifier.fillMaxWidth())
         Spacer(Modifier.height(12.dp))
         if (q.isBlank()) {
             Muted("Search by meaning: a person, a document type, a detail, or when something expires.")
@@ -414,7 +502,18 @@ private fun SearchScreen(state: AppState) {
         } else {
             Muted("${results.size} result${if (results.size > 1) "s" else ""}")
             Spacer(Modifier.height(8.dp))
-            results.forEach { d -> DocRow(d, state.data.person(d.ownerId)?.name) { state.go(Route.Doc(d.id)) } }
+            results.forEach { d -> DesignDocRow(
+                glyph = when (d.category) {
+                    Category.IDENTITY -> "🪪"
+                    Category.EDUCATION -> "🎓"
+                    Category.FINANCE -> "🏦"
+                    Category.TRAVEL -> "✈️"
+                    else -> "📄"
+                },
+                title = d.title,
+                subtitle = "${state.data.person(d.ownerId)?.name ?: "Unknown"} • ${d.pages} pages",
+                onClick = { state.go(Route.Doc(d.id)) },
+            ) }
         }
     }
 }
