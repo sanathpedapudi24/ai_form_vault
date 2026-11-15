@@ -2,8 +2,13 @@ package com.aiformvault.ui
 
 import android.content.Intent
 import android.graphics.Bitmap
+import android.graphics.Paint
+import android.graphics.RectF
+import android.graphics.Typeface
+import android.graphics.pdf.PdfDocument
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.rememberTransformableState
 import androidx.compose.foundation.gestures.transformable
@@ -16,19 +21,16 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -45,10 +47,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -92,6 +94,7 @@ private const val OTHER = "other"
 private val addedFmt = DateTimeFormatter.ofPattern("d MMM yyyy", Locale.ENGLISH)
 private fun addedOn(millis: Long): String =
     Instant.ofEpochMilli(millis).atZone(ZoneId.systemDefault()).toLocalDate().format(addedFmt)
+
 
 /** Every extracted value is a suggestion: the user checks, fixes or drops each before anything is saved (FR-OCR-10). */
 @Composable
@@ -188,99 +191,72 @@ fun ReviewScreen(state: AppState, r: Route.Review) {
         }
     }
 
-    Page(title = "Review & Confirm", onBack = state::back) {
-        DesignFlatCard {
-            Column {
-                Muted("Facts found in scan")
-                facts.forEachIndexed { i, f ->
-                    if (i > 0) Spacer(Modifier.height(4.dp))
-                    DesignChip(text = "${f.key.label}: ${if (f.value.isNotBlank()) f.value else "(not found)"}", fg = Brand.Ink, bg = Brand.Surface2)
-                }
-                if (facts.isEmpty()) Muted("No facts could be read automatically.")
-                Spacer(Modifier.height(8.dp))
-                OutlinedTextField(title, { title = it }, label = { Text("Name in your vault") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                Spacer(Modifier.height(8.dp))
-                Row(horizontalArrangement = Arrangement.End) {
-                    DesignButton(text = "Skip this one", tone = ButtonTone.Danger, modifier = Modifier.weight(1f).height(48.dp), onClick = { if (state.batchTotal > 1) finishItem() else state.back() })
-                    DesignButton(text = "Save", tone = ButtonTone.Primary, modifier = Modifier.weight(1f).height(48.dp), onClick = ::save)
-                }
-            }
-        }
-        Spacer(Modifier.height(16.dp))
+
+    val expected = expectedFacts[type].orEmpty()
+    Screen("Review", onBack = state::back, dock = {
+        Btn("Save document", enabled = !saving, onClick = ::save)
+        Btn("Skip this one", BtnKind.Line, enabled = !saving) { if (state.batchTotal > 1) finishItem() else state.back() }
+    }) {
         if (state.batchTotal > 1) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Chip("Document ${state.batchPos + 1} of ${state.batchTotal}")
-                Spacer(Modifier.width(10.dp))
-                Muted("Saved documents are kept if you quit.")
-            }
-            Spacer(Modifier.height(10.dp))
-            Muted("Fix anything misread and clear anything wrong. Nothing is saved until you tap Save.")
+            Para("Document ${state.batchPos + 1} of ${state.batchTotal}, ${type.label}")
+            Spacer(Modifier.height(8.dp))
+            Prog((state.batchPos + 1f) / state.batchTotal)
+        } else {
+            Para("${type.label}. Fix anything misread. Nothing is saved until you tap Save.")
+            Spacer(Modifier.height(18.dp))
         }
-        if (state.batchTotal > 1) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Chip("Document ${state.batchPos + 1} of ${state.batchTotal}")
-                Spacer(Modifier.width(10.dp))
-                Muted("Saved documents are kept if you quit.")
-            }
-            Spacer(Modifier.height(10.dp))
-        }
-        Muted("Fix anything misread and clear anything wrong. Nothing is saved until you tap Save.")
         dupes.firstOrNull()?.let { hit ->
-            Spacer(Modifier.height(12.dp))
-            SoftCard(color = Brand.WarnSoft) {
-                Text(
-                    if (hit.strong) "This ${type.label.lowercase()} is already in your vault" else "You may already have a similar document",
-                    style = MaterialTheme.typography.titleSmall,
-                )
-                Muted("“${hit.doc.title}”, added ${addedOn(hit.doc.createdAt)}.")
-                Muted(if (hit.strong)
-                    "Tap Save to keep both, or update the old one instead. Nothing is overwritten unless you choose it."
-                else "Same type, owner and name. Open it to check before saving a second copy.")
-                Row {
-                    TextButton(onClick = { state.go(Route.Doc(hit.doc.id)) }) { Text("Open it") }
-                    if (hit.strong) TextButton(onClick = { updateExisting(hit.doc) }, enabled = !saving) { Text("Update it") }
-                }
+            Note(true, Ic.alert,
+                if (hit.strong) "This ${type.label.lowercase()} is already in your vault" else "You may already have this",
+                "${hit.doc.title}, added ${addedOn(hit.doc.createdAt)}.") {
+                Btn("Open it", small = true) { state.go(Route.Doc(hit.doc.id)) }
+                if (hit.strong) Btn("Update it", BtnKind.Line, small = true, enabled = !saving) { updateExisting(hit.doc) }
+                Btn("Save anyway", BtnKind.Ghost, small = true, enabled = !saving, onClick = ::save)
             }
         }
-        Spacer(Modifier.height(16.dp))
-        Picker("Type", type, DocType.entries, { it.label }) { type = it; category = it.category; title = suggestTitle(it, facts) }
-        Spacer(Modifier.height(8.dp))
-        Picker("Category", category, Category.entries, { it.label }) { category = it }
-        Spacer(Modifier.height(8.dp))
-        OutlinedTextField(title, { title = it }, label = { Text("Name in your vault") }, singleLine = true, modifier = Modifier.fillMaxWidth())
 
-        Section("Whose document is this?")
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            FilterChip(owner == ME, { owner = ME }, label = { Text("Mine") })
-            family.take(3).forEach { p -> FilterChip(owner == p.id, { owner = p.id }, label = { Text(p.name.substringBefore(' ')) }) }
-            FilterChip(owner == OTHER, { owner = OTHER }, label = { Text("Someone else") })
+        // Which of the details this document type should carry were actually read.
+        val checks = expected.ifEmpty { facts.map { it.key }.distinct() }
+        if (checks.isNotEmpty()) {
+            Sec("Found on the document")
+            Grp(checks.map { k ->
+                @Composable {
+                    val found = facts.any { it.key == k && it.value.isNotBlank() }
+                    Item({ CheckDot(found) }, k.label, if (found) "Read from the scan. Check it below." else "Not found. Add it below if it's printed.")
+                }
+            })
         }
-        if (owner == OTHER) {
-            Spacer(Modifier.height(8.dp))
-            OutlinedTextField(otherName, { otherName = it }, label = { Text("Their name") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-            Spacer(Modifier.height(8.dp))
-            Picker("They are your", otherRelation, Relation.entries.filter { it != Relation.SELF }, { it.label.lowercase() }) { otherRelation = it }
-        }
-        if (owner != ME) Muted("Details from this document stay with them, not in your profile.", Modifier.padding(top = 8.dp))
 
-        Section("Details found")
-        if (facts.isEmpty()) Muted("Nothing could be read automatically. Add the details you need below.")
+        Sec("Check and edit")
+        if (facts.isEmpty()) Para("Nothing could be read automatically. Add the details you need.", top = 0.dp)
         facts.forEachIndexed { i, f ->
-            OutlinedTextField(
-                f.value, { facts[i] = f.copy(value = it) }, label = { Text(f.key.label) }, singleLine = f.key != FactKey.ADDRESS,
-                modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
-                trailingIcon = { TextButton(onClick = { facts.removeAt(i) }) { Text("Clear") } },
-            )
+            Tf(f.key.label, f.value, { facts[i] = f.copy(value = it) }, singleLine = f.key != FactKey.ADDRESS,
+                trailing = { TBtn("Clear", C.ink2) { facts.removeAt(i) } })
         }
-        val missing = expectedFacts[type].orEmpty().filter { k -> facts.none { it.key == k && it.value.isNotBlank() } }
-        if (missing.isNotEmpty()) Muted("Not found on this scan: ${missing.joinToString { it.label.lowercase() }}. " +
-            "Add them if they're printed, or rescan flatter and better lit.", Modifier.padding(vertical = 8.dp))
+        expected.filter { k -> facts.none { it.key == k } }.forEach { k ->
+            Tf(k.label, "", { if (it.isNotBlank()) facts += Fact(k, it) }, miss = true, placeholder = "Not found. Type it if it's printed.")
+        }
         AddFieldMenu(FactKey.entries.filter { k -> facts.none { it.key == k } }) { facts += Fact(it, "") }
-        if (r.text.isNotBlank()) DesignButton(text = "Send scanned text", tone = ButtonTone.Soft, onClick = { sendText = true })
+
+        Sec("About this document")
+        PickerTf("Type", type, DocType.entries, { it.label }) { type = it; category = it.category; title = suggestTitle(it, facts) }
+        PickerTf("Category", category, Category.entries, { it.label }) { category = it }
+        Tf("Name in your vault", title, { title = it })
+
+        Sec("Whose document is this?")
+        val owners = listOf(ME) + family.take(3).map { it.id } + OTHER
+        Chips(owners, owner, { o -> when (o) { ME -> "Mine"; OTHER -> "Someone else"; else -> family.first { it.id == o }.name.substringBefore(' ') } }) { owner = it }
+        if (owner == OTHER) {
+            Tf("Their name", otherName, { otherName = it })
+            PickerTf("They are your", otherRelation, Relation.entries.filter { it != Relation.SELF }, { it.label.lowercase() }) { otherRelation = it }
+        }
+        if (owner != ME) Para("Details from this document stay with them, not in your profile.")
+        if (r.text.isNotBlank()) { Spacer(Modifier.height(12.dp)); TBtn("Send scanned text") { sendText = true } }
     }
 
     if (sendText) AlertDialog(
         onDismissRequest = { sendText = false },
+        containerColor = C.card,
         title = { Text("Send the scanned text?") },
         text = { Text("It contains everything read from this document, including ID numbers. Change the numbers before sending, and only send it to someone you trust.") },
         confirmButton = {
@@ -295,12 +271,20 @@ fun ReviewScreen(state: AppState, r: Route.Review) {
     )
 }
 
+/** `.dot.ok` (check) for a found detail; a muted alert dot for a missing one. */
+@Composable
+private fun CheckDot(ok: Boolean) {
+    Box(Modifier.size(36.dp).clip(CircleShape).background(if (ok) C.g else C.card2), contentAlignment = Alignment.Center) {
+        I(if (ok) Ic.check else Ic.alert, 18.dp, if (ok) C.on else C.ink2)
+    }
+}
+
 @Composable
 fun AddFieldMenu(keys: List<FactKey>, onPick: (FactKey) -> Unit) {
     var open by remember { mutableStateOf(false) }
     Box {
-        TextButton(onClick = { open = true }) { Text("+ Add a detail") }
-        DropdownMenu(open, { open = false }) { keys.forEach { k -> DropdownMenuItem(text = { Text(k.label) }, onClick = { open = false; onPick(k) }) } }
+        TBtn("+ Add a detail") { open = true }
+        DropdownMenu(open, { open = false }, containerColor = C.card) { keys.forEach { k -> DropdownMenuItem(text = { Text(k.label, color = C.ink) }, onClick = { open = false; onPick(k) }) } }
     }
 }
 
@@ -319,6 +303,7 @@ fun ZoomImage(bmp: Bitmap) {
     Image(bmp.asImageBitmap(), "Document page, pinch to zoom", contentScale = ContentScale.Fit,
         modifier = Modifier.fillMaxSize().transformable(t).graphicsLayer(scaleX = scale, scaleY = scale, translationX = offset.x, translationY = offset.y))
 }
+
 
 @Composable
 fun DocScreen(state: AppState, id: String) {
@@ -353,21 +338,24 @@ fun DocScreen(state: AppState, id: String) {
         }
     }
 
-    /** Picking a candidate replaces only that fact, and records it as the user's own value so it wins in profile(). */
-    fun pick(key: FactKey, value: String) {
+    /** Sets one fact on this document (adding it if new) and, for the user's own document, records it as their value so it wins in profile(). */
+    fun setFact(key: FactKey, value: String) {
         val mine = doc.ownerId == state.data.self?.id
         state.update { d ->
             d.copy(
                 documents = d.documents.map { doc0 ->
                     if (doc0.id != id) doc0
-                    else doc0.copy(facts = doc0.facts.map { if (it.key == key) it.copy(value = value) else it })
+                    else if (doc0.facts.any { it.key == key }) doc0.copy(facts = doc0.facts.map { if (it.key == key) it.copy(value = value) else it })
+                    else doc0.copy(facts = doc0.facts + Fact(key, value))
                 },
                 manual = if (mine) d.manual.filter { it.key != key } + ManualFact(key, value, System.currentTimeMillis()) else d.manual,
             )
         }
-        rereadKey = null; candidates = emptyList()
         state.message = "${key.label} updated"
     }
+
+    /** Picking a re-read candidate replaces only that fact. */
+    fun pick(key: FactKey, value: String) { rereadKey = null; candidates = emptyList(); setFact(key, value) }
 
     fun share() = scope.launch {
         val uris = withContext(Dispatchers.IO) {
@@ -381,43 +369,87 @@ fun DocScreen(state: AppState, id: String) {
         ctx.startActivity(Intent.createChooser(send, "Share ${doc.title}"))
     }
 
-    Page(title = doc.title, onBack = state::back) {
-        HeroCard(
-            eyebrow = doc.type.label,
-            title = doc.title ?: "Document",
-            subtitle = "${state.data.person(doc.ownerId)?.name ?: "Unknown"} • ${doc.pages} pages",
-        )
-        Spacer(Modifier.height(16.dp))
-        Spacer(Modifier.height(12.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-            DesignChip(text = doc.type.label, fg = Brand.EmeraldDeep, bg = Brand.MintSoft)
-            DesignAvatar(initials = (state.data.person(doc.ownerId)?.name?.substringBefore(' ')?.take(2) ?: "U").uppercase(), size = 32)
-            daysLeft(doc)?.takeIf { it <= 90 }?.let { DesignPill("$it days left", if (it <= 30) PillTone.Danger else PillTone.Warn) }
+
+    var editKey by remember { mutableStateOf<FactKey?>(null) }
+    var choose by remember { mutableStateOf<String?>(null) } // "reread" or "edit": pick which detail first
+    val owner = state.data.person(doc.ownerId)
+    val f = doc.facts.associate { it.key to it.value }
+    val number = idNumberKeys.firstNotNullOfOrNull { k -> f[k]?.let { k to it } }
+
+    Screen(doc.title, onBack = state::back, actions = {
+        MoreMenu("Share pages" to { share() }, "Digital ID" to { state.go(Route.DigitalId(id)) }, "Delete document" to { confirmDelete = true })
+    }) {
+        Cred(listOfNotNull(doc.type.label, owner?.takeIf { it.relation != Relation.SELF }?.relation?.label).joinToString(", "),
+            f[FactKey.NAME]?.let(::titleCase) ?: owner?.name ?: doc.title,
+            number?.let { (k, v) -> if (reveal) v else mask(k, v) }, onNum = { reveal = !reveal })
+        daysLeft(doc)?.takeIf { it <= 90 }?.let { left ->
+            Spacer(Modifier.height(12.dp))
+            Note(true, Ic.alert, if (left < 0) "Expired" else "Expires in $left days", "Renew it before you need it for a form.")
         }
 
-        Section("Details", if (doc.facts.any { it.key.sensitive }) "Show numbers" else null) { reveal = !reveal }
-        DesignFlatCard {
-            Column {
-                doc.facts.forEachIndexed { i, f ->
-                    if (i > 0) Spacer(Modifier.height(8.dp))
-                    FieldRow(key = f.key.label, value = if (reveal) f.value else mask(f.key, f.value))
+        if (doc.pages > 0) {
+            Sec("Pages")
+            HorizontalPager(pager, Modifier.fillMaxWidth().height(240.dp).clip(RoundedCornerShape(24.dp)).background(C.card).border(1.dp, C.line, RoundedCornerShape(24.dp))) { p ->
+                PageImage(id, p, 1200) { bmp ->
+                    Box(Modifier.fillMaxSize().clickable { zoom = p }, contentAlignment = Alignment.Center) {
+                        if (bmp == null) Spinner(28.dp)
+                        else Image(bmp.asImageBitmap(), "Page ${p + 1}, tap to zoom", contentScale = ContentScale.Fit, modifier = Modifier.fillMaxSize())
+                    }
                 }
-                if (doc.facts.isEmpty()) Muted("No details saved for this document.")
             }
+            Para(if (doc.pages > 1) "Page ${pager.currentPage + 1} of ${doc.pages}. Swipe, or tap to zoom." else "Tap to zoom.", top = 8.dp)
         }
 
-        Section("Note")
-        OutlinedTextField(note, { note = it }, placeholder = { Text("e.g. Used for NSP scholarship, 2026") }, minLines = 2, modifier = Modifier.fillMaxWidth())
-        if (note != doc.note) TextButton(onClick = { state.update { d -> d.copy(documents = d.documents.map { if (it.id == id) it.copy(note = note.trim()) else it }) } }) { Text("Save note") }
+        Sec("Extracted details", if (doc.facts.any { it.key.sensitive }) (if (reveal) "Hide numbers" else "Show numbers") else null) { reveal = !reveal }
+        if (doc.facts.isEmpty()) Para("No details saved for this document.")
+        else Grp(doc.facts.map { fact ->
+            @Composable {
+                Kv(fact.key.label, if (reveal) fact.value else mask(fact.key, fact.value), onClick = { editKey = fact.key }) {
+                    if (reading == fact.key) Spinner()
+                }
+            }
+        })
 
-        Spacer(Modifier.height(20.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            DesignButton(text = "Digital ID", tone = ButtonTone.Ghost, onClick = { state.go(Route.DigitalId(id)) }, leading = "🪪")
-            DesignButton(text = "Share", tone = ButtonTone.Ghost, onClick = { share() }, leading = "📤")
+        Sec("Note")
+        Tf("Note", note, { note = it }, placeholder = "e.g. Used for NSP scholarship, 2026", singleLine = false)
+        if (note != doc.note) Btn("Save note", BtnKind.Tonal, small = true) {
+            state.update { d -> d.copy(documents = d.documents.map { if (it.id == id) it.copy(note = note.trim()) else it }) }
         }
-        DesignButton(text = "Delete document", modifier = Modifier.fillMaxWidth(), tone = ButtonTone.Danger, onClick = { confirmDelete = true })
+
+        Sec("Manage")
+        Grp(
+            { Item({ Dic(Ic.redo) }, "Re-read fields", if (reading != null) "Reading ${reading?.label?.lowercase()}…" else "Run text recognition again on saved pages", end = { Chev() }) { if (reading == null) choose = "reread" } },
+            { Item({ Dic(Ic.edit) }, "Edit manually", "Override a value on this document", end = { Chev() }) { choose = "edit" } },
+            { Item({ Dic(Ic.id) }, "Digital ID", "Show it as a card, share or print it", end = { Chev() }) { state.go(Route.DigitalId(id)) } },
+            { Item({ Dic(Ic.trash, danger = true) }, "Delete document", "Removes the scans and extracted details") { confirmDelete = true } },
+        )
     }
 
+    choose?.let { mode ->
+        val keys = if (mode == "edit") doc.facts.map { it.key } + FactKey.entries.filter { k -> doc.facts.none { it.key == k } } else doc.facts.map { it.key }
+        AlertDialog(
+            onDismissRequest = { choose = null }, containerColor = C.card,
+            title = { Text(if (mode == "edit") "Which detail?" else "Re-read which detail?") },
+            text = {
+                Column(Modifier.verticalScroll(rememberScrollState())) {
+                    keys.forEach { k -> TextButton(onClick = { choose = null; if (mode == "edit") editKey = k else reread(k) }, Modifier.fillMaxWidth()) {
+                        Text(k.label, Modifier.fillMaxWidth(), color = C.ink)
+                    } }
+                }
+            },
+            confirmButton = { TextButton(onClick = { choose = null }) { Text("Cancel") } },
+        )
+    }
+    editKey?.let { key ->
+        var v by remember(key) { mutableStateOf(f[key].orEmpty()) }
+        AlertDialog(
+            onDismissRequest = { editKey = null }, containerColor = C.card,
+            title = { Text(key.label) },
+            text = { Tf(key.label, v, { v = it }, singleLine = key != FactKey.ADDRESS) },
+            confirmButton = { TextButton(enabled = v.isNotBlank(), onClick = { editKey = null; setFact(key, v.trim()) }) { Text("Save") } },
+            dismissButton = { TextButton(onClick = { editKey = null }) { Text("Cancel") } },
+        )
+    }
     zoom?.let { p ->
         Dialog(onDismissRequest = { zoom = null }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
             Box(Modifier.fillMaxSize().background(Color.Black)) {
@@ -428,17 +460,17 @@ fun DocScreen(state: AppState, id: String) {
     }
     rereadKey?.let { key ->
         AlertDialog(
-            onDismissRequest = { rereadKey = null; candidates = emptyList() },
+            onDismissRequest = { rereadKey = null; candidates = emptyList() }, containerColor = C.card,
             title = { Text("Other values for ${key.label.lowercase()}") },
             text = {
                 Column {
-                    Muted("Read from this document. Pick the one the card actually shows.")
+                    SuText("Read from this document. Pick the one the card actually shows.")
                     Spacer(Modifier.height(8.dp))
                     candidates.forEach { c ->
                         TextButton(onClick = { pick(key, c.value) }, Modifier.fillMaxWidth()) {
                             Column(Modifier.fillMaxWidth()) {
-                                Text(if (reveal) c.value else mask(key, c.value), style = MaterialTheme.typography.bodyLarge)
-                                Text("Page ${c.page}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(if (reveal) c.value else mask(key, c.value), color = C.ink, fontSize = 16.sp)
+                                Text("Page ${c.page}", color = C.ink2, fontSize = 12.sp)
                             }
                         }
                     }
@@ -448,7 +480,7 @@ fun DocScreen(state: AppState, id: String) {
         )
     }
     if (confirmDelete) AlertDialog(
-        onDismissRequest = { confirmDelete = false },
+        onDismissRequest = { confirmDelete = false }, containerColor = C.card,
         title = { Text("Delete ${doc.title}?") },
         text = { Text("The scan and its details are removed from this phone for good. Details in your profile that came only from this document go too.") },
         confirmButton = {
@@ -457,7 +489,7 @@ fun DocScreen(state: AppState, id: String) {
                 Store.deleteImages(ctx, id)
                 state.update { d -> d.copy(documents = d.documents.filter { it.id != id }) }
                 state.back(); state.message = "Document deleted"
-            }) { Text("Delete", color = MaterialTheme.colorScheme.error) }
+            }) { Text("Delete", fontWeight = FontWeight.Bold) }
         },
         dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text("Cancel") } },
     )
@@ -465,22 +497,95 @@ fun DocScreen(state: AppState, id: String) {
 
 private val idNumberKeys = listOf(FactKey.AADHAAR, FactKey.PAN, FactKey.PASSPORT, FactKey.VOTER_ID, FactKey.DL_NUMBER, FactKey.VEHICLE_REG, FactKey.ROLL)
 
-/** Wallet-style card for showing details on screen without handing over the phone's gallery or the original. */
+/**
+ * Wallet-style card for showing details without handing over the phone. [id] null = the ID tab:
+ * the user's own ID documents first, with chips to switch between them.
+ */
 @Composable
-fun DigitalIdScreen(state: AppState, id: String) {
-    val doc = state.data.documents.firstOrNull { it.id == id } ?: return
-    val owner = state.data.person(doc.ownerId)
-    var reveal by remember { mutableStateOf(false) }
-    val f = doc.facts.associate { it.key to it.value }
-    val number = idNumberKeys.firstNotNullOfOrNull { k -> f[k]?.let { k to it } }
-    Page(title = "Digital ID", onBack = state::back) {
-        DesignDocCard(
-            eyebrow = doc.type.label.uppercase(),
-            name = f[FactKey.NAME]?.let(::titleCase) ?: owner?.name.orEmpty(),
-            subtitle = "• ${doc.pages} pages • ${when (doc.category) { Category.IDENTITY -> "OK"; Category.EDUCATION -> "Warn"; Category.FINANCE -> "OK"; Category.TRAVEL -> "OK"; else -> "" }}",
-            alt = true,
-        ) {
-            // Quick facts tap area - currently displayed in the gradient card
-        }
+fun DigitalIdScreen(state: AppState, id: String?) {
+    val ctx = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val data = state.data
+    val selfId = data.self?.id
+    val ids = remember(data) {
+        data.documents.filter { d -> d.facts.any { it.key in idNumberKeys } }
+            .sortedWith(compareByDescending<Document> { it.ownerId == selfId }.thenBy { it.category != Category.IDENTITY }.thenByDescending { it.createdAt })
     }
+    var picked by remember { mutableStateOf<String?>(null) }
+    val doc = data.documents.firstOrNull { it.id == (id ?: picked) } ?: if (id == null) ids.firstOrNull() else null
+    var reveal by remember { mutableStateOf(false) }
+    var masked by remember { mutableStateOf(state.lock.maskShare) }
+    val tab = id == null
+
+    Screen("Digital ID", onBack = if (tab) null else state::back, tabs = tab) {
+        if (doc == null) {
+            Note(false, Ic.id, "No ID documents yet", "Scan an Aadhaar, PAN, passport or licence and it shows here as a card you can show, share or print.") {
+                Btn("Start scan", small = true, icon = Ic.scan, onClick = state.scan)
+            }
+            return@Screen
+        }
+        val owner = data.person(doc.ownerId)
+        val f = doc.facts.associate { it.key to it.value }
+        val number = idNumberKeys.firstNotNullOfOrNull { k -> f[k]?.let { k to it } }
+        val name = f[FactKey.NAME]?.let(::titleCase) ?: owner?.name.orEmpty()
+        if (tab && ids.size > 1) Chips(ids, doc, { d ->
+            d.type.label + (data.person(d.ownerId)?.takeIf { it.id != selfId }?.let { ", " + it.name.substringBefore(' ') } ?: "")
+        }) { picked = it.id }
+
+        Cred("${doc.type.label}, from your scan", name, number?.let { (k, v) -> "${k.label} ${if (reveal) v else mask(k, v)}" }, alt = true, onNum = { reveal = !reveal }) {
+            val extra = listOf(FactKey.DOB, FactKey.GENDER, FactKey.EXPIRY).mapNotNull { k -> f[k]?.let { k to it } }
+            if (extra.isNotEmpty()) Row(Modifier.padding(top = 14.dp), horizontalArrangement = Arrangement.spacedBy(24.dp)) {
+                extra.forEach { (k, v) -> Column { Text(k.label, color = Deep.soft, fontSize = 12.sp); Text(v, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Medium) } }
+            }
+        }
+        Para("Tap the number to show or hide it.", top = 10.dp)
+
+        fun lines(): List<Pair<String, String>> = buildList {
+            add("Name" to name)
+            number?.let { (k, v) -> add(k.label to if (masked) mask(k, v) else v) }
+            listOf(FactKey.DOB, FactKey.GENDER, FactKey.EXPIRY).forEach { k -> f[k]?.let { add(k.label to it) } }
+        }
+        Sec("Share this ID")
+        Grp(
+            { Item({ Dic(Ic.share) }, "Share", "Use the Android share sheet. Your vault stays here.", end = { Chev() }) {
+                Session.external = true
+                val text = doc.type.label + "\n" + lines().joinToString("\n") { "${it.first}: ${it.second}" }
+                ctx.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, text), "Share ${doc.type.label}"))
+            } },
+            { Item({ Dic(Ic.print) }, "Print card", "Save as PDF or print", end = { Chev() }) {
+                scope.launch {
+                    val file = withContext(Dispatchers.IO) { cardPdf(ctx, doc.type.label, lines()) }
+                    Session.external = true
+                    ctx.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("application/pdf")
+                        .putExtra(Intent.EXTRA_STREAM, Ocr.shareUri(ctx, file)).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION), "Save or print"))
+                }
+            } },
+        )
+        Sec("Privacy")
+        Grp({ Item({ Dic(Ic.lock) }, "Mask number when sharing", "Only the last 4 digits are shown", end = {
+            Sw(masked, "Mask number when sharing") { masked = it; state.lock.maskShare = it }
+        }) })
+        Para("A quick reference from your own scan, not an official ID. Offices may still ask for the original.", top = 16.dp)
+    }
+}
+
+/** One-page PDF of the ID card (credit-card proportions on A4), for "Save as PDF or print". */
+private fun cardPdf(ctx: android.content.Context, title: String, lines: List<Pair<String, String>>): java.io.File {
+    val pdf = PdfDocument()
+    val page = pdf.startPage(PdfDocument.PageInfo.Builder(595, 842, 1).create())
+    val c = page.canvas
+    val card = RectF(40f, 40f, 40f + 400f, 40f + 252f)
+    c.drawRoundRect(card, 22f, 22f, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Deep.credAlt.toArgb() })
+    val soft = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Deep.soft.toArgb(); textSize = 12f }
+    val white = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = android.graphics.Color.WHITE; textSize = 22f; typeface = Typeface.DEFAULT_BOLD }
+    val body = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Deep.num.toArgb(); textSize = 13f }
+    c.drawText("$title, from AI Form & Vault", card.left + 20, card.top + 30, soft)
+    var y = card.top + 76
+    lines.forEachIndexed { i, (k, v) ->
+        if (i == 0) { c.drawText(v, card.left + 20, y, white); y += 36 }
+        else { c.drawText("$k: $v", card.left + 20, y, body); y += 22 }
+    }
+    c.drawText("Reference copy from the owner's own scan. Not an official ID.", card.left + 20, card.bottom - 18, soft)
+    pdf.finishPage(page)
+    return Ocr.cacheFile(ctx, "pdf").also { f -> f.outputStream().use { pdf.writeTo(it) }; pdf.close() }
 }

@@ -4,6 +4,7 @@ import android.content.Intent
 import android.graphics.Bitmap
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -38,6 +39,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.aiformvault.ManualFact
@@ -104,60 +106,50 @@ fun SnapFillScreen(state: AppState) {
     }
 
     val done = result
-    Page(title = "Fill a form", onBack = state::back, bottom = when {
+    Screen("SnapFill", onBack = state::back, actions = { if (form != null && !busy) MoreMenu("Use a different photo" to scan) }, dock = when {
         busy -> null
         done != null -> ({
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                OutlinedButton(onClick = { result = null }, Modifier.weight(1f).height(52.dp)) { Text("Edit values") }
-                Button(onClick = { share(done) }, Modifier.weight(1f).height(52.dp)) { Text("Share") }
-            }
+            Btn("Share", icon = Ic.share) { share(done) }
+            Btn("Edit fields", BtnKind.Line) { result = null }
         })
-        form != null -> ({ Button(onClick = ::fill, Modifier.fillMaxWidth().height(52.dp)) { Text("Fill the form") } })
-        else -> ({ Button(onClick = scan, Modifier.fillMaxWidth().height(52.dp)) { Text("Photograph a form") } })
+        form != null -> ({
+            Btn("Fill this form", icon = Ic.form, onClick = ::fill)
+            Btn("Use a different photo", BtnKind.Line, onClick = scan)
+        })
+        else -> ({ Btn("Photograph a form", icon = Ic.scan, onClick = scan) })
     }) {
         when {
             busy -> Column(Modifier.fillMaxWidth().padding(vertical = 64.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                CircularProgressIndicator(); Spacer(Modifier.height(12.dp)); Muted("Working on this phone…")
+                Spinner(28.dp); Spacer(Modifier.height(14.dp)); SuText("Working on this phone…")
             }
             done != null -> {
-                Muted("Check the preview. Tap it to zoom.")
-                Spacer(Modifier.height(12.dp))
-                Image(done.asImageBitmap(), "Filled form", contentScale = ContentScale.FillWidth,
-                    modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable { zoom = true })
+                TiText("Filled form", Modifier.padding(horizontal = 4.dp))
+                Para("Check the preview. Tap it to zoom.", top = 4.dp)
+                Spacer(Modifier.height(16.dp))
+                Image(done.asImageBitmap(), "Filled form, tap to zoom", contentScale = ContentScale.FillWidth,
+                    modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).border(1.dp, C.line, RoundedCornerShape(24.dp)).clickable { zoom = true })
             }
             form != null -> {
                 val found = fields.count { it.value.isNotBlank() }
-                Text("$found of ${fields.size} fields filled from your profile", style = MaterialTheme.typography.titleMedium)
-                Muted("Check each one. Empty fields didn't match anything you've confirmed: type them in, or leave them blank.")
-                Spacer(Modifier.height(12.dp))
-                if (fields.isEmpty()) Muted("No fields found. Try a flatter, sharper photo of the form.")
+                TiText("$found of ${fields.size} fields filled", Modifier.padding(horizontal = 4.dp))
+                Para("Filled from your vault. Review each field before you submit.", top = 4.dp)
+                Spacer(Modifier.height(16.dp))
+                if (fields.isEmpty()) Note(true, Ic.alert, "No fields found", "Try a flatter, sharper photo of the form.")
                 fields.forEachIndexed { i, f ->
                     val where = f.key?.takeIf { f.value.isBlank() }?.let(whereToFind::get)
-                    val hint: (@Composable () -> Unit)? = where?.let { w -> @Composable { Text("Found on: $w") } }
-                    if (f.options.isNotEmpty()) Column(Modifier.fillMaxWidth().padding(bottom = 8.dp)) {
-                        Text("${f.label} (tick box)", style = MaterialTheme.typography.labelLarge)
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            f.options.keys.forEach { o -> FilterChip(f.value == o, { fields[i] = f.copy(value = if (f.value == o) "" else o) }, label = { Text(o) }) }
-                        }
-                        hint?.invoke()
-                    } else OutlinedTextField(
-                        f.value, { fields[i] = f.copy(value = it) },
-                        label = { Text(f.key?.label?.let { k -> "${f.label}  →  $k" } ?: f.label) },
-                        singleLine = true, modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
-                        isError = f.key != null && f.value.isBlank(), supportingText = hint,
-                    )
+                    val label = f.key?.label?.takeIf { it != f.label }?.let { "${f.label} (${it.lowercase()})" } ?: f.label
+                    if (f.options.isNotEmpty()) {
+                        Text(label, Modifier.padding(start = 4.dp, bottom = 6.dp), fontSize = 12.sp, color = C.ink2)
+                        Chips(listOf("") + f.options.keys, f.value, { it.ifEmpty { "None" } }) { fields[i] = f.copy(value = it) }
+                    } else Tf(label, f.value, { fields[i] = f.copy(value = it) }, miss = f.key != null && f.value.isBlank(),
+                        placeholder = where?.let { "Not set. It's on your $it." } ?: "Not set. Type it, or leave it blank.")
                 }
-                TextButton(onClick = scan) { Text("Use a different photo") }
             }
             else -> {
-                Text("Photograph any blank form", style = MaterialTheme.typography.headlineSmall)
-                Spacer(Modifier.height(8.dp))
-                Muted("A scholarship, admission, bank or KYC form on paper. The app finds the fields, fills them from your confirmed details, and you check everything before sharing or printing.")
+                TiText("Photograph any blank form", Modifier.padding(horizontal = 4.dp))
+                Para("A scholarship, admission, bank or KYC form on paper. The app finds the fields, fills them from your confirmed details, and you check everything before sharing or printing.", top = 4.dp)
                 Spacer(Modifier.height(16.dp))
-                SoftCard(color = Brand.MintSoft) {
-                    Text("Works best when", style = MaterialTheme.typography.titleSmall)
-                    Muted("• the form is flat and well lit\n• labels are printed (not handwritten)\n• you've scanned your own ID documents first")
-                }
+                Note(false, Ic.info, "Works best when", "The form is flat and well lit, labels are printed (not handwritten), and you've scanned your own ID documents first.")
             }
         }
     }

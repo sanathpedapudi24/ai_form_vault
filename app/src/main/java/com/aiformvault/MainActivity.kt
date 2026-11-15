@@ -8,7 +8,6 @@ import androidx.fragment.app.FragmentActivity
 import com.aiformvault.ui.App
 import com.aiformvault.ui.AppState
 import com.aiformvault.ui.AppTheme
-import com.aiformvault.ui.AuroraBackground
 import com.aiformvault.ui.Session
 import java.io.File
 
@@ -24,7 +23,7 @@ class MainActivity : FragmentActivity() {
         if (savedInstanceState == null) File(cacheDir, "share").deleteRecursively() // decrypted copies from past shares
         state = held ?: AppState(applicationContext).also { held = it }
         ExpiryWorker.schedule(this)
-        setContent { AppTheme { AuroraBackground { App(state) } } }
+        setContent { AppTheme { App(state) } }
     }
 
     override fun onResume() {

@@ -28,6 +28,10 @@ class Lock(ctx: Context) {
     var reminders: Boolean
         get() = p.getBoolean("reminders", true)
         set(v) = p.edit().putBoolean("reminders", v).apply()
+    /** Digital ID: share and print only the last 4 digits of the ID number. */
+    var maskShare: Boolean
+        get() = p.getBoolean("maskShare", true)
+        set(v) = p.edit().putBoolean("maskShare", v).apply()
     /** Whether the system autofill service may serve facts at all. */
     var autofill: Boolean
         get() = p.getBoolean("autofill", true)

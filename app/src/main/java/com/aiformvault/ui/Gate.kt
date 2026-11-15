@@ -13,16 +13,17 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -70,62 +71,65 @@ fun Onboarding(state: AppState) {
     val pager = rememberPagerState { slides.size }
     val scope = rememberCoroutineScope()
     fun finish() { state.lock.onboarded = true; state.gate = if (state.lock.hasPin) Gate.NONE else Gate.PIN_SETUP }
-    Column(Modifier.fillMaxSize().safeDrawingPadding().padding(24.dp)) {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) { TextButton(onClick = ::finish) { Text("Skip") } }
+    val last = pager.currentPage == slides.lastIndex
+    Column(Modifier.fillMaxSize()) {
+        Row(Modifier.fillMaxWidth().padding(8.dp), horizontalArrangement = Arrangement.End) { TBtn("Skip", C.ink2, onClick = ::finish) }
         HorizontalPager(pager, Modifier.weight(1f)) { i ->
-            Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.Center) {
-                Text(slides[i].title, style = MaterialTheme.typography.headlineLarge)
-                Spacer(Modifier.height(16.dp))
-                Text(slides[i].body, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Column(Modifier.fillMaxSize().padding(horizontal = 24.dp), verticalArrangement = Arrangement.Center) {
+                Mark()
+                Text(slides[i].title, style = H1, color = C.ink)
+                Spacer(Modifier.height(12.dp))
+                Text(slides[i].body, fontSize = 16.sp, lineHeight = 23.sp, color = C.ink2)
             }
         }
-        Row(Modifier.fillMaxWidth().padding(vertical = 16.dp), horizontalArrangement = Arrangement.Center) {
+        Row(Modifier.fillMaxWidth().padding(vertical = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally)) {
             repeat(slides.size) { i ->
-                Spacer(Modifier.padding(4.dp).size(8.dp).background(if (i == pager.currentPage) Brand.Emerald else Brand.Surface2, CircleShape))
+                val on = i == pager.currentPage
+                Spacer(Modifier.size(if (on) 22.dp else 8.dp, 8.dp).clip(CircleShape).background(if (on) C.g else C.line))
             }
         }
-        Button(
-            onClick = { if (pager.currentPage == slides.lastIndex) finish() else scope.launch { pager.animateScrollToPage(pager.currentPage + 1) } },
-            Modifier.fillMaxWidth().height(52.dp),
-        ) { Text(if (pager.currentPage == slides.lastIndex) "Get started" else "Next") }
+        Dock { Btn(if (last) "Get started" else "Next") { if (last) finish() else scope.launch { pager.animateScrollToPage(pager.currentPage + 1) } } }
     }
 }
 
-/** Create a PIN (enter + confirm), then offer fingerprint. Skippable, with a nag on Home. */
+/** Create a PIN (enter + confirm), then offer fingerprint. Skippable, with a nudge on Home. */
 @Composable
 fun PinSetup(state: AppState, onFinish: () -> Unit = { state.gate = Gate.NONE; state.locked = false }) {
     val ctx = LocalContext.current
     var first by remember { mutableStateOf<String?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
     var askBio by remember { mutableStateOf(false) }
-    Column(Modifier.fillMaxSize().safeDrawingPadding()) {
-        if (askBio) {
-            Column(Modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.Center) {
-                Text("Unlock with your fingerprint too?", style = MaterialTheme.typography.headlineMedium)
-                Spacer(Modifier.height(12.dp))
-                Muted("Your PIN still works, and is needed if fingerprint fails.")
-                Spacer(Modifier.height(24.dp))
-                Button(onClick = { state.lock.biometric = true; onFinish() }, Modifier.fillMaxWidth().height(52.dp)) { Text("Use fingerprint") }
-                TextButton(onClick = onFinish, Modifier.fillMaxWidth()) { Text("PIN only") }
+    if (askBio) {
+        Column(Modifier.fillMaxSize()) {
+            Column(Modifier.weight(1f).padding(horizontal = 24.dp), verticalArrangement = Arrangement.Center) {
+                Box(Modifier.padding(bottom = 18.dp).size(76.dp).clip(RoundedCornerShape(24.dp)).background(C.g), contentAlignment = Alignment.Center) { I(Ic.finger, 34.dp, C.on) }
+                Text("Unlock with your fingerprint too?", style = H1, color = C.ink)
+                SuText("Your PIN still works, and is needed if fingerprint fails.", Modifier.padding(top = 10.dp))
             }
-        } else PinPad(
-            title = if (first == null) "Create a PIN" else "Confirm your PIN",
-            subtitle = "4 digits to unlock your vault",
-            error = error,
-            onDone = { pin ->
-                when {
-                    first == null -> { first = pin; error = null }
-                    pin == first -> {
-                        state.lock.setPin(pin); state.lock.pinSkipped = false
-                        if (biometricAvailable(ctx)) askBio = true else onFinish()
-                    }
-                    else -> { first = null; error = "PINs didn't match. Try again." }
-                }
-            },
-        ) {
-            if (state.gate == Gate.PIN_SETUP) TextButton(onClick = { state.lock.pinSkipped = true; onFinish() }) { Text("Skip for now") }
-            else TextButton(onClick = onFinish) { Text("Cancel") }
+            Dock {
+                Btn("Use fingerprint", icon = Ic.finger) { state.lock.biometric = true; onFinish() }
+                Btn("PIN only", BtnKind.Line, onClick = onFinish)
+            }
         }
+        return
+    }
+    LockView(
+        title = if (first == null) "Create a PIN" else "Confirm your PIN",
+        subtitle = "4 digits to unlock your vault",
+        error = error,
+        onDone = { pin ->
+            when {
+                first == null -> { first = pin; error = null }
+                pin == first -> {
+                    state.lock.setPin(pin); state.lock.pinSkipped = false
+                    if (biometricAvailable(ctx)) askBio = true else onFinish()
+                }
+                else -> { first = null; error = "PINs didn't match. Try again." }
+            }
+        },
+    ) {
+        if (state.gate == Gate.PIN_SETUP) TBtn("Skip for now") { state.lock.pinSkipped = true; onFinish() }
+        else TBtn("Cancel", onClick = onFinish)
     }
 }
 
@@ -143,28 +147,23 @@ fun LockScreen(state: AppState) {
         while (cooldown > 0) { delay(1000); cooldown = state.lock.cooldownMs() }
     }
 
-    Column(Modifier.fillMaxSize().safeDrawingPadding()) {
-        PinPad(
-            title = "Enter your PIN",
-            subtitle = null,
-            error = if (cooldown > 0) "Too many attempts. Try again in ${(cooldown + 999) / 1000}s." else error,
-            enabled = cooldown == 0L,
-            onDone = { pin ->
-                if (state.lock.check(pin)) unlock()
-                else { error = "Wrong PIN"; cooldown = state.lock.cooldownMs() }
-            },
-        ) {
-            Row(horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
-                if (bio) OutlinedButton(onClick = { promptBiometric(activity, "Unlock AI Form & Vault", ::unlock) }) { Text("Use fingerprint") }
-                TextButton(onClick = { forgot = true }) { Text("Forgot PIN?") }
-            }
-        }
-    }
+    LockView(
+        title = "AI Form & Vault",
+        subtitle = "Enter your PIN to open your documents",
+        error = if (cooldown > 0) "Too many attempts. Try again in ${(cooldown + 999) / 1000}s." else error,
+        enabled = cooldown == 0L,
+        left = if (bio) ({ promptBiometric(activity, "Unlock AI Form & Vault", ::unlock) }) else null,
+        onDone = { pin ->
+            if (state.lock.check(pin)) unlock()
+            else { error = "Wrong PIN"; cooldown = state.lock.cooldownMs() }
+        },
+    ) { TBtn("Forgot PIN") { forgot = true } }
+
     if (forgot) AlertDialog(
-        onDismissRequest = { forgot = false },
+        onDismissRequest = { forgot = false }, containerColor = C.card,
         title = { Text("Erase the vault?") },
         text = { Text("There's no account to recover your PIN through, so the only way back in is to erase everything in the vault on this phone. If you have an encrypted backup, you can restore it afterwards.") },
-        confirmButton = { TextButton(onClick = { forgot = false; state.wipe() }) { Text("Erase everything", color = MaterialTheme.colorScheme.error) } },
+        confirmButton = { TextButton(onClick = { forgot = false; state.wipe() }) { Text("Erase everything", fontWeight = FontWeight.Bold) } },
         dismissButton = { TextButton(onClick = { forgot = false }) { Text("Cancel") } },
     )
 }
