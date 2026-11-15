@@ -4,6 +4,7 @@ import android.app.Activity
 import android.content.Context
 import android.net.Uri
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.LocalActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -123,7 +124,7 @@ class AppState(val ctx: Context) {
 /** Launches Google's on-device document scanner (edge detection, cropping, gallery import). */
 @Composable
 fun rememberScanner(pageLimit: Int, onError: (String) -> Unit, onPages: (List<Uri>) -> Unit): () -> Unit {
-    val activity = LocalContext.current as Activity
+    val activity = LocalActivity.current as Activity
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { r ->
         if (r.resultCode == Activity.RESULT_OK) GmsDocumentScanningResult.fromActivityResultIntent(r.data)?.pages
             ?.map { it.imageUri }?.takeIf { it.isNotEmpty() }?.let(onPages)

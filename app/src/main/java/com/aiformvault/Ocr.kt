@@ -21,7 +21,6 @@ import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
 import java.io.File
 import java.util.UUID
-import java.util.regex.Pattern
 
 /**
  * On-device OCR and image helpers. Blocking: call off the main thread.
@@ -47,9 +46,9 @@ object Ocr {
     private const val MIN_ALPHANUM_FOR_EARLY_EXIT = 60
 
     /** Aadhaar: 4-4-4 digit groups. PAN: 5 letters + 4 digits + 1 letter. */
-    private val aadhaarRx = Pattern.compile("""\b\d{4}\s?\d{4}\s?\d{4}\b""")
-    private val panRx = Pattern.compile("""\b[A-Z]{5}[0-9]{4}[A-Z]\b""")
-    private val dateRx = Pattern.compile("""\b\d{2}[/-]\d{2}[/-]\d{4}\b""")
+    private val aadhaarRx = Regex("""\b\d{4}\s?\d{4}\s?\d{4}\b""")
+    private val panRx = Regex("""\b[A-Z]{5}[0-9]{4}[A-Z]\b""")
+    private val dateRx = Regex("""\b\d{2}[/-]\d{2}[/-]\d{4}\b""")
 
     private fun recognize(bmp: Bitmap): Text = Tasks.await(recognizer.process(InputImage.fromBitmap(bmp, 0)))
 
@@ -161,10 +160,10 @@ object Ocr {
             if (wF == 0) break
 
             sumB += i * hist[i]
-            val mB = sumB / wB
-            val mF = (sum - sumB) / wF
+            val mB = sumB.toDouble() / wB
+            val mF = (sum - sumB).toDouble() / wF
             val diff = mB - mF
-            val between = wB * wF * diff * diff
+            val between = wB.toDouble() * wF * diff * diff
 
             if (between > maxBetween) {
                 maxBetween = between

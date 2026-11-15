@@ -1,5 +1,6 @@
 package com.aiformvault.ui
 
+import androidx.activity.compose.LocalActivity
 import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_STRONG
 import androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_WEAK
@@ -130,7 +131,7 @@ fun PinSetup(state: AppState, onFinish: () -> Unit = { state.gate = Gate.NONE; s
 
 @Composable
 fun LockScreen(state: AppState) {
-    val activity = LocalContext.current as FragmentActivity
+    val activity = LocalActivity.current as FragmentActivity
     var error by remember { mutableStateOf<String?>(null) }
     var cooldown by remember { mutableLongStateOf(state.lock.cooldownMs()) }
     var forgot by remember { mutableStateOf(false) }
