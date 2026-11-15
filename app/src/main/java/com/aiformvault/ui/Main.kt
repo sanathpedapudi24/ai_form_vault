@@ -57,12 +57,15 @@ import androidx.compose.ui.unit.dp
 import com.aiformvault.Category
 import com.aiformvault.DocType
 import com.aiformvault.Fact
+import com.aiformvault.FactKey
 import com.aiformvault.Lock
 import com.aiformvault.Ocr
 import com.aiformvault.Relation
 import com.aiformvault.Store
 import com.aiformvault.VaultData
 import com.aiformvault.extract
+import com.aiformvault.extractDevanagari
+import com.aiformvault.mergeDevanagari
 import com.aiformvault.mismatches
 import com.aiformvault.profile
 import com.aiformvault.search
@@ -204,9 +207,18 @@ private fun Shell(state: AppState) {
         state.go(Route.Scanning("${seq}Reading the text…"))
         scope.launch {
             try {
-                val text = withContext(Dispatchers.Default) { Ocr.text(ctx, pages) }
+                var text = withContext(Dispatchers.Default) { Ocr.text(ctx, pages) }
                 state.replace(Route.Scanning("${seq}Understanding the document…"))
-                val (type, facts) = withContext(Dispatchers.Default) { extract(text) }
+                var (type, facts) = withContext(Dispatchers.Default) { extract(text) }
+                // Fallback only: a Hindi-only name line is invisible to the Latin model, so re-read the
+                // pages with the Devanagari model when no usable name came back (issue #8).
+                val weakName = facts.firstOrNull { it.key == FactKey.NAME }?.value?.let { it.trim().split(' ').size < 2 } != false
+                if (weakName) {
+                    state.replace(Route.Scanning("${seq}Reading Hindi text…"))
+                    val hindi = withContext(Dispatchers.Default) { Ocr.devanagariText(ctx, pages) }
+                    val extra = withContext(Dispatchers.Default) { extractDevanagari(hindi) }
+                    if (extra.isNotEmpty()) { facts = mergeDevanagari(facts, extra); text = text + "\n" + hindi }
+                }
                 state.replace(Route.Scanning("${seq}Organizing…"))
                 delay(250)
                 state.replace(Route.Review(pages, type, facts, text))

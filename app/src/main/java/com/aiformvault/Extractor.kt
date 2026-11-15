@@ -221,6 +221,80 @@ private fun labelledAll(lines: List<String>, vararg labels: String, exclude: Lis
 
 private fun isNameLine(s: String) = nameLineRx.matches(s) && headerWords.none { it in s.lowercase() } && !genderRx.matches(s)
 
+// ---------- Devanagari names (issue #8) ----------
+
+/** Facts that are a person's name on a document, and so can be printed in Hindi. */
+val nameKeys: Set<FactKey> = setOf(FactKey.NAME, FactKey.FATHER, FactKey.MOTHER, FactKey.SPOUSE)
+
+// Devanagari block only: a name is letters, spaces, dots and the odd apostrophe. No digits, no danda.
+private val devNameRx = Regex("""^[\u0900-\u097F][\u0900-\u097F .'’]{2,}$""")
+private val devAnyRx = Regex("""[\u0900-\u097F]""")
+// Label words, in the spellings Indian cards actually print. Longest first, so "पिता का नाम" wins over "नाम".
+private val devLabels: List<Pair<FactKey, List<String>>> = listOf(
+    FactKey.FATHER to listOf("पिता का नाम", "पिता", "संरक्षक"),
+    FactKey.MOTHER to listOf("माता का नाम", "माता"),
+    FactKey.SPOUSE to listOf("पति का नाम", "पत्नी का नाम", "पति", "पत्नी"),
+    FactKey.NAME to listOf("नाम"),
+)
+// Words that appear in Hindi on every card and are therefore never a person's name.
+private val devStopWords = listOf(
+    "भारत", "सरकार", "आधार", "जन्म", "तिथि", "लिंग", "पता", "संख्या", "पहचान", "आयकर", "विभाग",
+    "स्थायी", "लेखा", "निर्वाचन", "आयोग", "भारतीय", "विधान", "सभा", "परिवहन", "राज्य", "कार्यालय",
+    "मेरा", "मेरी", "विशिष्ट", "पुरुष", "महिला", "अन्य", "नाम", "पिता", "माता", "पति", "पत्नी",
+    "जिला", "तहसील", "गाँव", "गांव", "डाक", "मोबाइल", "हस्ताक्षर", "फोटो", "पंजीकरण", "वैध",
+)
+private val devHonorificRx = Regex("""^(श्री|श्रीमती|सुश्री|कुमारी|डॉ)\s+""")
+
+private fun hasDevanagari(s: String) = devAnyRx.containsMatchIn(s)
+
+private fun isDevName(s: String) = devNameRx.matches(s) && devStopWords.none { it in s } && s.none(Char::isDigit)
+
+/** The value after a Hindi label on the same line ("नाम : राहुल कुमार"), else the name line under it. */
+private fun devValue(lines: List<String>, labels: List<String>, skip: List<String> = emptyList()): String? {
+    for ((i, line) in lines.withIndex()) {
+        if (skip.any { line.contains(it) }) continue
+        val hit = labels.firstOrNull { line.contains(it) } ?: continue
+        val after = line.substringAfter(hit).trim(' ', ':', '-', '|', '.', '\u0964')
+        if (after.any { it in '\u0900'..'\u097F' } && isDevName(after)) return after
+        // Label alone on its line: the next line that reads as a name, before the next label.
+        for (next in lines.drop(i + 1)) {
+            if (devLabels.any { (_, ls) -> ls.any { next.contains(it) } }) break
+            if (isDevName(next)) return next
+        }
+    }
+    return null
+}
+
+/**
+ * Name facts read from a Devanagari-only OCR pass. Returns only names: numbers, dates and identifiers
+ * are taken from the Latin pass, where the models are more reliable and the formats are ASCII.
+ * Pure Kotlin and independent of [extract]'s Latin pipeline, so it is unit tested directly.
+ */
+fun extractDevanagari(text: String): List<Fact> {
+    if (!hasDevanagari(text)) return emptyList()
+    val lines = text.lines().map { it.trim() }.filter { it.isNotEmpty() && hasDevanagari(it) }
+    val out = linkedMapOf<FactKey, String>()
+    // Relatives first: their labels contain "नाम" too, so NAME is read last and never takes a relative's line.
+    val relatives = devLabels.filter { it.first != FactKey.NAME }
+    for ((key, labels) in relatives) {
+        devValue(lines, labels)?.let { v -> out.putIfAbsent(key, v.replace(devHonorificRx, "").trim()) }
+    }
+    devValue(lines, devLabels.first { it.first == FactKey.NAME }.second, skip = relatives.flatMap { it.second })
+        ?.let { out[FactKey.NAME] = it.replace(devHonorificRx, "").trim() }
+    if (FactKey.NAME !in out) lines.firstOrNull(::isDevName)?.let { out[FactKey.NAME] = it.replace(devHonorificRx, "").trim() }
+    return out.map { (k, v) -> Fact(k, v) }
+}
+
+/**
+ * Adds Hindi name facts that the Latin pass could not read. Never replaces a value that is already
+ * there: the fallback exists for names that are *only* printed in Devanagari, not to overrule a good
+ * Latin read (issue #8).
+ */
+fun mergeDevanagari(facts: List<Fact>, hindi: List<Fact>): List<Fact> {
+    val have = facts.mapTo(mutableSetOf()) { it.key }
+    return facts + hindi.filter { it.key !in have && it.key in nameKeys && it.value.isNotBlank() }
+}
+
 // ---------- Re-read one field: every plausible candidate, not just the first ----------
 
 /** One possible value for a fact, and the 1-based page it was read from. */
@@ -251,7 +325,7 @@ fun fieldCandidates(key: FactKey, pageTexts: List<String>, today: LocalDate = Lo
 }
 
 private fun namesFrom(lines: List<String>): List<String> =
-    lines.filter(::isNameLine).map { it.replace(honorificRx, "").trim() }
+    lines.filter { isNameLine(it) || isDevName(it) }.map { it.replace(honorificRx, "").replace(devHonorificRx, "").trim() }
 
 private fun bloodGroup(line: String): String? = bloodRx.find(line.substringAfter(":", line))?.let { m ->
     m.groupValues[1].uppercase() + if (m.groupValues[2].startsWith("+") || m.groupValues[2].uppercase().startsWith("POS")) "+" else "-"

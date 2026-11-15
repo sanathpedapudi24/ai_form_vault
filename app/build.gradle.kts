@@ -90,5 +90,8 @@ dependencies {
     implementation("androidx.work:work-runtime-ktx:2.11.2")
     implementation("com.google.android.gms:play-services-mlkit-document-scanner:16.0.0")
     implementation("com.google.android.gms:play-services-mlkit-text-recognition:19.0.1")
+    // Devanagari fallback (issue #8). Only invoked when the Latin pass finds no name, so it does not
+    // double normal OCR cost; unbundled like the Latin model, so the download happens on first use.
+    implementation("com.google.android.gms:play-services-mlkit-text-recognition-devanagari:16.0.2")
     testImplementation("junit:junit:4.13.2")
 }

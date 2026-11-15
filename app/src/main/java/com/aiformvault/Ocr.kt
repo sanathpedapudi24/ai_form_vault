@@ -18,6 +18,7 @@ import com.google.android.gms.tasks.Tasks
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.Text
 import com.google.mlkit.vision.text.TextRecognition
+import com.google.mlkit.vision.text.devanagari.DevanagariTextRecognizerOptions
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
 import java.io.File
 import java.util.UUID
@@ -39,6 +40,14 @@ import java.util.UUID
 object Ocr {
     private val recognizer by lazy { TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS) }
 
+    /**
+     * Devanagari model, used only as a fallback: the Latin model renders Hindi lines as nonsense, so
+     * names printed only in Hindi are lost unless a second model reads the same page (issue #8).
+     * A single pass, no escalation — it runs after the Latin pipeline already failed to find a name,
+     * and identifiers always come from the Latin pass.
+     */
+    private val devanagari by lazy { TextRecognition.getClient(DevanagariTextRecognizerOptions.Builder().build()) }
+
     /** Max image side fed to ML Kit: 3000px (was 2400) for sharper small text. */
     private const val OCR_MAX_PX = 3000
 
@@ -52,6 +61,9 @@ object Ocr {
 
     private fun recognize(bmp: Bitmap): Text = Tasks.await(recognizer.process(InputImage.fromBitmap(bmp, 0)))
 
+    private fun recognizeDevanagari(bmp: Bitmap): String =
+        runCatching { Tasks.await(devanagari.process(InputImage.fromBitmap(bmp, 0))).text }.getOrElse { "" }
+
     /** Best text from a page: plain first, escalate only if quality is low. */
     fun text(ctx: Context, pages: List<Uri>): String =
         pages.joinToString("\n") { uri ->
@@ -59,11 +71,26 @@ object Ocr {
         }
 
     /**
+     * Devanagari-only read of the same pages, one pass each, with the result appended to whatever the
+     * Latin pass returned. Only called when the Latin pass found no usable name (issue #8).
+     */
+    fun devanagariText(ctx: Context, pages: List<Uri>): String =
+        pages.joinToString("\n") { uri ->
+            Store.decodeScaled(ctx, uri, OCR_MAX_PX)?.let { recognizeDevanagari(it) }.orEmpty()
+        }
+
+    /**
      * Re-OCR the stored pages of a saved document, one at a time, and return one string per page.
      * Read-only: page images are decoded, never re-encoded or replaced (issue #10).
+     * [withDevanagari] adds the Hindi fallback pass to each page, for a field that is printed in Hindi.
      */
-    fun textPerPage(ctx: Context, docId: String, pages: Int): List<String> =
-        (0 until pages).map { p -> Store.image(ctx, docId, p, OCR_MAX_PX)?.let { adaptiveBest(it) }.orEmpty() }
+    fun textPerPage(ctx: Context, docId: String, pages: Int, withDevanagari: Boolean = false): List<String> =
+        (0 until pages).map { p ->
+            Store.image(ctx, docId, p, OCR_MAX_PX)?.let { bmp ->
+                val latin = adaptiveBest(bmp)
+                if (!withDevanagari) latin else latin + "\n" + recognizeDevanagari(bmp)
+            }.orEmpty()
+        }
 
     /** Progressive OCR with early exit. Returns the first pass that clears the quality gate. */
     private fun adaptiveBest(bmp: Bitmap): String {

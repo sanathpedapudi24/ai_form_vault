@@ -71,6 +71,7 @@ import com.aiformvault.duplicatesOf
 import com.aiformvault.expectedFacts
 import com.aiformvault.fieldCandidates
 import com.aiformvault.mask
+import com.aiformvault.nameKeys
 import com.aiformvault.normalize
 import com.aiformvault.sameName
 import com.aiformvault.suggestRelations
@@ -325,7 +326,10 @@ fun DocScreen(state: AppState, id: String) {
         if (doc.pages == 0) { state.message = "This document has no stored pages to re-read"; return }
         reading = key
         scope.launch {
-            val texts = withContext(Dispatchers.IO) { runCatching { Ocr.textPerPage(ctx, id, doc.pages) }.getOrElse { emptyList() } }
+            // Name fields get a Hindi pass too: a name printed only in Devanagari is otherwise unreachable.
+            val texts = withContext(Dispatchers.IO) {
+                runCatching { Ocr.textPerPage(ctx, id, doc.pages, withDevanagari = key in nameKeys) }.getOrElse { emptyList() }
+            }
             reading = null
             val current = doc.facts.firstOrNull { it.key == key }?.value.orEmpty()
             // A re-read that returns the value we already hold is not a choice; say plainly that nothing new was found.

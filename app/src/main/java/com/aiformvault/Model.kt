@@ -117,7 +117,9 @@ fun mismatches(entries: List<Entry>): List<Mismatch> =
 
 fun normalize(key: FactKey, v: String) = when (key) {
     FactKey.DOB, FactKey.AADHAAR, FactKey.ROLL, FactKey.PHONE, FactKey.PIN_CODE, FactKey.EXPIRY, FactKey.ACCOUNT_NO -> v.filter(Char::isDigit)
-    else -> v.uppercase().replace(Regex("""[^A-Z0-9]+"""), " ").trim()
+    // Unicode-aware since issue #8: "राहुल  कुमार" and "राहुल कुमार" must compare equal, just like the Latin
+    // forms did, and Devanagari letters must survive normalisation instead of collapsing to an empty string.
+    else -> v.uppercase().replace(Regex("""[^\p{L}\p{N}]+"""), " ").trim()
 }
 
 fun mask(key: FactKey, v: String) = if (key.sensitive) v.mapIndexed { i, c -> if (i < v.length - 4 && c.isLetterOrDigit()) '•' else c }.joinToString("") else v
