@@ -129,6 +129,17 @@ fun ReviewScreen(state: AppState, r: Route.Review) {
         duplicatesOf(draft, data.documents)
     }
 
+    /** Advance the queue after a save or a skip; the last one returns to Home with a summary. */
+    fun finishItem() {
+        val total = state.batchTotal
+        if (state.advanceBatch()) { state.tab(Route.Home); state.message = "Finished — $total documents in this batch" }
+    }
+
+    fun quitQueue() {
+        state.quitBatch(); state.tab(Route.Home)
+        state.message = "Queue closed — saved documents are in your vault"
+    }
+
     fun save() {
         saving = true
         scope.launch {
@@ -148,8 +159,10 @@ fun ReviewScreen(state: AppState, r: Route.Review) {
             d = d.copy(documents = d.documents + doc)
             d = d.copy(people = d.people + suggestRelations(d, doc))
             state.update { d }
-            state.replace(Route.Doc(id))
-            state.message = "Saved to your vault"
+            if (state.batchTotal > 1) finishItem() else {
+                state.replace(Route.Doc(id))
+                state.message = "Saved to your vault"
+            }
         }
     }
 
@@ -175,13 +188,27 @@ fun ReviewScreen(state: AppState, r: Route.Review) {
     }
 
     Page(title = "Check the details", onBack = state::back, bottom = {
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            OutlinedButton(onClick = state::back, Modifier.weight(1f).height(52.dp), enabled = !saving) { Text("Discard") }
-            Button(onClick = ::save, Modifier.weight(1f).height(52.dp), enabled = !saving) {
-                if (saving) CircularProgressIndicator(Modifier.height(20.dp).width(20.dp), color = Color.White, strokeWidth = 2.dp) else Text("Save")
+        Column {
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedButton(
+                    onClick = { if (state.batchTotal > 1) finishItem() else state.back() },
+                    Modifier.weight(1f).height(52.dp), enabled = !saving,
+                ) { Text(if (state.batchTotal > 1) "Skip this one" else "Discard") }
+                Button(onClick = ::save, Modifier.weight(1f).height(52.dp), enabled = !saving) {
+                    if (saving) CircularProgressIndicator(Modifier.height(20.dp).width(20.dp), color = Color.White, strokeWidth = 2.dp) else Text("Save")
+                }
             }
+            if (state.batchTotal > 1) TextButton(onClick = ::quitQueue, Modifier.fillMaxWidth()) { Text("Quit the queue") }
         }
     }) {
+        if (state.batchTotal > 1) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Chip("Document ${state.batchPos + 1} of ${state.batchTotal}")
+                Spacer(Modifier.width(10.dp))
+                Muted("Saved documents are kept if you quit.")
+            }
+            Spacer(Modifier.height(10.dp))
+        }
         Muted("Fix anything misread and clear anything wrong. Nothing is saved until you tap Save.")
         dupes.firstOrNull()?.let { hit ->
             Spacer(Modifier.height(12.dp))

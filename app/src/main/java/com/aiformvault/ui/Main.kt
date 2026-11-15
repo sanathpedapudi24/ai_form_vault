@@ -108,7 +108,11 @@ class AppState(val ctx: Context) {
 
     val route get() = stack.last()
     fun go(r: Route) { stack += r }
-    fun back() { if (stack.size > 1) stack.removeAt(stack.lastIndex) }
+    fun back() {
+        // Leaving a queued document abandons the rest of the queue; whatever was already saved stays.
+        if (batch.isNotEmpty() && (route is Route.Scanning || route is Route.Review)) quitBatch()
+        if (stack.size > 1) stack.removeAt(stack.lastIndex)
+    }
     fun replace(r: Route) { stack[stack.lastIndex] = r }
     fun tab(r: Route) { stack.clear(); stack += r }
 
@@ -119,6 +123,39 @@ class AppState(val ctx: Context) {
 
     var scan: () -> Unit = {}
     var importPdf: () -> Unit = {}
+    var importImages: () -> Unit = {}
+
+    // ---------- Import queue (issue #9): several documents, one review each ----------
+
+    /** One entry per document still to review; empty when no queue is running. Set only for 2+ items. */
+    var batch by mutableStateOf<List<List<Uri>>>(emptyList())
+    /** 0-based index of the queued document currently in review. */
+    var batchPos by mutableStateOf(0)
+    val batchTotal get() = batch.size
+
+    /** Wired by the shell: OCR → extract → Review for one document's pages. */
+    var processPages: (List<Uri>) -> Unit = {}
+
+    fun startBatch(items: List<List<Uri>>) {
+        val clean = items.filter { it.isNotEmpty() }
+        if (clean.isEmpty()) { message = "No readable images in that selection"; return }
+        tab(Route.Home)
+        if (clean.size == 1) { batch = emptyList(); batchPos = 0; processPages(clean[0]); return }
+        batch = clean; batchPos = 0; processPages(clean[0])
+    }
+
+    /** Drops the current item and moves on. Returns true when that was the last one (queue cleared). */
+    fun advanceBatch(): Boolean {
+        if (batch.isEmpty()) return true
+        val next = batchPos + 1
+        if (next >= batch.size) { batch = emptyList(); batchPos = 0; return true }
+        batchPos = next
+        tab(Route.Home) // drops the finished document's routes so the stack doesn't grow with the queue
+        processPages(batch[next])
+        return false
+    }
+
+    fun quitBatch() { batch = emptyList(); batchPos = 0 }
 }
 
 /** Launches Google's on-device document scanner (edge detection, cropping, gallery import). */
@@ -163,13 +200,14 @@ private fun Shell(state: AppState) {
     BackHandler(state.stack.size > 1) { state.back() }
 
     fun process(pages: List<Uri>) {
-        state.go(Route.Scanning("Reading the text…"))
+        val seq = if (state.batchTotal > 1) "Document ${state.batchPos + 1} of ${state.batchTotal} — " else ""
+        state.go(Route.Scanning("${seq}Reading the text…"))
         scope.launch {
             try {
                 val text = withContext(Dispatchers.Default) { Ocr.text(ctx, pages) }
-                state.replace(Route.Scanning("Understanding the document…"))
+                state.replace(Route.Scanning("${seq}Understanding the document…"))
                 val (type, facts) = withContext(Dispatchers.Default) { extract(text) }
-                state.replace(Route.Scanning("Organizing…"))
+                state.replace(Route.Scanning("${seq}Organizing…"))
                 delay(250)
                 state.replace(Route.Review(pages, type, facts, text))
             } catch (e: Exception) {
@@ -177,14 +215,29 @@ private fun Shell(state: AppState) {
             }
         }
     }
-    state.scan = rememberScanner(5, { state.message = it }, ::process)
+    state.processPages = ::process
+    state.scan = rememberScanner(10, { state.message = it }, ::process)
     val pdf = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) scope.launch {
-            val pages = runCatching { withContext(Dispatchers.IO) { Ocr.pdfPages(ctx, uri) } }.getOrElse { emptyList() }
-            if (pages.isEmpty()) state.message = "Couldn't open that PDF" else process(pages)
+            // Silent truncation was the bug: report how much of the PDF was read, and say when it is locked.
+            val res = withContext(Dispatchers.IO) { runCatching { Ocr.pdfPages(ctx, uri) } }
+                .getOrElse { Ocr.PdfPages(emptyList(), 0, "Couldn't open that PDF: ${it.message}") }
+            when {
+                res.error != null -> state.message = res.error
+                res.pages.isEmpty() -> state.message = "Couldn't read any page from that PDF"
+                else -> {
+                    if (res.pages.size < res.total) state.message = "Read the first ${res.pages.size} of ${res.total} pages."
+                    process(res.pages)
+                }
+            }
         }
     }
     state.importPdf = { Session.external = true; pdf.launch(arrayOf("application/pdf")) }
+    // One image = one document. The picker gives no way to group pages, so guessing would mis-file them.
+    val images = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
+        if (!uris.isNullOrEmpty()) state.startBatch(uris.map { listOf(it) })
+    }
+    state.importImages = { Session.external = true; images.launch(arrayOf("image/*")) }
 
     val route = state.route
     Scaffold(
@@ -246,7 +299,10 @@ private fun HomeScreen(state: AppState) {
             Button(onClick = state.scan, Modifier.weight(1f).height(52.dp)) { Text("Scan a document") }
             OutlinedButton(onClick = { state.go(Route.SnapFill) }, Modifier.weight(1f).height(52.dp)) { Text("Fill a form") }
         }
-        TextButton(onClick = state.importPdf) { Text("Import a PDF instead") }
+        Row {
+            TextButton(onClick = state.importPdf) { Text("Import a PDF") }
+            TextButton(onClick = state.importImages) { Text("Import photos") }
+        }
 
         if (!state.lock.hasPin) {
             Spacer(Modifier.height(8.dp))
@@ -301,7 +357,10 @@ private fun VaultScreen(state: AppState) {
     var filter by remember { mutableStateOf<Category?>(null) }
     val counts = data.documents.groupingBy { it.category }.eachCount()
     Box(Modifier.fillMaxSize()) {
-        Page(title = "Vault", actions = { TextButton(onClick = state.importPdf) { Text("Import PDF") } }) {
+        Page(title = "Vault", actions = {
+            TextButton(onClick = state.importImages) { Text("Photos") }
+            TextButton(onClick = state.importPdf) { Text("PDF") }
+        }) {
             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 item { FilterChip(selected = filter == null, onClick = { filter = null }, label = { Text("All (${data.documents.size})") }) }
                 items(Category.entries.filter { (counts[it] ?: 0) > 0 }) { c ->

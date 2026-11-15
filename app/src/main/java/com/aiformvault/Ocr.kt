@@ -207,19 +207,37 @@ object Ocr {
         val alphaNumCount: Int,
     )
 
-    fun pdfPages(ctx: Context, pdf: Uri, max: Int = 5): List<Uri> {
-        val fd = ctx.contentResolver.openFileDescriptor(pdf, "r") ?: return emptyList()
-        return PdfRenderer(fd).use { r ->
-            (0 until minOf(max, r.pageCount)).map { i ->
-                r.openPage(i).use { page ->
-                    val scale = 2000f / maxOf(page.width, page.height)
-                    val bmp = Bitmap.createBitmap((page.width * scale).toInt(), (page.height * scale).toInt(), Bitmap.Config.ARGB_8888)
-                    bmp.eraseColor(Color.WHITE)
-                    page.render(bmp, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
-                    Uri.fromFile(cacheFile(ctx, "jpg").also { f -> f.outputStream().use { bmp.compress(Bitmap.CompressFormat.JPEG, 90, it) } })
-                }
-            }
+    /** Rendered pages plus how many the PDF really has, so the caller can report truncation honestly. */
+    data class PdfPages(val pages: List<Uri>, val total: Int, val error: String? = null)
+
+    private const val MAX_PDF_PAGES = 20
+
+    /** Render up to [max] pages. A password-protected PDF gets its own message instead of an empty list. */
+    fun pdfPages(ctx: Context, pdf: Uri, max: Int = MAX_PDF_PAGES): PdfPages {
+        val fd = ctx.contentResolver.openFileDescriptor(pdf, "r")
+            ?: return PdfPages(emptyList(), 0, "Couldn't open that file")
+        val renderer = try {
+            PdfRenderer(fd)
+        } catch (e: Exception) {
+            runCatching { fd.close() }
+            val locked = e.message?.contains("password", ignoreCase = true) == true
+            return PdfPages(emptyList(), 0, if (locked)
+                "That PDF is password-protected. Remove the password and import it again."
+            else "Couldn't open that PDF: ${e.message}")
         }
+        return renderer.use { r ->
+            val total = r.pageCount
+            val pages = (0 until minOf(max, total)).mapNotNull { i -> runCatching { renderPage(ctx, r, i) }.getOrNull() }
+            PdfPages(pages, total)
+        }
+    }
+
+    private fun renderPage(ctx: Context, r: PdfRenderer, index: Int): Uri = r.openPage(index).use { page ->
+        val scale = 2000f / maxOf(page.width, page.height)
+        val bmp = Bitmap.createBitmap((page.width * scale).toInt(), (page.height * scale).toInt(), Bitmap.Config.ARGB_8888)
+        bmp.eraseColor(Color.WHITE)
+        page.render(bmp, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
+        Uri.fromFile(cacheFile(ctx, "jpg").also { f -> f.outputStream().use { bmp.compress(Bitmap.CompressFormat.JPEG, 90, it) } })
     }
 
     data class FormField(val label: String, val key: FactKey?, val box: Rect, val value: String, val options: Map<String, Rect> = emptyMap())
