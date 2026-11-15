@@ -9,10 +9,24 @@ GitHub Actions pipeline that tests, lints, builds, signs and publishes the APK.
 | Push to `main` / `develop` | `CI / CD — Android APK Build & Release` | `build` | Tests + lint + **debug APK** artifact |
 | Pull request to `main` / `develop` | same | `build` | Tests + lint + **debug APK** artifact |
 | Push tag `v*` | same | `build` → `release` | **Signed release APK** + GitHub Release |
-| Push tag `v*` with no signing secrets | same | `build` → `release` | Tests/APK run; release emits a warning and is skipped |
+| Push tag `v*` (fork without signing secrets) | same | `build` → `release` | Tests/APK run; release emits a warning and is skipped |
 | Manual | same | `build` | Same as push |
 
 `concurrency` cancels superseded PR runs, so only the newest push per branch runs.
+
+## Current status
+
+> **Configured and working.** All four signing secrets are set, and the first signed release shipped on 2026-11-15.
+
+| | |
+|---|---|
+| Last green CI run | `43686300572` — 3m29s, all steps passed |
+| First signed release | [`v4.1.1`](https://github.com/sanathpedapudi24/ai_form_vault/releases/tag/v4.1.1) — run `43686985479` |
+| Published asset | `ai-form-vault-4.1.1.apk` (9,645,111 bytes) |
+| Signing certificate SHA-256 | `F4:62:58:40:79:8E:1E:9C:D1:D1:AE:14:BE:6B:FE:1D:70:E9:2C:BC:57:0D:75:E0:86:EC:8A:67:25:46:6B:90` |
+| Secrets present | `RELEASE_KEYSTORE_B64`, `RELEASE_STORE_PASSWORD`, `RELEASE_KEY_ALIAS`, `RELEASE_KEY_PASSWORD` |
+
+Steps 1 and 2 below are kept as reference — they are already done for this repository and only need repeating for a fork or a new app.
 
 ## Files
 
@@ -35,30 +49,34 @@ GitHub Actions pipeline that tests, lints, builds, signs and publishes the APK.
 | GitHub Release step 403 | Default `GITHUB_TOKEN` is read-only | `permissions: contents: write` on the `release` job only |
 | Silent unsigned release | Gradle applied signing config even when env vars were empty | Signing applied only when all four env vars exist **and** the keystore file exists |
 
-## Required GitHub secrets
+## GitHub secrets (already configured)
 
-**Repo → Settings → Secrets and variables → Actions → New repository secret**
+**Repo → Settings → Secrets and variables → Actions**
 
-| Secret | Description |
-|--------|-------------|
-| `RELEASE_KEYSTORE_B64` | Base64-encoded release keystore (`.jks`) |
-| `RELEASE_STORE_PASSWORD` | Keystore store password |
-| `RELEASE_KEY_ALIAS` | Key alias inside the keystore |
-| `RELEASE_KEY_PASSWORD` | Key password |
+| Secret | Description | Status |
+|--------|-------------|--------|
+| `RELEASE_KEYSTORE_B64` | Base64-encoded release keystore (`.jks`) | ✅ set |
+| `RELEASE_STORE_PASSWORD` | Keystore store password | ✅ set |
+| `RELEASE_KEY_ALIAS` | Key alias inside the keystore (`ai-form-vault`) | ✅ set |
+| `RELEASE_KEY_PASSWORD` | Key password (equals the store password for PKCS12) | ✅ set |
 
-> These secrets are read by the `release` job only. Without them, CI still passes and the debug APK is still produced.
+> These secrets are read by the `release` job only. On a fork without them, CI still passes and the debug APK is still produced — the release job emits a warning and skips signing.
 
-## Step 1 — Create a release keystore (one time)
+The keystore itself and its password file (`release-keystore.jks`, `release-keystore-credentials.txt`) are **not** in the repository — both are git-ignored. Keep an offline backup: if the keystore is lost, no future update can be installed over the published app.
+
+## Step 1 — Create a release keystore (done for this repo)
 
 ```bash
 keytool -genkeypair -v \
   -keystore release-keystore.jks \
-  -alias my-key \
-  -keyalg RSA -keysize 2048 -validity 10000 \
+  -alias ai-form-vault \
+  -keyalg RSA -keysize 4096 -validity 10000 \
   -storepass YOUR_STORE_PASSWORD \
   -keypass YOUR_KEY_PASSWORD \
-  -dname "CN=AI Form & Vault, O=Android, C=US"
+  -dname "CN=AI Form & Vault, O=AI Form Vault, C=IN"
 ```
+
+> **PKCS12 note:** modern `keytool` writes PKCS12 keystores, which do not support separate store and key passwords — it warns and silently uses the store password for both. Set `RELEASE_KEY_PASSWORD` to the **same value** as `RELEASE_STORE_PASSWORD`, or signing will fail with a wrong-password error.
 
 Base64-encode it for the `RELEASE_KEYSTORE_B64` secret:
 
@@ -71,7 +89,7 @@ Base64-encode it for the `RELEASE_KEYSTORE_B64` secret:
 base64 -w0 release-keystore.jks | pbcopy
 ```
 
-## Step 2 — Add the four secrets
+## Step 2 — Add the four secrets (done for this repo)
 
 Use the table above. Never commit `release-keystore.jks` (it is git-ignored).
 
@@ -79,16 +97,17 @@ Use the table above. Never commit `release-keystore.jks` (it is git-ignored).
 
 1. Bump the version in `app/build.gradle.kts`:
    ```kotlin
-   versionCode = 16        // must increase every release
-   versionName = "4.1.1"   // must match the tag without the leading v
+   versionCode = 17        // must increase every release
+   versionName = "4.1.2"   // must match the tag without the leading v
    ```
 2. Commit, then tag and push:
    ```bash
-   git commit -am "release 4.1.1"
-   git tag v4.1.1
-   git push origin main --tags
+   git commit -am "release: 4.1.2"
+   git push origin main
+   git tag -a v4.1.2 -m "AI Form & Vault 4.1.2"
+   git push origin v4.1.2
    ```
-3. The `build` job runs first; then `release` signs the APK, verifies it with `apksigner`, and attaches `ai-form-vault-4.1.1.apk` to a GitHub Release.
+3. The `build` job runs first; then `release` signs the APK, verifies it with `apksigner`, and attaches `ai-form-vault-4.1.2.apk` to a GitHub Release.
 
 ## Local verification
 
