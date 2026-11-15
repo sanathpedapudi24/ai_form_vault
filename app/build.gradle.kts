@@ -26,8 +26,8 @@ android {
         applicationId = "com.aiformvault.ai_form_vault"
         minSdk = 26
         targetSdk = 36
-        versionCode = 15
-        versionName = "4.1.0"
+        versionCode = 16
+        versionName = "4.1.1"
     }
 
     signingConfigs {

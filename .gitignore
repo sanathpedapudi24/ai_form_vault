@@ -8,6 +8,7 @@ local.properties
 
 # Release signing keystore (never commit)
 release-keystore.jks
+release-keystore-credentials.txt
 *.jks
 *.keystore
 *.key
