@@ -129,6 +129,43 @@ class FeedbackTest {
         assertEquals("50100123456789", f[FactKey.ACCOUNT_NO])
     }
 
+    // Real e-Aadhaar layout (details changed): issue date above the name, OCR split the DOB year, Telugu read as noise.
+    @Test fun aadhaarReprintIssueDateIsNotDob() {
+        val (type, f) = facts(
+            """
+            Aadhaar no. issued: 24/03/2013
+            Government of India
+            Ravi Teja Kumar
+            Ds SA/DOB: 14/08/2 006
+            oáya/ MALE
+            So QR sE / os5 XML ws,
+            Aadhaar is proof of identity, not of citizenship
+            or date of birth. It should be used with verification (online
+            authentication, or scanning of QR code /offline XMLJ.
+            2345 6789 0124
+            Details as on: 24/06/2026
+            Unique ldentification Authority of India
+            Koose: dyá 85 Krós s, 12, PTO
+            e9o- 500001
+            8 Address:
+            c/O: Kumar Venkata Rao, 12, Main road,
+            Near water tank, Gandhi colony,
+            PO: Ramnagar, DIST: Guntur,
+            Andhra Pradesh - 522001
+            2345 6789 0124
+            VID:9100 2000 3000 4000
+            """
+        )
+        assertEquals(DocType.AADHAAR, type)
+        assertEquals("14/08/2006", f[FactKey.DOB])
+        assertEquals("Ravi Teja Kumar", f[FactKey.NAME])
+        assertEquals("Male", f[FactKey.GENDER])
+        assertEquals("2345 6789 0124", f[FactKey.AADHAAR])
+        assertEquals("Kumar Venkata Rao", f[FactKey.FATHER])
+        assertEquals("12, Main road, Near water tank, Gandhi colony, PO: Ramnagar, DIST: Guntur, Andhra Pradesh - 522001", f[FactKey.ADDRESS])
+        assertEquals("522001", f[FactKey.PIN_CODE])
+    }
+
     @Test fun formLabels() {
         assertEquals(FactKey.BRANCH, matchLabel("Branch Name"))
         assertEquals(FactKey.IFSC, matchLabel("IFSC Code"))

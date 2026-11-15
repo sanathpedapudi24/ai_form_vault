@@ -29,7 +29,7 @@ val expectedFacts: Map<DocType, List<FactKey>> = mapOf(
 /** Which document usually carries a detail: shown when a form field is empty. */
 val whereToFind: Map<FactKey, String> = mapOf(
     FactKey.NAME to "Aadhaar or PAN", FactKey.DOB to "Aadhaar or PAN", FactKey.GENDER to "Aadhaar",
-    FactKey.FATHER to "PAN, voter ID or marksheet (Aadhaar doesn't print it)",
+    FactKey.FATHER to "PAN, voter ID, marksheet or Aadhaar's C/O line",
     FactKey.MOTHER to "passport back page or marksheet", FactKey.SPOUSE to "passport back page",
     FactKey.ADDRESS to "Aadhaar back side", FactKey.PIN_CODE to "Aadhaar back side",
     FactKey.PHONE to "no ID card prints it: type it once", FactKey.EMAIL to "no ID card prints it: type it once",

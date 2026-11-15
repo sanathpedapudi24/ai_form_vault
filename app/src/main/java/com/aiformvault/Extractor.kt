@@ -2,7 +2,11 @@ package com.aiformvault
 
 import java.time.LocalDate
 
-private val dateRx = Regex("""\b(\d{2})[/\-.](\d{2})[/\-.](\d{4})\b""")
+// OCR often drops a space into dates ("14/08/2 006"), so single spaces are allowed between digits and separators.
+private val dateRx = Regex("""\b(\d{2})\s?[/\-.]\s?(\d{2})\s?[/\-.]\s?(\d\s?\d\s?\d\s?\d)\b""")
+// Dates that are about the card, not the person: never a date of birth.
+private val notDobRx = Regex("""issue|as on|download|print|generat|valid|expir""", RegexOption.IGNORE_CASE)
+private val dobLabelRx = Regex("""\b(dob|d\.o\.b|date of birth|year of birth|birth)""")
 private val aadhaarRx = Regex("""(?<!\d\s?)\b(\d{4})\s?(\d{4})\s?(\d{4})\b(?!\s?\d)""")
 private val panRx = Regex("""\b[A-Z]{5}[0-9]{4}[A-Z]\b""")
 private val epicRx = Regex("""\b[A-Z]{3}[0-9]{7}\b""")
@@ -83,7 +87,9 @@ fun extract(text: String, today: LocalDate = LocalDate.now()): Pair<DocType, Lis
     when (type) {
         // Aadhaar front has no "Name" label: the name is the closest plain-text line above the DOB.
         DocType.AADHAAR -> if (name == null) {
-            val dobLine = lines.indexOfFirst { dateRx.containsMatchIn(it) || "year of birth" in it.lowercase() }
+            // The DOB line, not just the first date: reprinted cards put "Aadhaar no. issued: <date>" above the name.
+            val dobLine = lines.indexOfFirst { dobLabelRx.containsMatchIn(it.lowercase()) && Regex("""\d{4}""").containsMatchIn(it.replace(" ", "")) }
+                .takeIf { it >= 0 } ?: lines.indexOfFirst { dateRx.containsMatchIn(it) && !notDobRx.containsMatchIn(it) }
             if (dobLine > 0) name = (dobLine - 1 downTo 0).map { lines[it] }.firstOrNull(::isNameLine)
         }
         // Old PAN layout: name, then father's name, on the lines after the "GOVT. OF INDIA" header.
@@ -99,10 +105,14 @@ fun extract(text: String, today: LocalDate = LocalDate.now()): Pair<DocType, Lis
     add(FactKey.NAME, name?.replace(honorificRx, ""))
 
     add(FactKey.DOB, dateNear(lines, "date of birth", "dob", "birth")
-        ?: if (type in listOf(DocType.AADHAAR, DocType.PAN, DocType.MARKSHEET, DocType.VOTER_ID)) dateRx.find(text)?.let(::fmt) else null)
+        ?: if (type in listOf(DocType.AADHAAR, DocType.PAN, DocType.MARKSHEET, DocType.VOTER_ID))
+            lines.filterNot(notDobRx::containsMatchIn).firstNotNullOfOrNull(dateRx::find)?.let(::fmt) else null)
     add(FactKey.EXPIRY, dateNear(lines, *expiryLabels, last = true))
     add(FactKey.GENDER, genderRx.find(text)?.value?.lowercase()?.replaceFirstChar { it.uppercase() })
     add(FactKey.FATHER, labelled(lines, "father", "s/d/w of", "s/o", "d/o", "son of", "daughter of")?.let(::cleanName))
+    // Aadhaar since 2018 prints "C/O" (care of) instead of S/O. Usually the father, so offered as one: review and
+    // family suggestions both need the user's confirmation, and it can be a husband or guardian.
+    if (type == DocType.AADHAAR) add(FactKey.FATHER, labelled(lines, "c/o", "care of")?.let(::cleanName))
     add(FactKey.MOTHER, labelled(lines, "mother")?.let(::cleanName))
     add(FactKey.SPOUSE, labelled(lines, "husband", "wife", "spouse", "w/o")?.let(::cleanName))
     add(FactKey.ROLL, labelled(lines, "roll no", "roll number")?.let { Regex("""\d+""").find(it)?.value })
@@ -140,7 +150,7 @@ fun suggestTitle(type: DocType, facts: List<Fact>): String =
 
 fun titleCase(s: String) = s.lowercase().split(" ").filter { it.isNotBlank() }.joinToString(" ") { it.replaceFirstChar(Char::uppercase) }
 
-private fun fmt(m: MatchResult) = "${m.groupValues[1]}/${m.groupValues[2]}/${m.groupValues[3]}"
+private fun fmt(m: MatchResult) = "${m.groupValues[1]}/${m.groupValues[2]}/${m.groupValues[3].filter(Char::isDigit)}"
 
 private fun cleanName(s: String) = s.substringBefore(",").replace(Regex("""[^A-Za-z .']"""), " ").replace(Regex("""\s+"""), " ").trim().takeIf { it.length > 2 }
 
@@ -169,7 +179,9 @@ private fun address(lines: List<String>): Pair<String, String>? {
         pin = pinRx.find(lines[j])?.value
         j++
     }
-    val addr = parts.map { it.trim(' ', ',') }.filter { it.isNotBlank() }.joinToString(", ").replace(Regex("""[^\x00-\x7F]"""), "").replace(Regex("""\s+"""), " ").trim(' ', ',')
+    val addr = parts.map { it.trim(' ', ',') }.filter { it.isNotBlank() }.joinToString(", ").replace(Regex("""[^\x00-\x7F]"""), "").replace(Regex("""\s+"""), " ")
+        // "C/O: Father Name, 171, ..." — the relative's name is its own detail, not part of the address forms want.
+        .replace(Regex("""^\s*(c/o|s/o|d/o|w/o|care of)\s*:?\s*[^,]*,""", RegexOption.IGNORE_CASE), "").trim(' ', ',')
     return if (pin == null || addr.length < 8) null else addr to pin
 }
 

@@ -41,7 +41,7 @@ class ExtractorTest {
             2345 6789 0124
             """
         ).second
-        assertEquals("S/O Suresh Kumar, 12 MG Road, Shivaji Nagar, Pune, Maharashtra - 411005", f[FactKey.ADDRESS])
+        assertEquals("12 MG Road, Shivaji Nagar, Pune, Maharashtra - 411005", f[FactKey.ADDRESS])
         assertEquals("411005", f[FactKey.PIN_CODE])
         assertEquals("Suresh Kumar", f[FactKey.FATHER])
     }

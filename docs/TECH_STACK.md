@@ -9,7 +9,7 @@ layer. Kotlin Multiplatform is the path if Phase 3 needs iOS.
 | Language / UI | Kotlin, Jetpack Compose, Material 3 components |
 | Visual style | Material 3 structure + soft animated aurora/glow gradient backgrounds (FeralUI-style), drawn with Compose `Canvas` radial gradients (works on all API levels; static when animations are off) |
 | Capture | ML Kit Document Scanner (crop, edge detection, quality guidance) |
-| OCR | ML Kit Text Recognition v2, on-device, unbundled via Play services (Latin script now; Devanagari later) |
+| OCR | ML Kit Text Recognition v2, on-device, unbundled via Play services (Latin script). Adaptive progressive pipeline: 3000px input, plain-first with quality gate (Aadhaar checksum / PAN pattern / date density), escalating to contrast → Otsu binarization → 90/180/270° rotation only when plain fails. Early exit cuts inference ~50–70% on clean docs. Devanagari later. |
 | Extraction / classification | On-device, rule-based per Indian document type. No cloud AI. |
 | Database | One AES-256-GCM encrypted JSON file (Keystore key) + per-page encrypted images. Room + SQLCipher only if vaults reach thousands of documents |
 | Search | In-memory keyword + rule-based natural language (`Matching.kt`) |

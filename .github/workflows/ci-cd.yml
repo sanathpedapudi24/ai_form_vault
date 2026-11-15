@@ -1,0 +1,171 @@
+name: CI / CD — Android APK Build & Release
+
+on:
+  push:
+    branches: [ main, develop ]
+    tags: [ 'v*' ]  # triggers release on version tags like v4.1.0
+  pull_request:
+    branches: [ main, develop ]
+
+env:
+  ANDROID_COMPILE_SDK: 36
+  ANDROID_BUILD_TOOLS: 36.0.0
+  ANDROID_NDK_VERSION: 27.0.12077973
+  GRADLE_OPTS: -Dorg.gradle.jvmargs="-Xmx4g -XX:MaxMetaspaceSize=512m"
+
+jobs:
+  # ---------------------------------------------------------------
+  # 1) CI: unit tests + lint + debug APK build (every PR / push)
+  # ---------------------------------------------------------------
+  ci:
+    name: CI — Tests, Lint, Debug APK
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' || !startsWith(github.ref, 'refs/tags/')
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+          cache: gradle
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Validate Gradle wrapper
+        uses: gradle/wrapper-validation-action@v2
+
+      - name: Run unit tests
+        run: ./gradlew testDebugUnitTest --no-daemon
+        env:
+          GRADLE_OPTS: ${{ env.GRADLE_OPTS }}
+
+      - name: Run Android Lint
+        run: ./gradlew lintDebug --no-daemon
+        env:
+          GRADLE_OPTS: ${{ env.GRADLE_OPTS }}
+
+      - name: Build Debug APK
+        run: ./gradlew assembleDebug --no-daemon
+        env:
+          GRADLE_OPTS: ${{ env.GRADLE_OPTS }}
+
+      - name: Upload Debug APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: debug-apk
+          path: app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 7
+
+  # ---------------------------------------------------------------
+  # 2) Release: full checks + signed release APK → GitHub Release
+  # ---------------------------------------------------------------
+  release:
+    name: Release — Sign APK & Publish to GitHub Release
+    needs: ci
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+          cache: gradle
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Validate Gradle wrapper
+        uses: gradle/wrapper-validation-action@v2
+
+      - name: Decode release keystore
+        id: decode_keystore
+        if: env.RELEASE_KEYSTORE_B64 != ''
+        run: |
+          echo "${{ secrets.RELEASE_KEYSTORE_B64 }}" | base64 -d > release-keystore.jks
+          echo "keystore_path=$PWD/release-keystore.jks" >> $GITHUB_OUTPUT
+        env:
+          RELEASE_KEYSTORE_B64: ${{ secrets.RELEASE_KEYSTORE_B64 }}
+
+      - name: Run unit tests (release)
+        run: ./gradlew testReleaseUnitTest --no-daemon
+        env:
+          RELEASE_STORE_FILE: ${{ steps.decode_keystore.outputs.keystore_path }}
+          RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+          GRADLE_OPTS: ${{ env.GRADLE_OPTS }}
+
+      - name: Run Android Lint (release)
+        run: ./gradlew lintRelease --no-daemon
+        env:
+          RELEASE_STORE_FILE: ${{ steps.decode_keystore.outputs.keystore_path }}
+          RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+          GRADLE_OPTS: ${{ env.GRADLE_OPTS }}
+
+      - name: Build signed Release APK
+        run: ./gradlew assembleRelease --no-daemon
+        env:
+          RELEASE_STORE_FILE: ${{ steps.decode_keystore.outputs.keystore_path }}
+          RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+          GRADLE_OPTS: ${{ env.GRADLE_OPTS }}
+
+      - name: Verify APK is signed
+        run: |
+          apk_path=$(find app/build/outputs/apk/release -name "*.apk" | head -1)
+          echo "APK: $apk_path"
+          $ANDROID_HOME/build-tools/*/apksigner verify --print-certs "$apk_path" || true
+
+      - name: Extract version from tag
+        id: version
+        run: |
+          tag=${GITHUB_REF#refs/tags/}
+          echo "tag=$tag" >> $GITHUB_OUTPUT
+          # Strip leading 'v' for versionName if present
+          version_name=${tag#v}
+          echo "version_name=$version_name" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        id: create_release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: Release ${{ steps.version.outputs.tag }}
+          body: |
+            ## AI Form & Vault ${{ steps.version.outputs.tag }}
+
+            Signed release APK built from tag `${{ steps.version.outputs.tag }}`.
+
+            ### What's included
+            - Signed release APK (`app-release.apk`)
+            - Built with GitHub Actions CI/CD
+
+            ### Installation
+            1. Download `app-release.apk` from this release.
+            2. On your Android device, enable "Install from unknown sources" for your browser/file manager.
+            3. Open the APK and install.
+          draft: false
+          prerelease: false
+          files: app/build/outputs/apk/release/app-release.apk
+
+      - name: Upload Release APK artifact (backup)
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-apk
+          path: app/build/outputs/apk/release/app-release.apk
+          retention-days: 30

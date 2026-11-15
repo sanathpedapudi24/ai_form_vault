@@ -5,3 +5,14 @@ build/
 local.properties
 *.iml
 *.apk
+
+# Release signing keystore (never commit)
+release-keystore.jks
+*.jks
+*.keystore
+*.key
+
+# OCR evaluation test artifacts (not source)
+test_set/
+__pycache__/
+*.csv

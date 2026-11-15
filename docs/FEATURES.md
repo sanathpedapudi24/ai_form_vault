@@ -28,8 +28,12 @@ Recognised: Aadhaar (front and back, with checksum-validated numbers), PAN
 (old and new layouts, fixing common misreads like O/0 and I/1), Voter ID,
 driving licence, passport (front from the machine-readable lines; back page
 for parents, spouse and address), vehicle RC, marksheets and bank passbooks
-(account number, IFSC, bank, branch). Every page is also read a second time
-with boosted contrast, for faint or grey print. Extracted: name, DOB,
+(account number, IFSC, bank, branch). Every page runs plain 3000px OCR first;
+if the read is weak (few alphanumerics, no ID numbers or dates), it escalates
+through boosted contrast (faint passbook print), Otsu binarization (laminated
+PAN glare), and rotated variants (90/180/270° for sideways cards) — stopping
+early when a clean read is confirmed. This keeps inference fast on good scans
+while still rescuing hard ones. Extracted: name, DOB,
 gender, father's / mother's / spouse's names, address and PIN code, mobile,
 email, blood group, nationality, ID numbers, roll number, expiry.
 
