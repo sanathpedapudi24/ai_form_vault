@@ -38,6 +38,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -95,8 +96,7 @@ fun SoftCard(modifier: Modifier = Modifier, color: Color = Color.White, onClick:
     val colors = CardDefaults.cardColors(containerColor = color)
     val border = CardDefaults.outlinedCardBorder().copy(width = 1.dp)
     val m = modifier.fillMaxWidth()
-    if (onClick != null) Card(onClick = onClick, modifier = m, colors = colors, border = border, shape = RoundedCornerShape(16.dp)) { Column(Modifier.padding(16.dp), content = content) }
-    else Card(modifier = m, colors = colors, border = border, shape = RoundedCornerShape(16.dp)) { Column(Modifier.padding(16.dp), content = content) }
+    if (onClick != null) Card(onClick = onClick, modifier = m, colors = colors, border = border, shape = RoundedCornerShape(20.dp), content = content) else Card(modifier = m, colors = colors, border = border, shape = RoundedCornerShape(20.dp), content = content)
 }
 
 fun categoryColor(c: Category) = when (c) {
@@ -141,9 +141,16 @@ fun DocRow(doc: Document, owner: String?, onClick: () -> Unit) {
 
 @Composable
 fun Stat(value: String, label: String, modifier: Modifier = Modifier) {
-    SoftCard(modifier) {
-        Text(value, style = MaterialTheme.typography.headlineSmall, color = Brand.EmeraldDeep)
-        Muted(label)
+    Box(
+        modifier.clip(RoundedCornerShape(20.dp))
+            .background(Brush.linearGradient(listOf(Brand.EmeraldDeep, Brand.Emerald, Brand.TealDeep)))
+            .padding(14.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(value, fontWeight = FontWeight.Bold, fontSize = 19.sp, color = Color.White)
+            Text(label, fontSize = 10.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 0.6.sp, color = Color.White.copy(alpha = 0.85f))
+        }
     }
 }
 
