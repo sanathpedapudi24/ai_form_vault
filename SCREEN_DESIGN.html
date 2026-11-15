@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>AI Form &amp; Vault - Screen Design v2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..800&family=Figtree:wght@400..700&display=swap" rel="stylesheet">
+<style>
+:root{--paper:#EDF3EE;--card:#FFFFFF;--card2:#DDEADF;--line:#CBDACF;--ink:#0B1A14;--ink2:#4B6055;--g:#0A3B2C;--g2:#1B7456;--on:#FFFFFF;--gs:#D9EADF;
+--amber:var(--ink);--amberS:var(--card2);--red:var(--ink);--redS:var(--card2);
+--disp:"Bricolage Grotesque","Segoe UI",system-ui,sans-serif;--body:"Figtree","Segoe UI",system-ui,-apple-system,Roboto,sans-serif}
+[data-theme=dark]{--paper:#08130E;--card:#101D17;--card2:#19291F;--line:#233529;--ink:#E8F2EC;--ink2:#8AA295;--g:#BFE8D2;--g2:#7FCFA6;--on:#08130E;--gs:#19291F}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{font-family:var(--body);background:#E3E8E4;color:#13201A;display:flex;flex-direction:column;align-items:center;padding:24px 12px;font-variant-numeric:tabular-nums}
+button{font:inherit;color:inherit;cursor:pointer;border:0;background:none}
+:focus-visible{outline:3px solid var(--g);outline-offset:2px}
+.shell-h{width:100%;max-width:760px;display:flex;align-items:baseline;gap:14px;margin-bottom:16px}
+.shell-h h1{font:700 20px/1.2 var(--disp);letter-spacing:-.01em;color:#0E1F18}
+.shell-h p{font-size:13px;color:#5C6C63;flex:1}
+.shbtn{height:36px;padding:0 16px;border-radius:18px;background:#0E1F18;color:#fff;font-size:13px;font-weight:600}
+.layout{display:flex;gap:24px;align-items:flex-start;justify-content:center;width:100%}
+#nav{width:196px;flex:none;position:sticky;top:16px;display:flex;flex-direction:column;gap:2px}
+#nav button{display:flex;align-items:center;gap:12px;padding:0 14px;height:44px;border-radius:22px;color:#46564D;font-size:14px;font-weight:500;text-align:left}
+#nav button:hover{background:#D5DDD7}
+#nav button.on{background:#0E1F18;color:#fff;font-weight:650}
+.phone{width:390px;height:844px;max-height:calc(100vh - 48px);background:var(--paper);color:var(--ink);border-radius:46px;border:9px solid #0E1F18;overflow:hidden;position:relative;display:flex;flex-direction:column}
+.sb{height:38px;flex:none;display:flex;align-items:center;justify-content:space-between;padding:6px 26px 0;font-size:13px;font-weight:650}
+.sb span{display:flex;gap:6px;align-items:center}
+.screens{flex:1;position:relative;min-height:0}
+.screen{position:absolute;inset:0;display:flex;flex-direction:column;animation:in .2s ease-out}
+@keyframes in{from{opacity:0}to{opacity:1}}
+.scroll{flex:1;overflow-y:auto;padding:4px 16px 120px;scrollbar-width:none}
+.screen:has(.dock) .scroll{padding-bottom:24px}
+.scroll::-webkit-scrollbar{display:none}
+.ic{flex:none}
+.xl{font:700 32px/36px var(--disp);letter-spacing:-.03em}
+h1{font:700 32px/36px var(--disp);letter-spacing:-.03em}
+.ti{font-size:16px;line-height:22px;font-weight:600}
+.su{font-size:14px;line-height:20px;color:var(--ink2)}
+.sec{font:650 15px/20px var(--body);color:var(--ink);margin:28px 6px 10px}
+.num{font-weight:600;letter-spacing:.08em}
+.grow{flex:1;min-width:0}
+.bar{flex:none;display:flex;align-items:center;gap:4px;padding:8px 16px 12px 20px}
+.bar.back{padding-left:8px}
+.bar h1{flex:1}
+.bar.back .ib:first-child{margin-right:6px}
+.ib{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;background:var(--card);border:1px solid var(--line)}
+.ib:hover{background:var(--card2)}
+.grp,.bc,.tf,.dc{background:var(--card);border:1px solid var(--line)}
+.grp{border-radius:24px;overflow:hidden}
+.item{display:flex;align-items:center;gap:14px;padding:12px 16px;min-height:72px}
+.item+.item{border-top:1px solid var(--line)}
+.item[role=button]{cursor:pointer}
+.item[role=button]:hover{background:var(--paper)}
+.dic{width:46px;height:46px;border-radius:14px;background:var(--gs);color:var(--g2);display:grid;place-items:center;flex:none}
+.av{width:46px;height:46px;border-radius:50%;background:var(--g);color:var(--on);display:grid;place-items:center;font:700 15px var(--disp);flex:none}
+.chev{color:var(--ink2)}
+.kv{display:flex;gap:12px;align-items:baseline;padding:15px 18px}
+.kv+.kv{border-top:1px solid var(--line)}
+.kv .k{width:104px;flex:none;font-size:14px;color:var(--ink2)}
+.kv .v{flex:1;font-size:16px;font-weight:550}
+.kv .v.off{color:var(--ink2);font-weight:400}
+.pill{display:inline-flex;align-items:center;gap:4px;padding:5px 11px 5px 8px;border-radius:14px;font-size:12px;font-weight:650;white-space:nowrap}
+.pill.ok{background:var(--gs);color:var(--g)}
+.pill.warn{background:var(--g);color:var(--on)}
+.btn{display:flex;align-items:center;justify-content:center;gap:10px;height:56px;border-radius:28px;padding:0 24px;width:100%;font-size:16px;font-weight:650}
+.btn.pri{background:var(--g);color:var(--on)}
+.btn.tonal{background:var(--gs);color:var(--g)}
+.btn.line{border:1.5px solid var(--line);background:var(--card);color:var(--ink)}
+.btn.ghost{color:var(--ink);text-decoration:underline;text-underline-offset:3px}
+.btn.sm{height:38px;width:auto;padding:0 18px;font-size:14px;border-radius:19px}
+.tbtn{height:44px;padding:0 16px;border-radius:22px;color:var(--g);font-weight:650;font-size:15px}
+.note{display:flex;gap:12px;padding:16px;border-radius:22px;margin-bottom:10px}
+.note b{display:block;font-size:15px;line-height:20px;font-weight:650}
+.note span.t{display:block;font-size:14px;line-height:20px;margin-top:2px;color:var(--ink2)}
+.note.warn{border:1.5px solid var(--g)}.note.warn .ic{color:var(--g)}
+.note.ok{background:var(--gs)}.note.ok .ic{color:var(--g)}
+.note .acts{display:flex;gap:8px;margin-top:14px}
+.tf{border-radius:18px;padding:10px 16px 11px;margin-bottom:10px}
+.tf.miss{border:1.5px dashed var(--g);background:transparent}
+.tf label{display:block;font-size:12px;color:var(--ink2)}
+.tf div{font-size:17px;font-weight:550;line-height:24px}
+.chips{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;padding:2px 0 16px}
+.chips::-webkit-scrollbar{display:none}
+.chip{height:38px;padding:0 16px;border-radius:19px;border:1px solid var(--line);font-size:14px;font-weight:550;display:flex;align-items:center;gap:6px;flex:none;background:var(--card)}
+.chip.on{background:var(--g);border-color:var(--g);color:var(--on);font-weight:650}
+.fab{position:absolute;right:16px;bottom:100px;height:56px;padding:0 24px 0 20px;border-radius:28px;background:var(--g);color:var(--on);display:flex;align-items:center;gap:10px;font-weight:700;z-index:4}
+.dock{flex:none;padding:14px 16px 18px;background:var(--paper);border-top:1px solid var(--line);display:flex;flex-direction:column;gap:8px}
+.cred{position:relative;overflow:hidden;border-radius:28px;padding:22px;color:#fff;background:#0B3D2E;min-height:196px;display:flex;flex-direction:column;justify-content:space-between}
+.cred>*{position:relative;z-index:1}
+.cred .top{display:flex;justify-content:space-between;align-items:center;font-size:14px;font-weight:550;color:#B7D4C6}
+.cred .nm{font:700 30px/34px var(--disp);letter-spacing:-.025em}
+.cred .cn{font-size:17px;color:#DCEBE3;margin-top:14px;padding-top:14px;border-top:1px solid rgba(255,255,255,.2)}
+.cred.alt{background:#0E1F18}
+.hero{position:relative;overflow:hidden;border-radius:30px;padding:22px;color:#fff;background:#0B3D2E}
+.hic{width:52px;height:52px;border-radius:16px;background:rgba(255,255,255,.14);display:grid;place-items:center}
+.hero h2{font:700 34px/36px var(--disp);letter-spacing:-.03em;margin-top:30px}
+.hero p{font-size:15px;line-height:21px;color:#B7D4C6;margin:8px 0 20px;max-width:270px;position:relative}
+.hero .btn{background:#fff;color:#0B3D2E;position:relative}
+.quick{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:20px}
+.quick button{display:flex;flex-direction:column;align-items:center;gap:8px;font-size:13px;font-weight:550}
+.quick .dic{width:60px;height:60px;border-radius:50%;background:var(--card);border:1px solid var(--line);color:var(--ink)}
+.bento{display:grid;grid-template-columns:1.2fr 1fr;gap:10px;margin-top:22px}
+.bc{border-radius:24px;padding:16px;display:flex;flex-direction:column;justify-content:space-between;gap:12px;min-height:100px}
+.bc b{display:block;font:700 40px/1 var(--disp);letter-spacing:-.03em}
+.bc span{font-size:13px;color:var(--ink2)}
+.bc.tall{grid-row:span 2}.bc.tall b{font-size:64px}
+.bc.warn{background:var(--g);border-color:var(--g);color:var(--on)}.bc.warn span{color:var(--on);opacity:.8}
+.bc.wide{grid-column:span 2;flex-direction:row;align-items:center;gap:14px;min-height:0}
+.seg{display:flex;gap:4px;height:12px}
+.seg i{display:block;border-radius:6px;background:var(--g)}
+.seg i:nth-child(2){opacity:.5}.seg i:nth-child(3){opacity:.22}
+.dg{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.dc{border-radius:24px;padding:16px;min-height:176px;display:flex;flex-direction:column;justify-content:space-between;cursor:pointer}
+.dc:hover{background:var(--gs)}
+.field{display:flex;align-items:center;gap:12px;height:58px;border-radius:29px;background:var(--card);border:1px solid var(--line);padding:0 20px;margin-bottom:6px;color:var(--ink2)}
+.field input{flex:1;border:0;background:none;font:inherit;font-size:17px;color:var(--ink);outline:0}
+mark{background:var(--g);color:var(--on);border-radius:4px;padding:0 3px}
+.lockv{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding-bottom:36px}
+.mark{width:76px;height:76px;border-radius:24px;background:var(--g);color:var(--on);display:grid;place-items:center;margin-bottom:18px}
+.dots{display:flex;gap:16px;margin:28px 0 20px}
+.dots i{width:14px;height:14px;border-radius:50%;border:2px solid var(--ink2)}
+.dots i.on{background:var(--g);border-color:var(--g)}
+.pad{display:grid;grid-template-columns:repeat(3,76px);gap:12px 20px;margin:6px 0 10px}
+.pad button{height:68px;border-radius:50%;font:600 28px var(--disp);display:grid;place-items:center;background:var(--card);border:1px solid var(--line)}
+.pad button:hover{background:var(--card2)}
+.vf{position:relative;height:230px;border-radius:28px;background:#0B3D2E;overflow:hidden;margin-bottom:28px}
+.vf i{position:absolute;width:36px;height:36px;border:4px solid #fff}
+.vf .tl{left:20px;top:20px;border-right:0;border-bottom:0;border-radius:14px 0 0 0}
+.vf .tr{right:20px;top:20px;border-left:0;border-bottom:0;border-radius:0 14px 0 0}
+.vf .bl{left:20px;bottom:20px;border-right:0;border-top:0;border-radius:0 0 0 14px}
+.vf .br{right:20px;bottom:20px;border-left:0;border-top:0;border-radius:0 0 14px 0}
+.vf::after{content:"";position:absolute;left:14%;right:14%;height:3px;border-radius:2px;background:#fff;animation:scan 2.2s ease-in-out infinite}
+@keyframes scan{0%,100%{top:20%}50%{top:78%}}
+.s{position:relative;display:flex;gap:16px;padding-bottom:28px}
+.s:not(:last-child)::before{content:"";position:absolute;left:17px;top:38px;bottom:2px;width:2px;background:var(--line)}
+.s.done:not(:last-child)::before{background:var(--g)}
+.dot{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;flex:none;background:var(--card2);color:var(--ink2);font-size:14px;font-weight:650}
+.s.done .dot,.dot.ok{background:var(--g);color:var(--on)}
+.s.now .dot{background:var(--gs);color:var(--g)}
+.spin{width:18px;height:18px;border-radius:50%;border:2.5px solid var(--line);border-top-color:var(--g);animation:sp .8s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+.prog{height:6px;border-radius:3px;background:var(--card2);margin:0 4px 18px;overflow:hidden}
+.prog i{display:block;height:100%;width:40%;background:var(--g);border-radius:3px}
+.sw{width:52px;height:32px;border-radius:16px;background:var(--card2);border:2px solid var(--ink2);position:relative;flex:none}
+.sw::after{content:"";position:absolute;left:5px;top:4px;width:18px;height:18px;border-radius:50%;background:var(--ink2)}
+.sw.on{background:var(--g);border-color:var(--g)}
+.sw.on::after{left:21px;top:2px;width:24px;height:24px;background:var(--on)}
+.tabs{position:absolute;left:16px;right:16px;bottom:16px;height:68px;border-radius:34px;background:var(--card);border:1px solid var(--line);display:flex;align-items:center;gap:4px;padding:0 8px;z-index:5}
+.tabs button{flex:1;height:52px;border-radius:26px;display:flex;align-items:center;justify-content:center;gap:8px;color:var(--ink2);font-weight:700;font-size:14px}
+.tabs button.on{flex:2.1;background:var(--g);color:var(--on)}
+.tabs .l{display:none}.tabs .on .l{display:inline}
+@media (max-width:640px){#nav{display:none}.phone{width:100%;max-width:390px}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important}}
+</style>
+</head>
+<body>
+<div class="shell-h"><h1>AI Form &amp; Vault</h1><p>Screen design v5 for the Android app</p><button id="th" class="shbtn">Dark mode</button></div>
+<div class="layout">
+  <nav id="nav" aria-label="Screens"></nav>
+  <div class="phone">
+    <div class="sb"><span>9:41</span><span id="sbi"></span></div>
+    <div class="screens" id="screens"></div>
+    <div class="tabs" id="tabs"></div>
+  </div>
+</div>
+
+<script>
+/* Icon set: 24px grid, 1.75 stroke (Lucide-style paths). Map to Material Symbols or vector drawables in Kotlin. */
+const P={
+lock:'<rect width="18" height="11" x="3" y="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
+shield:'<path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/>',
+finger:'<path d="M12 10a2 2 0 0 0-2 2c0 1.02-.1 2.51-.26 4"/><path d="M14 13.12c0 2.38 0 6.38-1 8.88"/><path d="M17.29 21.02c.12-.6.43-2.3.5-3.02"/><path d="M2 12a10 10 0 0 1 18-6"/><path d="M5 19.5C5.5 18 6 15 6 12a6 6 0 0 1 .34-2"/><path d="M8.65 22c.21-.66.45-1.32.57-2"/><path d="M9 6.8a6 6 0 0 1 9 5.2v2"/>',
+scan:'<path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><path d="M7 12h10"/>',
+image:'<rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.09-3.09a2 2 0 0 0-2.82 0L6 21"/>',
+file:'<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/>',
+id:'<path d="M16 10h2"/><path d="M16 14h2"/><path d="M6.17 15a3 3 0 0 1 5.66 0"/><circle cx="9" cy="11" r="2"/><rect x="2" y="5" width="20" height="14" rx="2"/>',
+redo:'<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/>',
+search:'<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
+plus:'<path d="M5 12h14"/><path d="M12 5v14"/>',
+left:'<path d="m15 18-6-6 6-6"/>',
+right:'<path d="m9 18 6-6-6-6"/>',
+more:'<circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/>',
+home:'<path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/><path d="M3 10a2 2 0 0 1 .71-1.53l7-6a2 2 0 0 1 2.58 0l7 6A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
+vault:'<rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="12" cy="12" r="3"/><path d="M12 5v2"/><path d="M12 17v2"/><path d="M5 12h2"/><path d="M17 12h2"/>',
+user:'<path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',
+users:'<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
+check:'<path d="M20 6 9 17l-5-5"/>',
+alert:'<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/>',
+info:'<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>',
+share:'<path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><path d="m16 6-4-4-4 4"/><path d="M12 2v13"/>',
+print:'<path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6"/><rect x="6" y="14" width="12" height="8" rx="1"/>',
+down:'<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/>',
+trash:'<path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>',
+edit:'<path d="M21.17 6.81a1 1 0 0 0-3.99-3.99L3.84 16.17a2 2 0 0 0-.5.83l-1.32 4.35a.5.5 0 0 0 .62.62l4.35-1.32a2 2 0 0 0 .83-.5z"/><path d="m15 5 4 4"/>',
+cap:'<path d="M21.42 10.92a1 1 0 0 0-.02-1.84L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.83l8.57 3.91a2 2 0 0 0 1.66 0z"/><path d="M22 10v6"/><path d="M6 12.5V16a6 3 0 0 0 12 0v-3.5"/>',
+bank:'<path d="M3 22h18"/><path d="M6 18v-7"/><path d="M10 18v-7"/><path d="M14 18v-7"/><path d="M18 18v-7"/><path d="m12 2 8 5H4z"/>',
+form:'<path d="M5 4h1a3 3 0 0 1 3 3 3 3 0 0 1 3-3h1"/><path d="M13 20h-1a3 3 0 0 1-3-3 3 3 0 0 1-3 3H5"/><path d="M5 16H4a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h1"/><path d="M13 8h7a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-7"/><path d="M9 7v10"/>',
+bksp:'<path d="M10 5a2 2 0 0 0-1.34.52l-6.33 5.74a1 1 0 0 0 0 1.48l6.33 5.74A2 2 0 0 0 10 19h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2z"/><path d="m12 9 6 6"/><path d="m18 9-6 6"/>',
+key:'<path d="m21 2-9.6 9.6"/><circle cx="7.5" cy="15.5" r="5.5"/><path d="m15.5 7.5 3 3L22 7l-3-3"/>',
+list:'<path d="M3 6h18"/><path d="M3 12h18"/><path d="M3 18h12"/>'
+};
+const I=(n,s=22)=>`<svg class="ic" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${P[n]}</svg>`;
+
+/* helpers */
+const bar=(t,back,right='')=>`<div class="bar ${back?'back':''}">${back?ib('left','Back',back):''}<h1>${t}</h1>${right}</div>`;
+const ib=(n,l,go='')=>`<button class="ib" aria-label="${l}" ${go?`data-go="${go}"`:''}>${I(n)}</button>`;
+const sec=t=>`<h2 class="sec">${t}</h2>`;
+const grp=h=>`<div class="grp">${h}</div>`;
+const pill=(t,k='ok')=>`<span class="pill ${k}">${I(k=='ok'?'check':'alert',14)}${t}</span>`;
+const item=(lead,t,s,end='',go='')=>`<div class="item" ${go?`data-go="${go}" role="button" tabindex="0"`:''}>${lead}<div class="grow"><div class="ti">${t}</div>${s?`<div class="su">${s}</div>`:''}</div>${end}</div>`;
+const dic=n=>`<div class="dic">${I(n)}</div>`;
+const chev=`<span class="chev">${I('right',20)}</span>`;
+const kv=(k,v,x='')=>`<div class="kv"><span class="k">${k}</span><span class="v ${v=='Not set'?'off':''}">${v}</span>${x}</div>`;
+const tf=(l,v,m='')=>`<div class="tf ${m}"><label>${l}</label><div>${v}</div></div>`;
+const note=(k,ic,t,s,acts='')=>`<div class="note ${k}">${I(ic,22)}<div class="grow"><b>${t}</b><span class="t">${s}</span>${acts?`<div class="acts">${acts}</div>`:''}</div></div>`;
+const cred=(lbl,name,num,alt)=>`<div class="cred ${alt?'alt':''}"><div class="top"><span>${lbl}</span>${I('shield',22)}</div><div><div class="nm">${name}</div><div class="cn num">${num}</div></div></div>`;
+const docs=[['id','Aadhaar card','Identity','Rahul Kumar','ok','Verified'],['file','PAN card','Identity','Ramesh Kumar','ok','Verified'],['cap','Class 10 marksheet','Education','Rahul Kumar','warn','Check DOB'],['bank','Bank passbook','Finance','Rahul Kumar','ok','Verified']];
+
+const V={
+lock:()=>`<div class="scroll lockv"><div class="mark">${I('shield',34)}</div><div class="xl">AI Form &amp; Vault</div><p class="su" style="margin-top:6px">Enter your PIN to open your documents</p>
+<div class="dots" aria-label="2 of 4 digits entered"><i class="on"></i><i class="on"></i><i></i><i></i></div>
+<div class="pad">${[1,2,3,4,5,6,7,8,9].map(n=>`<button>${n}</button>`).join('')}<button aria-label="Unlock with fingerprint" data-go="home">${I('finger',28)}</button><button>0</button><button aria-label="Delete digit">${I('bksp',26)}</button></div>
+<button class="tbtn">Forgot PIN</button></div>`,
+
+home:()=>`<div class="bar"><div class="grow"><div class="su">Good morning</div><h1>Rahul Kumar</h1></div><div class="av ring">RK</div></div>
+<div class="scroll"><div class="hero"><div class="hic">${I('scan',26)}</div><h2>Scan a document</h2><p>Text is read on your phone. You check every detail before it is saved.</p><button class="btn" data-go="scanning">${I('scan',20)}Start scan</button></div>
+<div class="quick"><button data-go="scanning"><div class="dic">${I('image',24)}</div>Photos</button><button data-go="scanning"><div class="dic">${I('file',24)}</div>PDF</button><button data-go="digital"><div class="dic">${I('id',24)}</div>Digital ID</button><button data-go="review"><div class="dic">${I('redo',24)}</div>Rescan</button></div>
+<div class="bento"><div class="bc tall"><div class="seg"><i style="flex:3"></i><i style="flex:2"></i><i style="flex:1"></i></div><div><b>6</b><span>Documents saved</span></div></div><div class="bc warn">${I('alert',22)}<div><b>1</b><span>Expiring soon</span></div></div><div class="bc">${I('check',22)}<div><b>0</b><span>Mismatches</span></div></div><div class="bc wide">${dic('lock')}<div class="grow"><div class="ti">Encrypted on this phone</div><div class="su">AES-256 with SQLCipher</div></div></div></div>
+${sec('Recent')}${grp(docs.slice(0,3).map(d=>item(dic(d[0]),d[1],d[3],pill(d[5],d[4]),'doc')).join(''))}</div>`,
+
+vault:()=>`${bar('Vault','',ib('search','Search','search'))}
+<div class="scroll"><div class="chips"><button class="chip on">${I('check',16)}All</button><button class="chip">Identity</button><button class="chip">Finance</button><button class="chip">Education</button><button class="chip">Travel</button></div>
+<div class="dg">${docs.map(d=>`<div class="dc" data-go="doc" role="button" tabindex="0"><div class="dic">${I(d[0],22)}</div><div><div class="ti">${d[1]}</div><div class="su" style="margin:2px 0 10px">${d[3].split(' ')[0]}</div>${pill(d[5],d[4])}</div></div>`).join('')}</div></div>
+<button class="fab" data-go="scanning">${I('plus',24)}Add</button>`,
+
+search:()=>`${bar('Search','home')}
+<div class="scroll"><div class="field">${I('search',22)}<input value="2345" aria-label="Search documents"></div>
+${sec('Matches')}${grp(item(dic('id'),'Aadhaar card','Number <mark>2345</mark> 6789 0124','', 'doc'))}
+${sec('People')}${grp(item('<div class="av">RK</div>','Rahul Kumar','Aadhaar, marksheet, passbook',chev,'profile')+item('<div class="av">RK</div>','Ramesh Kumar','Father, PAN card owner',chev,'relatives'))}</div>`,
+
+profile:()=>`${bar('Profile','',ib('more','More options'))}
+<div class="scroll">${cred('Verified from Aadhaar','Rahul Kumar','Self')}
+${sec('Your details')}${grp(kv('Name','Rahul Kumar')+kv('Mobile','9876543210')+kv('Email','rahul@example.com')+kv('PIN code','560001'))}
+${sec('Needs your attention')}${note('warn','alert','Mobile number differs','Aadhaar has 9876543210. Marksheet has 9876543211.',`<button class="btn tonal sm">Choose one</button>`)}
+${sec('Family')}${grp(item(dic('users'),'Relationships','2 confirmed, 2 to review',chev,'relatives'))}
+${sec('Backup and reset')}${grp(item(dic('down'),'Export backup','Encrypted .aivault file',chev)+item(`<div class="dic" style="background:var(--redS);color:var(--red)">${I('trash')}</div>`,'<span style="color:var(--red)">Wipe vault</span>','Deletes database, scans and keys',chev))}</div>`,
+
+doc:()=>`${bar('Aadhaar card','vault',ib('more','More options'))}
+<div class="scroll">${cred('Aadhaar, India','Rahul Kumar','2345 6789 0124')}
+${sec('Extracted details')}${grp(kv('Name','Rahul Kumar')+kv('Date of birth','15/08/2004')+kv('Gender','Male')+kv('Aadhaar number','2345 6789 0124'))}
+${sec('Manage')}${grp(item(dic('redo'),'Re-read fields','Run text recognition again on saved pages',chev)+item(dic('edit'),'Edit manually','Override a value on this document',chev)+item(`<div class="dic" style="background:var(--redS);color:var(--red)">${I('trash')}</div>`,'<span style="color:var(--red)">Delete document</span>','Removes the scans and extracted details',''))}</div>`,
+
+review:()=>`${bar('Review','home')}
+<div class="scroll"><div class="su" style="margin:0 4px 8px">Document 2 of 5, Aadhaar card</div><div class="prog" role="progressbar" aria-valuenow="2" aria-valuemax="5"><i></i></div>
+${note('warn','alert','You may already have this','Aadhaar card for Rahul Kumar, added 12 Oct.',`<button class="btn sm pri">Open it</button><button class="btn sm ghost">Save anyway</button>`)}
+${sec('Found on the document')}${grp(['Name','Date of birth','Gender','Aadhaar number'].map(k=>item(`<div class="dot ok">${I('check',18)}</div>`,k,'Matches what we expected')).join(''))}
+${sec('Check and edit')}${tf('Name','Rahul Kumar')}${tf('Father','Suresh Kumar')}${tf('Date of birth','15/08/2004')}${tf('Aadhaar number','2345 6789 0124')}</div>
+<div class="dock"><button class="btn pri" data-go="doc">Save document</button><button class="btn line" data-go="home">Skip this one</button></div>`,
+
+scanning:()=>`${bar('Scanning','home')}
+<div class="scroll"><div class="vf"><i class="tl"></i><i class="tr"></i><i class="bl"></i><i class="br"></i></div>
+<div class="s done"><div class="dot">${I('check',18)}</div><div><div class="ti">Reading the text</div><div class="su">Page 1 of 2 done</div></div></div>
+<div class="s now"><div class="dot"><div class="spin"></div></div><div><div class="ti">Understanding the document</div><div class="su">Aadhaar layout found</div></div></div>
+<div class="s"><div class="dot">3</div><div><div class="ti">Organizing the details</div><div class="su">Matching them to what we expect</div></div></div></div>
+<div class="dock"><button class="btn line" data-go="home">Cancel scan</button></div>`,
+
+digital:()=>`${bar('Digital ID')}
+<div class="scroll">${cred('Verified in AI Form &amp; Vault','Rahul Kumar','Aadhaar 2345 6789 0124',1)}
+${sec('Share this ID')}${grp(item(dic('share'),'Share','Use the Android share sheet. Your vault stays here.',chev)+item(dic('print'),'Print card','Save as PDF or print',chev))}
+${sec('Privacy')}${grp(item(dic('lock'),'Mask number when sharing','Only the last 4 digits are shown','<span class="sw on" role="switch" aria-checked="true" aria-label="Mask number when sharing"></span>'))}</div>`,
+
+relatives:()=>{const p=[['SK','Suresh Kumar','Father',1],['LK','Lakshmi Kumar','Mother',1],['RK','Ramesh Kumar','Brother',0],['AK','Ananya Kumar','Wife',0]];
+return `${bar('Relationships','profile',ib('plus','Add person'))}
+<div class="scroll">${note('ok','info','2 suggestions to review','Built only from your own documents.')}
+${grp(p.map(x=>item(`<div class="av">${x[0]}</div>`,x[1],x[2],x[3]?pill('Confirmed'):`<button class="btn tonal sm">Confirm</button>`)).join(''))}</div>`},
+
+snapfill:()=>`${bar('SnapFill','home',ib('more','More options'))}
+<div class="scroll"><div class="ti" style="margin:0 4px">Income tax e-filing form</div><p class="su" style="margin:4px 4px 16px">Filled from your vault. Review each field before you submit.</p>
+${tf('Name','Rahul Kumar')}${tf('PAN','ABCDE1234F')}${tf('Mobile','9876543210')}${tf('Email','Not set. Add it to fill this field.','miss')}</div>
+<div class="dock"><button class="btn pri">${I('form',20)}Fill this form</button><button class="btn line">Edit fields</button></div>`
+};
+
+const L=[['lock','Lock','lock'],['home','Home','home'],['vault','Vault','vault'],['search','Search','search'],['profile','Profile','user'],['doc','Document','file'],['review','Review','check'],['scanning','Scanning','scan'],['digital','Digital ID','id'],['relatives','Relationships','users'],['snapfill','SnapFill','form']];
+const T=[['home','Home'],['vault','Vault'],['digital','ID','id'],['profile','Profile','user']];
+const TI={home:'home',vault:'vault',digital:'id',profile:'user'};
+const nav=document.getElementById('nav'),scr=document.getElementById('screens'),tabs=document.getElementById('tabs');
+let timer;
+function render(id){
+  clearTimeout(timer);
+  scr.innerHTML=`<div class="screen">${V[id]()}</div>`;
+  tabs.style.display=TI[id]?'flex':'none';
+  tabs.innerHTML=T.map(t=>`<button aria-label="${t[1]}" data-go="${t[0]}" class="${t[0]===id?'on':''}" ${t[0]===id?'aria-current="page"':''}>${I(TI[t[0]],22)}<span class="l">${t[1]}</span></button>`).join('');
+  nav.querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.go===id));
+  if(id==='scanning')timer=setTimeout(()=>render('review'),3600);
+}
+nav.innerHTML=L.map(l=>`<button data-go="${l[0]}">${I(l[2],20)}${l[1]}</button>`).join('');
+document.getElementById('sbi').innerHTML='<svg width="18" height="12" viewBox="0 0 18 12" fill="currentColor"><rect x="0" y="8" width="3" height="4" rx="1"/><rect x="5" y="5" width="3" height="7" rx="1"/><rect x="10" y="2" width="3" height="10" rx="1"/><rect x="15" y="0" width="3" height="12" rx="1"/></svg><svg width="26" height="12" viewBox="0 0 26 12" fill="none" stroke="currentColor"><rect x=".5" y=".5" width="21" height="11" rx="3"/><rect x="2.5" y="2.5" width="14" height="7" rx="1.5" fill="currentColor" stroke="none"/><path d="M24 4v4" stroke-width="2" stroke-linecap="round"/></svg>';
+document.addEventListener('click',e=>{const b=e.target.closest('[data-go]');if(b&&V[b.dataset.go])render(b.dataset.go)});
+document.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.matches('[role=button][data-go]'))e.target.click()});
+document.getElementById('th').onclick=function(){var d=document.documentElement,l=d.dataset.theme==='dark';d.dataset.theme=l?'':'dark';this.textContent=l?'Dark mode':'Light mode'};
+render('home');
+</script>
+</body>
+</html>
