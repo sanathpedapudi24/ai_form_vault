@@ -65,6 +65,7 @@ import com.aiformvault.Ocr
 import com.aiformvault.Person
 import com.aiformvault.Relation
 import com.aiformvault.Store
+import com.aiformvault.duplicatesOf
 import com.aiformvault.expectedFacts
 import com.aiformvault.mask
 import com.aiformvault.sameName
@@ -74,10 +75,18 @@ import com.aiformvault.titleCase
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 import java.util.UUID
 
 private const val ME = "me"
 private const val OTHER = "other"
+
+private val addedFmt = DateTimeFormatter.ofPattern("d MMM yyyy", Locale.ENGLISH)
+private fun addedOn(millis: Long): String =
+    Instant.ofEpochMilli(millis).atZone(ZoneId.systemDefault()).toLocalDate().format(addedFmt)
 
 /** Every extracted value is a suggestion: the user checks, fixes or drops each before anything is saved (FR-OCR-10). */
 @Composable
@@ -103,6 +112,19 @@ fun ReviewScreen(state: AppState, r: Route.Review) {
     var saving by remember { mutableStateOf(false) }
     var sendText by remember { mutableStateOf(false) }
 
+    // Duplicate check runs on the draft, before anything is saved, so it can still be cancelled.
+    // Advisory only: it never disables Save.
+    val dupes = remember(facts.toList(), owner, type, title, category, data.documents) {
+        val ownerKey = when (owner) {
+            ME -> data.self?.id ?: ME
+            OTHER -> OTHER
+            else -> owner
+        }
+        val draft = Document("", type, category, title.trim(), ownerKey,
+            facts.filter { it.value.isNotBlank() }, r.pages.size, createdAt = 0)
+        duplicatesOf(draft, data.documents)
+    }
+
     fun save() {
         saving = true
         scope.launch {
@@ -127,6 +149,27 @@ fun ReviewScreen(state: AppState, r: Route.Review) {
         }
     }
 
+    /** Explicit user choice: replace the existing document's details and scans, keeping its id, owner and note. */
+    fun updateExisting(existing: Document) {
+        saving = true
+        val title = title.ifBlank { type.label }.trim()
+        val clean = facts.filter { it.value.isNotBlank() }.map { it.copy(value = it.value.trim()) }
+        scope.launch {
+            // Write the new pages first, prune only after they are down: a failure keeps the old ones readable.
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    Store.saveImages(ctx, existing.id, r.pages)
+                    Store.pruneImages(ctx, existing.id, r.pages.size)
+                }
+            }.onFailure { saving = false; state.message = "Couldn't save the images: ${it.message}"; return@launch }
+            state.update { d -> d.copy(documents = d.documents.map {
+                if (it.id == existing.id) it.copy(type = type, category = category, title = title, facts = clean, pages = r.pages.size) else it
+            }) }
+            state.replace(Route.Doc(existing.id))
+            state.message = "Updated “$title”"
+        }
+    }
+
     Page(title = "Check the details", onBack = state::back, bottom = {
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             OutlinedButton(onClick = state::back, Modifier.weight(1f).height(52.dp), enabled = !saving) { Text("Discard") }
@@ -136,6 +179,23 @@ fun ReviewScreen(state: AppState, r: Route.Review) {
         }
     }) {
         Muted("Fix anything misread and clear anything wrong. Nothing is saved until you tap Save.")
+        dupes.firstOrNull()?.let { hit ->
+            Spacer(Modifier.height(12.dp))
+            SoftCard(color = Brand.WarnSoft) {
+                Text(
+                    if (hit.strong) "This ${type.label.lowercase()} is already in your vault" else "You may already have a similar document",
+                    style = MaterialTheme.typography.titleSmall,
+                )
+                Muted("“${hit.doc.title}”, added ${addedOn(hit.doc.createdAt)}.")
+                Muted(if (hit.strong)
+                    "Tap Save to keep both, or update the old one instead. Nothing is overwritten unless you choose it."
+                else "Same type, owner and name. Open it to check before saving a second copy.")
+                Row {
+                    TextButton(onClick = { state.go(Route.Doc(hit.doc.id)) }) { Text("Open it") }
+                    if (hit.strong) TextButton(onClick = { updateExisting(hit.doc) }, enabled = !saving) { Text("Update it") }
+                }
+            }
+        }
         Spacer(Modifier.height(16.dp))
         Picker("Type", type, DocType.entries, { it.label }) { type = it; category = it.category; title = suggestTitle(it, facts) }
         Spacer(Modifier.height(8.dp))

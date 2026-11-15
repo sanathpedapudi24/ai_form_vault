@@ -100,6 +100,14 @@ object Store {
         imgDir(ctx).listFiles { f -> f.name.startsWith("${docId}_") }?.forEach { it.delete() }
     }
 
+    /** Drops page files past [keep]. Used when a document is updated with fewer pages than before. */
+    fun pruneImages(ctx: Context, docId: String, keep: Int) {
+        imgDir(ctx).listFiles { f -> f.name.startsWith("${docId}_") }?.forEach { f ->
+            val page = f.name.removePrefix("${docId}_").removeSuffix(".bin").toIntOrNull()
+            if (page == null || page >= keep) f.delete()
+        }
+    }
+
     /** "Forgot PIN" last resort: there's no account to recover through, so the vault goes. */
     fun wipe(ctx: Context) {
         ctx.filesDir.deleteRecursively()
