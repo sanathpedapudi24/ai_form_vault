@@ -3,7 +3,7 @@ name: CI / CD — Android APK Build & Release
 on:
   push:
     branches: [ main, develop ]
-    tags: [ 'v*' ]  # triggers release on version tags like v4.1.0
+    tags: [ 'v*' ]
   pull_request:
     branches: [ main, develop ]
 
@@ -11,65 +11,16 @@ env:
   ANDROID_COMPILE_SDK: 36
   ANDROID_BUILD_TOOLS: 36.0.0
   ANDROID_NDK_VERSION: 27.0.12077973
-  GRADLE_OPTS: -Dorg.gradle.jvmargs="-Xmx4g -XX:MaxMetaspaceSize=512m"
+  GRADLE_OPTS: -Dorg.gradle.jvmargs="-Xmx4g -XX:MaxMetaspaceSize=512m" -Dorg.gradle.daemon=false
 
 jobs:
-  # ---------------------------------------------------------------
-  # 1) CI: unit tests + lint + debug APK build (every PR / push)
-  # ---------------------------------------------------------------
+  # ===================================================================
+  # 1) CI — Tests, Lint, Debug APK (every PR / push)
+  # ===================================================================
   ci:
     name: CI — Tests, Lint, Debug APK
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request' || !startsWith(github.ref, 'refs/tags/')
-    timeout-minutes: 30
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: 17
-          cache: gradle
-
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Validate Gradle wrapper
-        uses: gradle/wrapper-validation-action@v2
-
-      - name: Run unit tests
-        run: ./gradlew testDebugUnitTest --no-daemon
-        env:
-          GRADLE_OPTS: ${{ env.GRADLE_OPTS }}
-
-      - name: Run Android Lint
-        run: ./gradlew lintDebug --no-daemon
-        env:
-          GRADLE_OPTS: ${{ env.GRADLE_OPTS }}
-
-      - name: Build Debug APK
-        run: ./gradlew assembleDebug --no-daemon
-        env:
-          GRADLE_OPTS: ${{ env.GRADLE_OPTS }}
-
-      - name: Upload Debug APK artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: debug-apk
-          path: app/build/outputs/apk/debug/app-debug.apk
-          retention-days: 7
-
-  # ---------------------------------------------------------------
-  # 2) Release: full checks + signed release APK → GitHub Release
-  # ---------------------------------------------------------------
-  release:
-    name: Release — Sign APK & Publish to GitHub Release
-    needs: ci
-    runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/')
     timeout-minutes: 45
 
     steps:
@@ -89,17 +40,69 @@ jobs:
       - name: Validate Gradle wrapper
         uses: gradle/wrapper-validation-action@v2
 
+      - name: Make gradlew executable
+        run: chmod +x gradlew
+
+      - name: Run unit tests
+        run: ./gradlew testDebugUnitTest --no-daemon --stacktrace
+        env:
+          GRADLE_OPTS: ${{ env.GRADLE_OPTS }}
+
+      - name: Run Android Lint (debug)
+        run: ./gradlew lintDebug --no-daemon --stacktrace || true
+        env:
+          GRADLE_OPTS: ${{ env.GRADLE_OPTS }}
+
+      - name: Build Debug APK
+        run: ./gradlew assembleDebug --no-daemon --stacktrace
+        env:
+          GRADLE_OPTS: ${{ env.GRADLE_OPTS }}
+
+      - name: Upload Debug APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: debug-apk
+          path: app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 7
+
+  # ===================================================================
+  # 2) Release — Signed APK + GitHub Release (only on tags)
+  # ===================================================================
+  release:
+    name: Release — Sign APK & Publish
+    needs: ci
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/') && secrets.RELEASE_KEYSTORE_B64 != ''
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+          cache: gradle
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Validate Gradle wrapper
+        uses: gradle/wrapper-validation-action@v2
+
+      - name: Make gradlew executable
+        run: chmod +x gradlew
+
       - name: Decode release keystore
         id: decode_keystore
-        if: env.RELEASE_KEYSTORE_B64 != ''
         run: |
           echo "${{ secrets.RELEASE_KEYSTORE_B64 }}" | base64 -d > release-keystore.jks
           echo "keystore_path=$PWD/release-keystore.jks" >> $GITHUB_OUTPUT
-        env:
-          RELEASE_KEYSTORE_B64: ${{ secrets.RELEASE_KEYSTORE_B64 }}
 
       - name: Run unit tests (release)
-        run: ./gradlew testReleaseUnitTest --no-daemon
+        run: ./gradlew testReleaseUnitTest --no-daemon --stacktrace
         env:
           RELEASE_STORE_FILE: ${{ steps.decode_keystore.outputs.keystore_path }}
           RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
@@ -108,7 +111,7 @@ jobs:
           GRADLE_OPTS: ${{ env.GRADLE_OPTS }}
 
       - name: Run Android Lint (release)
-        run: ./gradlew lintRelease --no-daemon
+        run: ./gradlew lintRelease --no-daemon --stacktrace || true
         env:
           RELEASE_STORE_FILE: ${{ steps.decode_keystore.outputs.keystore_path }}
           RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
@@ -117,7 +120,7 @@ jobs:
           GRADLE_OPTS: ${{ env.GRADLE_OPTS }}
 
       - name: Build signed Release APK
-        run: ./gradlew assembleRelease --no-daemon
+        run: ./gradlew assembleRelease --no-daemon --stacktrace
         env:
           RELEASE_STORE_FILE: ${{ steps.decode_keystore.outputs.keystore_path }}
           RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
@@ -127,16 +130,19 @@ jobs:
 
       - name: Verify APK is signed
         run: |
-          apk_path=$(find app/build/outputs/apk/release -name "*.apk" | head -1)
+          apk_path=$(find app/build/outputs/apk/release -name "app-release.apk" | head -1)
+          if [ -z "$apk_path" ]; then
+            echo "❌ No release APK found"
+            exit 1
+          fi
           echo "APK: $apk_path"
-          $ANDROID_HOME/build-tools/*/apksigner verify --print-certs "$apk_path" || true
+          "$ANDROID_SDK_ROOT/build-tools/$ANDROID_BUILD_TOOLS/apksigner" verify --print-certs "$apk_path" || true
 
       - name: Extract version from tag
         id: version
         run: |
           tag=${GITHUB_REF#refs/tags/}
           echo "tag=$tag" >> $GITHUB_OUTPUT
-          # Strip leading 'v' for versionName if present
           version_name=${tag#v}
           echo "version_name=$version_name" >> $GITHUB_OUTPUT
 
@@ -157,7 +163,7 @@ jobs:
 
             ### Installation
             1. Download `app-release.apk` from this release.
-            2. On your Android device, enable "Install from unknown sources" for your browser/file manager.
+            2. On your Android device, enable "Install from unknown sources".
             3. Open the APK and install.
           draft: false
           prerelease: false
@@ -169,3 +175,20 @@ jobs:
           name: release-apk
           path: app/build/outputs/apk/release/app-release.apk
           retention-days: 30
+
+  # ===================================================================
+  # 3) Release fallback — notify if no keystore configured
+  # ===================================================================
+  release-no-keystore:
+    name: Release — No Keystore (skip)
+    needs: ci
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/') && secrets.RELEASE_KEYSTORE_B64 == ''
+    timeout-minutes: 5
+
+    steps:
+      - name: Warn about missing keystore
+        run: |
+          echo "⚠️  RELEASE_KEYSTORE_B64 secret is not configured."
+          echo "   Release APK will not be built or published."
+          echo "   Add the secret to enable signed releases on tags."

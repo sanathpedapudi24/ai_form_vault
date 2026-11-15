@@ -16,3 +16,6 @@ release-keystore.jks
 test_set/
 __pycache__/
 *.csv
+
+# Cloned external tools (not part of this repo)
+github-star-organizer/

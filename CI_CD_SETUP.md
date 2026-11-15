@@ -1,45 +1,41 @@
 # CI/CD Setup — AI Form & Vault
 
-This document explains how to set up the GitHub Actions pipeline that builds,
-tests, lints, signs, and releases the APK to GitHub Releases.
+Fixed GitHub Actions pipeline that builds, tests, lints, signs, and releases the APK.
 
-## Pipeline overview
+## Pipeline Overview
 
 | Trigger | Job | What it does |
 |---------|-----|--------------|
 | Push to `main` / `develop` | `ci` | Unit tests → Android Lint → Debug APK → upload artifact |
 | Pull request to `main` / `develop` | `ci` | Same as above (blocking check) |
-| Push tag `v*` (e.g. `v4.1.0`) | `ci` → `release` | Tests → Lint → **signed Release APK** → GitHub Release + asset |
+| Push tag `v*` + keystore secret | `release` | Tests → Lint → **signed Release APK** → GitHub Release + asset |
+| Push tag `v*` + NO keystore | `release-no-keystore` | Warns that release is skipped |
 
-The `release` job depends on `ci` passing, so no broken build ever gets released.
-
-## Files created
+## Files
 
 | File | Purpose |
 |------|---------|
-| `.github/workflows/ci-cd.yml` | GitHub Actions workflow (CI + Release) |
-| `app/build.gradle.kts` | Added `signingConfigs.release` + `buildTypes.release` (reads signing values from env vars) |
-| `gradle.properties` | Default signing property placeholders (empty passwords) |
-| `app/proguard-rules.pro` | ProGuard/R8 rules for release minification |
+| `.github/workflows/ci-cd.yml` | GitHub Actions workflow (CI + Release + fallback) |
+| `app/build.gradle.kts` | Optional release signing (only if env vars present) + Google/Maven repos |
+| `app/proguard-rules.pro` | ProGuard/R8 rules for release |
+| `gradle.properties` | Gradle JVM args + caching |
 | `.gitignore` | Excludes `release-keystore.jks`, `*.jks`, `*.keystore`, `*.key` |
 | `CI_CD_SETUP.md` | This document |
 
-## Required GitHub secrets
+## Required GitHub Secrets
 
-Go to your repo → **Settings → Secrets and variables → Actions** and add:
+Go to **Repo Settings → Secrets and variables → Actions** and add:
 
-| Secret | Description | Example |
-|--------|-------------|---------|
-| `RELEASE_KEYSTORE_B64` | Base64-encoded release keystore file | `base64 -i release-keystore.jks` |
-| `RELEASE_STORE_PASSWORD` | Keystore store password | `your-store-password` |
-| `RELEASE_KEY_ALIAS` | Key alias inside the keystore | `upload` or `my-key` |
-| `RELEASE_KEY_PASSWORD` | Key password (can equal store password) | `your-key-password` |
+| Secret | Description | Required for |
+|--------|-------------|--------------|
+| `RELEASE_KEYSTORE_B64` | Base64-encoded release keystore | Release APK |
+| `RELEASE_STORE_PASSWORD` | Keystore store password | Release APK |
+| `RELEASE_KEY_ALIAS` | Key alias inside the keystore | Release APK |
+| `RELEASE_KEY_PASSWORD` | Key password | Release APK |
 
-> ⚠️ Never commit `release-keystore.jks` or real passwords to git. They are excluded by `.gitignore`.
+> ⚠️ Never commit `release-keystore.jks` or real passwords. They are excluded by `.gitignore`.
 
 ## Step 1 — Generate a release keystore (one time)
-
-Run this locally (requires `keytool` from the JDK):
 
 ```bash
 keytool -genkeypair -v \
@@ -53,27 +49,25 @@ keytool -genkeypair -v \
   -dname "CN=AI Form & Vault, O=Android, C=US"
 ```
 
-Then encode it for the GitHub secret:
+Encode it for GitHub secret:
 
 ```powershell
-# PowerShell (Windows)
+# PowerShell
 [Convert]::ToBase64String((Get-Content -Path "release-keystore.jks" -Encoding Byte)) | Set-Clipboard
 ```
 
-Paste the output into the `RELEASE_KEYSTORE_B64` secret.
+Paste into `RELEASE_KEYSTORE_B64` secret.
 
 ## Step 2 — Add the four secrets
 
-In GitHub repo settings → Secrets and variables → Actions → New repository secret:
+In GitHub repo → Settings → Secrets and variables → Actions → New repository secret:
 
-1. `RELEASE_KEYSTORE_B64` — paste the base64 output from Step 1
-2. `RELEASE_STORE_PASSWORD` — the store password you chose
+1. `RELEASE_KEYSTORE_B64` — paste base64 output
+2. `RELEASE_STORE_PASSWORD` — your store password
 3. `RELEASE_KEY_ALIAS` — e.g. `my-key`
-4. `RELEASE_KEY_PASSWORD` — the key password you chose
+4. `RELEASE_KEY_PASSWORD` — your key password
 
 ## Step 3 — Create a release tag
-
-The release job only runs when you push a tag matching `v*`:
 
 ```bash
 git tag v4.1.1
@@ -82,9 +76,9 @@ git push origin v4.1.1
 
 This triggers:
 1. `ci` job (tests, lint, debug APK)
-2. `release` job (signed release APK → GitHub Release with `app-release.apk` asset)
+2. `release` job (signed release APK → GitHub Release with `app-release.apk`)
 
-The release is created automatically with release notes. Download the APK from the GitHub Releases page.
+If keystore secret is missing, `release-no-keystore` runs instead and just warns.
 
 ## Step 4 — Versioning
 
@@ -97,21 +91,19 @@ defaultConfig {
 }
 ```
 
-## Local verification (before pushing)
-
-Run the same checks locally to catch issues early:
+## Local verification
 
 ```bash
 # Unit tests
 ./gradlew testDebugUnitTest
 
-# Lint
+# Lint (debug)
 ./gradlew lintDebug
 
 # Debug APK
 ./gradlew assembleDebug
 
-# Release APK (needs signing env vars set)
+# Release APK (needs signing env vars)
 export RELEASE_STORE_FILE=release-keystore.jks
 export RELEASE_STORE_PASSWORD=...
 export RELEASE_KEY_ALIAS=my-key
@@ -123,7 +115,9 @@ export RELEASE_KEY_PASSWORD=...
 
 | Issue | Fix |
 |-------|-----|
-| `RELEASE_KEYSTORE_B64` secret missing | Add it in repo settings → Secrets → Actions |
-| Keystore decode fails | Verify base64 string is valid; re-encode from the original `.jks` |
-| APK not signed | Check all four secrets are set; ensure `app-release.apk` exists in `app/build/outputs/apk/release/` |
-| Lint fails | Fix lint issues in `app/build/reports/lint-*.html` or add ProGuard rules |
+| `RELEASE_KEYSTORE_B64` secret missing | Add it in repo Settings → Secrets → Actions |
+| Keystore decode fails | Verify base64 string is valid; re-encode from original `.jks` |
+| APK not signed | Check all four secrets are set; ensure `app-release.apk` exists |
+| Lint fails | Fix issues in `app/build/reports/lint-*.html` or add ProGuard rules |
+| Gradle OOM | Increase `GRADLE_OPTS` heap (currently 4g) |
+| `compileSdk 36` not available | Android SDK setup action installs it automatically |

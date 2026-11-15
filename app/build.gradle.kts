@@ -18,7 +18,7 @@ android {
 
     signingConfigs {
         create("release") {
-            storeFile = rootProject.file(System.getenv("RELEASE_STORE_FILE") ?: "release-keystore.jks")
+            storeFile = rootProject.file(System.getenv("RELEASE_STORE_FILE") ?: "")
             storePassword = System.getenv("RELEASE_STORE_PASSWORD") ?: ""
             keyAlias = System.getenv("RELEASE_KEY_ALIAS") ?: ""
             keyPassword = System.getenv("RELEASE_KEY_PASSWORD") ?: ""
@@ -32,14 +32,40 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            signingConfig = signingConfigs.getByName("release")
+            // Only apply signing if env vars are present (CI provides them)
+            if (System.getenv("RELEASE_STORE_FILE") != null &&
+                System.getenv("RELEASE_STORE_PASSWORD") != null &&
+                System.getenv("RELEASE_KEY_ALIAS") != null &&
+                System.getenv("RELEASE_KEY_PASSWORD") != null) {
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
     }
 
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = "17"
+    }
+
     buildFeatures { compose = true }
+
+    packaging {
+        resources {
+            excludes += "/META-INF/{AL2.0,LGPL2.1}"
+        }
+    }
 }
 
 kotlin { jvmToolchain(17) }
+
+repositories {
+    google()
+    mavenCentral()
+}
 
 dependencies {
     implementation(platform("androidx.compose:compose-bom:2025.09.00"))
