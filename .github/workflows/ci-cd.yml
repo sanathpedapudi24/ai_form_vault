@@ -20,7 +20,6 @@ jobs:
   ci:
     name: CI — Tests, Lint, Debug APK
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request' || !startsWith(github.ref, 'refs/tags/')
     timeout-minutes: 45
 
     steps:
@@ -72,15 +71,28 @@ jobs:
     name: Release — Sign APK & Publish
     needs: ci
     runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/') && secrets.RELEASE_KEYSTORE_B64 != ''
+    if: startsWith(github.ref, 'refs/tags/')
     timeout-minutes: 60
+    env:
+      RELEASE_KEYSTORE_B64: ${{ secrets.RELEASE_KEYSTORE_B64 }}
 
     steps:
+      - name: Check release signing configuration
+        id: release_config
+        run: |
+          if [ -n "$RELEASE_KEYSTORE_B64" ]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Checkout repository
         uses: actions/checkout@v4
+        if: steps.release_config.outputs.configured == 'true'
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
+        if: steps.release_config.outputs.configured == 'true'
         with:
           distribution: temurin
           java-version: 17
@@ -88,21 +100,26 @@ jobs:
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
+        if: steps.release_config.outputs.configured == 'true'
 
       - name: Validate Gradle wrapper
         uses: gradle/wrapper-validation-action@v2
+        if: steps.release_config.outputs.configured == 'true'
 
       - name: Make gradlew executable
         run: chmod +x gradlew
+        if: steps.release_config.outputs.configured == 'true'
 
       - name: Decode release keystore
         id: decode_keystore
         run: |
           echo "${{ secrets.RELEASE_KEYSTORE_B64 }}" | base64 -d > release-keystore.jks
           echo "keystore_path=$PWD/release-keystore.jks" >> $GITHUB_OUTPUT
+        if: steps.release_config.outputs.configured == 'true'
 
       - name: Run unit tests (release)
         run: ./gradlew testReleaseUnitTest --no-daemon --stacktrace
+        if: steps.release_config.outputs.configured == 'true'
         env:
           RELEASE_STORE_FILE: ${{ steps.decode_keystore.outputs.keystore_path }}
           RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
@@ -112,6 +129,7 @@ jobs:
 
       - name: Run Android Lint (release)
         run: ./gradlew lintRelease --no-daemon --stacktrace || true
+        if: steps.release_config.outputs.configured == 'true'
         env:
           RELEASE_STORE_FILE: ${{ steps.decode_keystore.outputs.keystore_path }}
           RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
@@ -121,6 +139,7 @@ jobs:
 
       - name: Build signed Release APK
         run: ./gradlew assembleRelease --no-daemon --stacktrace
+        if: steps.release_config.outputs.configured == 'true'
         env:
           RELEASE_STORE_FILE: ${{ steps.decode_keystore.outputs.keystore_path }}
           RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
@@ -137,6 +156,7 @@ jobs:
           fi
           echo "APK: $apk_path"
           "$ANDROID_SDK_ROOT/build-tools/$ANDROID_BUILD_TOOLS/apksigner" verify --print-certs "$apk_path" || true
+        if: steps.release_config.outputs.configured == 'true'
 
       - name: Extract version from tag
         id: version
@@ -145,10 +165,12 @@ jobs:
           echo "tag=$tag" >> $GITHUB_OUTPUT
           version_name=${tag#v}
           echo "version_name=$version_name" >> $GITHUB_OUTPUT
+        if: steps.release_config.outputs.configured == 'true'
 
       - name: Create GitHub Release
         id: create_release
         uses: softprops/action-gh-release@v2
+        if: steps.release_config.outputs.configured == 'true'
         with:
           tag_name: ${{ steps.version.outputs.tag }}
           name: Release ${{ steps.version.outputs.tag }}
@@ -171,6 +193,7 @@ jobs:
 
       - name: Upload Release APK artifact (backup)
         uses: actions/upload-artifact@v4
+        if: steps.release_config.outputs.configured == 'true'
         with:
           name: release-apk
           path: app/build/outputs/apk/release/app-release.apk
@@ -183,12 +206,16 @@ jobs:
     name: Release — No Keystore (skip)
     needs: ci
     runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/') && secrets.RELEASE_KEYSTORE_B64 == ''
+    if: startsWith(github.ref, 'refs/tags/')
     timeout-minutes: 5
 
     steps:
       - name: Warn about missing keystore
         run: |
-          echo "⚠️  RELEASE_KEYSTORE_B64 secret is not configured."
-          echo "   Release APK will not be built or published."
-          echo "   Add the secret to enable signed releases on tags."
+          if [ -n "${{ secrets.RELEASE_KEYSTORE_B64 }}" ]; then
+            echo "Release signing secret is configured; signed release job handles this tag."
+          else
+            echo "RELEASE_KEYSTORE_B64 secret is not configured."
+            echo "Release APK will not be built or published."
+            echo "Add the secret to enable signed releases on tags."
+          fi
